@@ -39,6 +39,17 @@ public class PublicationService {
     }
 
     /**
+     * 게시본 하나(버전·스키마 포함).
+     *
+     * @throws NotFoundException 해당 게시본이 없을 때
+     */
+    public PublicationResponse get(Long publicationId) {
+        return toResponse(publicationRepository
+                .findById(publicationId)
+                .orElseThrow(() -> new NotFoundException("게시본을 찾을 수 없습니다: " + publicationId)));
+    }
+
+    /**
      * 게시본의 필드 스키마.
      *
      * @throws NotFoundException 해당 게시본이 없을 때

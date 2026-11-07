@@ -2,6 +2,9 @@ package kr.securityadvisor.request.service;
 
 import java.time.Clock;
 import java.util.List;
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.schema.AnswerScope;
@@ -34,6 +37,7 @@ public class AnswerService {
     private final SecurityRequestRepository securityRequestRepository;
     private final PublicationService publicationService;
     private final RequestAccessPolicy accessPolicy;
+    private final AuditRecorder auditRecorder;
     private final Clock clock;
 
     public AnswerService(
@@ -41,12 +45,27 @@ public class AnswerService {
             SecurityRequestRepository securityRequestRepository,
             PublicationService publicationService,
             RequestAccessPolicy accessPolicy,
+            AuditRecorder auditRecorder,
             Clock clock) {
         this.answerRepository = answerRepository;
         this.securityRequestRepository = securityRequestRepository;
         this.publicationService = publicationService;
         this.accessPolicy = accessPolicy;
+        this.auditRecorder = auditRecorder;
         this.clock = clock;
+    }
+
+    /** 답변 변경 기록(F-14). 값 자체는 남기지 않고 항목·출처만 남긴다(기관 사실 값 보호, 불변식 25). */
+    private void audit(MemberPrincipal actor, Answer answer, AuditAction action, String what) {
+        boolean caseScope = answer.getScope() == AnswerScope.CASE;
+        auditRecorder.record(
+                actor,
+                caseScope ? AuditTargetType.BUSINESS_CASE : AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(caseScope ? answer.getBusinessCaseId() : answer.getSecurityRequestId()),
+                answer.getRevision(),
+                action,
+                null,
+                answer.getFieldKey() + " " + what + " (출처 " + answer.getValueSource() + ")");
     }
 
     /** 공통 항목에 사용자 답변을 저장한다. 그 항목을 쓰는 미제출 신청에 같은 값이 보인다(scope=CASE). */
@@ -64,6 +83,7 @@ public class AnswerService {
                 })
                 .orElseGet(() -> answerRepository.save(
                         Answer.userAnswer(AnswerScope.CASE, businessCaseId, null, field.key(), request.value())));
+        audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         return AnswerResponse.from(answer);
     }
 
@@ -87,6 +107,7 @@ public class AnswerService {
                         securityRequestId,
                         field.key(),
                         request.value())));
+        audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         return AnswerResponse.from(answer);
     }
 
@@ -98,6 +119,7 @@ public class AnswerService {
         Answer answer = existingCaseAnswer(businessCaseId, fieldKey);
         requireRevision(answer, request.expectedRevision());
         answer.confirmByUser(principal.username(), clock.instant());
+        audit(principal, answer, AuditAction.ANSWER_CONFIRMED, "AI 제안 값 사용자 확인");
         return AnswerResponse.from(answer);
     }
 
@@ -109,6 +131,7 @@ public class AnswerService {
         Answer answer = existingRequestAnswer(securityRequestId, fieldKey);
         requireRevision(answer, request.expectedRevision());
         answer.confirmByUser(principal.username(), clock.instant());
+        audit(principal, answer, AuditAction.ANSWER_CONFIRMED, "AI 제안 값 사용자 확인");
         return AnswerResponse.from(answer);
     }
 
@@ -127,6 +150,7 @@ public class AnswerService {
                 })
                 .orElseGet(() -> answerRepository.save(
                         Answer.staffCheckNeeded(AnswerScope.CASE, businessCaseId, null, field.key())));
+        audit(principal, answer, AuditAction.STAFF_CHECK_REQUESTED, "담당자 확인 요청");
         return AnswerResponse.from(answer);
     }
 
@@ -146,6 +170,7 @@ public class AnswerService {
                 })
                 .orElseGet(() -> answerRepository.save(Answer.staffCheckNeeded(
                         AnswerScope.REQUEST, securityRequest.getBusinessCaseId(), securityRequestId, field.key())));
+        audit(principal, answer, AuditAction.STAFF_CHECK_REQUESTED, "담당자 확인 요청");
         return AnswerResponse.from(answer);
     }
 

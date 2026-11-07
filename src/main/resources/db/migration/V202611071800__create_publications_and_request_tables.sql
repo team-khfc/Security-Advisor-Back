@@ -115,6 +115,7 @@ COMMENT ON TABLE submissions IS '제출본. 생성 후 불변 — 보완은 새 
 -- 6) seed 게시본 v1: 서류 유형 2종 + 최소 필드 스키마(기획 확정 전 임시, 전부 합성). 운영자가 유형·질문을 바꾸면 새 게시본 버전으로 추가한다(기존 게시본 수정 금지).
 INSERT INTO publications (version, field_schema)
 VALUES (1, '{
+  "deadlinePolicy": {"reviewBusinessDays": 5, "supplementBusinessDays": 5, "finalConfirmationBusinessDays": 5, "imminentBusinessDays": 1, "holidays": ["2026-12-25", "2027-01-01"]},
   "docTypes": [
     {"code": "FIREWALL", "name": "방화벽 정책 허용 신청서", "description": "서버·IP·포트 통신 허용을 신청합니다.", "active": true, "templateKey": "firewall-v1", "generatesFirewallRules": true, "reviewFields": ["INFRA", "SECURITY"], "sortOrder": 1},
     {"code": "SECURITY_REVIEW", "name": "정보화사업 보안성검토 신청서", "description": "정보화사업·서비스의 보안성검토를 의뢰합니다.", "active": true, "templateKey": "security-review-v1", "generatesFirewallRules": false, "reviewFields": ["INFRA", "SECURITY"], "sortOrder": 2}

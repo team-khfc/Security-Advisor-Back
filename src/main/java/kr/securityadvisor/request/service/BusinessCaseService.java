@@ -1,6 +1,9 @@
 package kr.securityadvisor.request.service;
 
 import java.util.List;
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.schema.AnswerScope;
@@ -37,18 +40,21 @@ public class BusinessCaseService {
     private final AnswerRepository answerRepository;
     private final PublicationService publicationService;
     private final RequestAccessPolicy accessPolicy;
+    private final AuditRecorder auditRecorder;
 
     public BusinessCaseService(
             BusinessCaseRepository businessCaseRepository,
             SecurityRequestRepository securityRequestRepository,
             AnswerRepository answerRepository,
             PublicationService publicationService,
-            RequestAccessPolicy accessPolicy) {
+            RequestAccessPolicy accessPolicy,
+            AuditRecorder auditRecorder) {
         this.businessCaseRepository = businessCaseRepository;
         this.securityRequestRepository = securityRequestRepository;
         this.answerRepository = answerRepository;
         this.publicationService = publicationService;
         this.accessPolicy = accessPolicy;
+        this.auditRecorder = auditRecorder;
     }
 
     /**
@@ -84,7 +90,24 @@ public class BusinessCaseService {
         for (SecurityRequest securityRequest : requests) {
             prefillRequestPlaceholders(securityRequest, schema);
         }
-        // TODO(정용석): audit 컨텍스트 도입 후 사업 건·신청 생성을 audit_events 에 기록한다(F-14).
+        auditRecorder.record(
+                principal,
+                AuditTargetType.BUSINESS_CASE,
+                String.valueOf(caseId),
+                businessCase.getRevision(),
+                AuditAction.BUSINESS_CASE_CREATED,
+                null,
+                "사업 건 생성 — 게시본 " + publicationId + ", 서류 " + request.docTypes());
+        for (SecurityRequest securityRequest : requests) {
+            auditRecorder.record(
+                    principal,
+                    AuditTargetType.SECURITY_REQUEST,
+                    String.valueOf(securityRequest.getId()),
+                    securityRequest.getRevision(),
+                    AuditAction.SECURITY_REQUEST_CREATED,
+                    null,
+                    securityRequest.getDocType() + " 신청 생성 — 사업 건 " + caseId + ", 1단계 작성 중");
+        }
         return toResponse(businessCase, requests);
     }
 
@@ -114,6 +137,14 @@ public class BusinessCaseService {
         BusinessCase businessCase = accessPolicy.ownedCase(principal, businessCaseId);
         businessCase.requireRevision(request.expectedRevision());
         businessCase.updateOutline(request.title(), request.summary(), request.department());
+        auditRecorder.record(
+                principal,
+                AuditTargetType.BUSINESS_CASE,
+                String.valueOf(businessCaseId),
+                businessCase.getRevision(),
+                AuditAction.BUSINESS_CASE_UPDATED,
+                null,
+                "사업 개요 수정");
         return toResponse(businessCase, securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCaseId));
     }
 

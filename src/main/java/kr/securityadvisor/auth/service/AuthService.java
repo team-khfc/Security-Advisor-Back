@@ -2,6 +2,9 @@ package kr.securityadvisor.auth.service;
 
 import java.time.Clock;
 import java.time.Instant;
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.dto.LoginRequest;
 import kr.securityadvisor.auth.dto.MemberResponse;
@@ -10,6 +13,7 @@ import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.error.TooManyRequestsException;
 import kr.securityadvisor.common.error.UnauthorizedException;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.common.security.MemberRole;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,16 +31,19 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final LoginAttemptRecorder loginAttemptRecorder;
+    private final AuditRecorder auditRecorder;
     private final Clock clock;
 
     public AuthService(
             MemberRepository memberRepository,
             PasswordEncoder passwordEncoder,
             LoginAttemptRecorder loginAttemptRecorder,
+            AuditRecorder auditRecorder,
             Clock clock) {
         this.memberRepository = memberRepository;
         this.passwordEncoder = passwordEncoder;
         this.loginAttemptRecorder = loginAttemptRecorder;
+        this.auditRecorder = auditRecorder;
         this.clock = clock;
     }
 
@@ -52,19 +59,25 @@ public class AuthService {
         Member member = memberRepository
                 .findById(request.username())
                 .filter(Member::canLogin)
-                .orElseThrow(() -> new UnauthorizedException(LOGIN_FAILED));
+                .orElseThrow(() -> {
+                    audit(request.username(), null, AuditAction.LOGIN_FAILED, "계정 없음 또는 비활성");
+                    return new UnauthorizedException(LOGIN_FAILED);
+                });
         if (member.isLocked(now)) {
+            audit(member.getUsername(), member.getRole(), AuditAction.LOGIN_LOCKED, "잠금 중 시도");
             throw new TooManyRequestsException(LOGIN_LOCKED);
         }
         if (!passwordEncoder.matches(request.password(), member.getPasswordHash())) {
             boolean lockedNow = loginAttemptRecorder.recordFailure(member.getUsername(), now);
             if (lockedNow) {
+                audit(member.getUsername(), member.getRole(), AuditAction.LOGIN_LOCKED, "연속 실패로 잠금");
                 throw new TooManyRequestsException(LOGIN_LOCKED);
             }
+            audit(member.getUsername(), member.getRole(), AuditAction.LOGIN_FAILED, "비밀번호 불일치");
             throw new UnauthorizedException(LOGIN_FAILED);
         }
         loginAttemptRecorder.recordSuccess(member.getUsername());
-        // TODO(정용석): audit 컨텍스트 도입 후 로그인 성공·실패를 audit_events 에 기록한다(F-14).
+        audit(member.getUsername(), member.getRole(), AuditAction.LOGIN_SUCCEEDED, null);
         return new LoginResult(toPrincipal(member), MemberResponse.from(member));
     }
 
@@ -80,6 +93,11 @@ public class AuthService {
                 .filter(Member::canLogin)
                 .map(MemberResponse::from)
                 .orElseThrow(() -> new UnauthorizedException("로그인이 필요하거나 세션이 만료되었습니다"));
+    }
+
+    /** 로그인 시도 기록(F-14). 비밀번호는 절대 담지 않는다. */
+    private void audit(String username, MemberRole role, AuditAction action, String summary) {
+        auditRecorder.record(username, role, AuditTargetType.MEMBER, username, null, action, null, summary);
     }
 
     private static MemberPrincipal toPrincipal(Member member) {

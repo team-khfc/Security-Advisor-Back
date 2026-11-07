@@ -7,12 +7,14 @@ import java.util.Optional;
 /**
  * 게시본에 고정된 서류 유형 목록 + 필드 스키마 전체. 사업 건은 생성 시점 게시본을 끝까지 쓴다(불변식 8).
  *
+ * @param deadlinePolicy 처리 기한 정책(없으면 기본값)
  * @param docTypes 이 게시본이 제공하는 서류 유형(ADR 0005 — 유형은 데이터)
  * @param fields 항목 목록(키는 유일)
  */
-public record FieldSchema(List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
+public record FieldSchema(DeadlinePolicy deadlinePolicy, List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
 
     public FieldSchema {
+        deadlinePolicy = deadlinePolicy == null ? DeadlinePolicy.defaults() : deadlinePolicy;
         docTypes = docTypes == null ? List.of() : docTypes;
         fields = fields == null ? List.of() : fields;
     }

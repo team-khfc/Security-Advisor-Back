@@ -1,20 +1,28 @@
 package kr.securityadvisor.request.controller;
 
 import jakarta.validation.Valid;
+import java.util.List;
+import kr.securityadvisor.assignment.dto.AssignmentResponse;
+import kr.securityadvisor.assignment.dto.ReassignRequest;
+import kr.securityadvisor.audit.dto.AuditEventResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
+import kr.securityadvisor.request.dto.DeadlineResponse;
 import kr.securityadvisor.request.dto.SecurityRequestResponse;
 import kr.securityadvisor.request.dto.WithdrawRequest;
 import kr.securityadvisor.request.service.AnswerService;
 import kr.securityadvisor.request.service.SecurityRequestService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -73,5 +81,31 @@ public class SecurityRequestController {
     public SecurityRequestResponse withdraw(
             @CurrentMember MemberPrincipal member, @PathVariable Long id, @Valid @RequestBody WithdrawRequest request) {
         return securityRequestService.withdraw(member, id, request);
+    }
+
+    /** 배정 이력(활성·비활성). */
+    @GetMapping("/{id}/assignments")
+    public List<AssignmentResponse> assignments(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
+        return securityRequestService.assignments(member, id);
+    }
+
+    /** 재배정(기관 관리자, 사유 필수). 새 배정 생성 — 이전 배정은 비활성으로 보존. 관리자가 아니면 403. */
+    @PostMapping("/{id}/assignments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AssignmentResponse reassign(
+            @CurrentMember MemberPrincipal member, @PathVariable Long id, @Valid @RequestBody ReassignRequest request) {
+        return securityRequestService.reassign(member, id, request);
+    }
+
+    /** 처리 기한(오늘 기준 기한 내·임박·지남 계산 포함). */
+    @GetMapping("/{id}/deadlines")
+    public List<DeadlineResponse> deadlines(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
+        return securityRequestService.deadlines(member, id);
+    }
+
+    /** 처리 이력(감사 이력 중 이 신청 대상). */
+    @GetMapping("/{id}/audit-events")
+    public List<AuditEventResponse> auditTrail(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
+        return securityRequestService.auditTrail(member, id);
     }
 }

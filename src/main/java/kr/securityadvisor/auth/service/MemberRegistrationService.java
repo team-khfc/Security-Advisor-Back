@@ -1,5 +1,8 @@
 package kr.securityadvisor.auth.service;
 
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.SignupRequest;
@@ -15,10 +18,13 @@ public class MemberRegistrationService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditRecorder auditRecorder;
 
-    public MemberRegistrationService(MemberRepository memberRepository, PasswordEncoder passwordEncoder) {
+    public MemberRegistrationService(
+            MemberRepository memberRepository, PasswordEncoder passwordEncoder, AuditRecorder auditRecorder) {
         this.memberRepository = memberRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditRecorder = auditRecorder;
     }
 
     /**
@@ -36,7 +42,16 @@ public class MemberRegistrationService {
                 passwordEncoder.encode(request.password()),
                 request.displayName(),
                 request.department());
-        // TODO(정용석): audit 컨텍스트 도입 후 회원가입을 audit_events 에 기록한다(F-14).
-        return MemberResponse.from(memberRepository.save(member));
+        Member saved = memberRepository.save(member);
+        auditRecorder.record(
+                saved.getUsername(),
+                saved.getRole(),
+                AuditTargetType.MEMBER,
+                saved.getUsername(),
+                null,
+                AuditAction.MEMBER_REGISTERED,
+                null,
+                "회원가입 — 역할 APPLICANT 고정");
+        return MemberResponse.from(saved);
     }
 }

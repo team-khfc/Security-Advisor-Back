@@ -21,6 +21,7 @@ class FieldSchemaTest {
     private static final DocTypeCode USB = DocTypeCode.of("USB_REQUEST");
 
     private static final FieldSchema SCHEMA = new FieldSchema(
+            null,
             List.of(
                     new DocTypeDefinition(USB, "USB 사용 신청서", null, true, "usb-v1", false, Set.of(MemberRole.SECURITY), 2),
                     new DocTypeDefinition(FIREWALL, "방화벽", null, true, "fw-v1", true, Set.of(MemberRole.INFRA, MemberRole.SECURITY), 1),

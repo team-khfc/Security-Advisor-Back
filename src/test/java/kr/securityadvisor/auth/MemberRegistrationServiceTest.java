@@ -13,6 +13,7 @@ import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.SignupRequest;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.auth.service.MemberRegistrationService;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
@@ -33,6 +34,9 @@ class MemberRegistrationServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuditRecorder auditRecorder;
 
     @InjectMocks
     private MemberRegistrationService service;

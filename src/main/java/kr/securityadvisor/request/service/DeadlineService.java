@@ -1,0 +1,170 @@
+package kr.securityadvisor.request.service;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Set;
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
+import kr.securityadvisor.common.calendar.BusinessCalendar;
+import kr.securityadvisor.common.schema.DeadlinePolicy;
+import kr.securityadvisor.common.schema.FieldSchema;
+import kr.securityadvisor.common.schema.ReviewField;
+import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.configuration.dto.PublicationResponse;
+import kr.securityadvisor.configuration.service.PublicationService;
+import kr.securityadvisor.request.domain.Deadline;
+import kr.securityadvisor.request.domain.DeadlineKind;
+import kr.securityadvisor.request.domain.SecurityRequest;
+import kr.securityadvisor.request.dto.DeadlineResponse;
+import kr.securityadvisor.request.repository.DeadlineRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * 처리 기한 유스케이스(F-13). 기한 정책은 사업 건이 고정한 게시본에서 읽고, 영업일 계산은 {@link BusinessCalendar} 가 한다.
+ * 기한 경과는 상태를 바꾸지 않으며 표시(조회 시 계산)와 알림만 한다.
+ */
+@Service
+@Transactional
+public class DeadlineService {
+
+    static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
+
+    private final DeadlineRepository deadlineRepository;
+    private final PublicationService publicationService;
+    private final AuditRecorder auditRecorder;
+    private final Clock clock;
+
+    public DeadlineService(
+            DeadlineRepository deadlineRepository,
+            PublicationService publicationService,
+            AuditRecorder auditRecorder,
+            Clock clock) {
+        this.deadlineRepository = deadlineRepository;
+        this.publicationService = publicationService;
+        this.auditRecorder = auditRecorder;
+        this.clock = clock;
+    }
+
+    /** 2단계 진입: 분야별 협의 기한을 만든다(이미 활성 기한이 있는 분야는 건너뜀). */
+    public List<DeadlineResponse> startReviewDeadlines(
+            MemberPrincipal actor, SecurityRequest request, Long publicationId, Set<ReviewField> fields) {
+        PublicationContext context = contextOf(publicationId);
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, KOREA);
+        List<Deadline> existing =
+                deadlineRepository.findBySecurityRequestIdAndKindAndActiveTrue(request.getId(), DeadlineKind.REVIEW);
+        return fields.stream()
+                .filter(field -> existing.stream().noneMatch(deadline -> deadline.getField() == field))
+                .map(field -> start(
+                        actor,
+                        request,
+                        field,
+                        DeadlineKind.REVIEW,
+                        now,
+                        today,
+                        context.policy().reviewBusinessDays(),
+                        context))
+                .toList();
+    }
+
+    /** 보완 요청·차수 반환: 기존 보완 응답 기한을 종료하고 새로 만든다(불변식 23). */
+    public DeadlineResponse restartSupplementDeadline(MemberPrincipal actor, SecurityRequest request, Long publicationId) {
+        PublicationContext context = contextOf(publicationId);
+        Instant now = clock.instant();
+        endActive(actor, request.getId(), DeadlineKind.SUPPLEMENT_RESPONSE, now, "재산정");
+        return start(
+                actor,
+                request,
+                null,
+                DeadlineKind.SUPPLEMENT_RESPONSE,
+                now,
+                LocalDate.ofInstant(now, KOREA),
+                context.policy().supplementBusinessDays(),
+                context);
+    }
+
+    /** 제출: 최종 확정 기한을 만든다. */
+    public DeadlineResponse startFinalConfirmationDeadline(
+            MemberPrincipal actor, SecurityRequest request, Long publicationId) {
+        PublicationContext context = contextOf(publicationId);
+        Instant now = clock.instant();
+        endActive(actor, request.getId(), DeadlineKind.FINAL_CONFIRMATION, now, "재산정");
+        return start(
+                actor,
+                request,
+                null,
+                DeadlineKind.FINAL_CONFIRMATION,
+                now,
+                LocalDate.ofInstant(now, KOREA),
+                context.policy().finalConfirmationBusinessDays(),
+                context);
+    }
+
+    /** 단계가 끝날 때(협의 완료·종결·철회 등) 해당 종류의 활성 기한을 모두 종료한다. 기록은 보존된다. */
+    public void endActive(MemberPrincipal actor, Long securityRequestId, DeadlineKind kind, Instant now, String reason) {
+        for (Deadline deadline : deadlineRepository.findBySecurityRequestIdAndKindAndActiveTrue(securityRequestId, kind)) {
+            deadline.end(now);
+            auditRecorder.record(
+                    actor,
+                    AuditTargetType.SECURITY_REQUEST,
+                    String.valueOf(securityRequestId),
+                    null,
+                    AuditAction.DEADLINE_ENDED,
+                    reason,
+                    kind + (deadline.getField() == null ? "" : "/" + deadline.getField()) + " 기한 종료 (기한 "
+                            + deadline.getId() + ")");
+        }
+        // 부분 유일 인덱스(활성 기한 1건) 때문에 새 기한 INSERT 전에 종료 UPDATE 를 먼저 내보낸다.
+        deadlineRepository.flush();
+    }
+
+    /** 신청의 기한 목록(활성·종료 모두). 상태는 오늘 기준 계산. */
+    @Transactional(readOnly = true)
+    public List<DeadlineResponse> listForRequest(Long securityRequestId, Long publicationId) {
+        PublicationContext context = contextOf(publicationId);
+        LocalDate today = LocalDate.ofInstant(clock.instant(), KOREA);
+        return deadlineRepository.findBySecurityRequestIdOrderByStartedAtAscIdAsc(securityRequestId).stream()
+                .map(deadline -> DeadlineResponse.from(
+                        deadline,
+                        deadline.statusOn(today, context.calendar(), context.policy().imminentBusinessDays())))
+                .toList();
+    }
+
+    private DeadlineResponse start(
+            MemberPrincipal actor,
+            SecurityRequest request,
+            ReviewField field,
+            DeadlineKind kind,
+            Instant now,
+            LocalDate startDate,
+            int businessDays,
+            PublicationContext context) {
+        Deadline deadline = deadlineRepository.save(Deadline.start(
+                request.getId(), field, kind, now, startDate, businessDays, context.calendar(), context.version()));
+        auditRecorder.record(
+                actor,
+                AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(request.getId()),
+                null,
+                AuditAction.DEADLINE_STARTED,
+                null,
+                kind + (field == null ? "" : "/" + field) + " 기한일 " + deadline.getDueDate() + " (기한 " + deadline.getId()
+                        + ")");
+        return DeadlineResponse.from(
+                deadline, deadline.statusOn(startDate, context.calendar(), context.policy().imminentBusinessDays()));
+    }
+
+    private PublicationContext contextOf(Long publicationId) {
+        PublicationResponse publication = publicationService.get(publicationId);
+        FieldSchema schema = publication.fieldSchema();
+        DeadlinePolicy policy = schema.deadlinePolicy();
+        return new PublicationContext(publication.version(), policy, new BusinessCalendar(policy.holidays()));
+    }
+
+    private record PublicationContext(int version, DeadlinePolicy policy, BusinessCalendar calendar) {}
+}

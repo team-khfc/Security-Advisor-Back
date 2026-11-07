@@ -9,6 +9,7 @@ import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import kr.securityadvisor.common.web.RequestIdHolder;
 
 /**
  * 모든 API 오류를 RFC 9457 ProblemDetail 형식(JSON)으로 통일한다.
@@ -79,6 +80,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static ProblemDetail problem(HttpStatus status, String title, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(title);
+        String requestId = RequestIdHolder.current();
+        if (requestId != null) {
+            problem.setProperty("requestId", requestId);
+        }
         return problem;
     }
 }
