@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import kr.securityadvisor.audit.domain.AuditAction;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 연속 실패는 {@link LoginAttemptRecorder} 로 기록해 상한에 이르면 잠근다.
  */
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private static final String LOGIN_FAILED = "아이디 또는 비밀번호가 올바르지 않습니다";
@@ -33,19 +35,6 @@ public class AuthService {
     private final LoginAttemptRecorder loginAttemptRecorder;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
-
-    public AuthService(
-            MemberRepository memberRepository,
-            PasswordEncoder passwordEncoder,
-            LoginAttemptRecorder loginAttemptRecorder,
-            AuditRecorder auditRecorder,
-            Clock clock) {
-        this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.loginAttemptRecorder = loginAttemptRecorder;
-        this.auditRecorder = auditRecorder;
-        this.clock = clock;
-    }
 
     /**
      * 자격 증명을 검증한다. 아이디 존재 여부와 비밀번호 오류를 구분해 알려 주지 않는다(계정 열거 방지).

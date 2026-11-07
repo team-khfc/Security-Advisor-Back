@@ -1,5 +1,6 @@
 package kr.securityadvisor.review.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
@@ -43,23 +45,6 @@ public class ReviewService {
     private final AssignmentService assignmentService;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
-
-    public ReviewService(
-            ReviewRepository reviewRepository,
-            SecurityRequestRepository securityRequestRepository,
-            RequestAccessPolicy accessPolicy,
-            PublicationService publicationService,
-            AssignmentService assignmentService,
-            DeadlineService deadlineService,
-            AuditRecorder auditRecorder) {
-        this.reviewRepository = reviewRepository;
-        this.securityRequestRepository = securityRequestRepository;
-        this.accessPolicy = accessPolicy;
-        this.publicationService = publicationService;
-        this.assignmentService = assignmentService;
-        this.deadlineService = deadlineService;
-        this.auditRecorder = auditRecorder;
-    }
 
     /**
      * 신청자의 협의 요청: 1단계 작성 중 → 2단계 협의 중.

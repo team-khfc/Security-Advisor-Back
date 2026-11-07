@@ -1,5 +1,6 @@
 package kr.securityadvisor.assignment.controller;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
 import kr.securityadvisor.assignment.service.AssignmentService;
@@ -12,13 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 /** 배정 API 중 담당자 본인 조회. 신청별 배정 조회·재배정은 신청 API(/api/security-requests/{id}/assignments)에 있다. */
 @RestController
 @RequestMapping("/api/assignments")
+@RequiredArgsConstructor
 public class AssignmentController {
 
     private final AssignmentService assignmentService;
-
-    public AssignmentController(AssignmentService assignmentService) {
-        this.assignmentService = assignmentService;
-    }
 
     /** 내게 배정된 활성 배정(요청함 "내게 배정된 신청"). */
     @GetMapping("/mine")

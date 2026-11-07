@@ -22,6 +22,9 @@ repositories {
 
 val springdocVersion = "3.1.1"
 val archunitVersion = "1.4.2"
+// Lombok 은 허용 목록(@Getter·@RequiredArgsConstructor·@NoArgsConstructor(PROTECTED)·@Slf4j)만 쓴다(AGENTS.md 5장).
+// 금지 애너테이션은 루트의 lombok.config 가 컴파일 오류로 막는다. Java 25 지원 버전으로 고정.
+val lombokVersion = "1.18.42"
 
 dependencies {
     // 웹(MVC), 검증, 운영 상태 확인
@@ -40,6 +43,12 @@ dependencies {
 
     // API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+
+    // Lombok(컴파일 시점 전용 — 런타임 의존 없음)
+    compileOnly("org.projectlombok:lombok:$lombokVersion")
+    annotationProcessor("org.projectlombok:lombok:$lombokVersion")
+    testCompileOnly("org.projectlombok:lombok:$lombokVersion")
+    testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 

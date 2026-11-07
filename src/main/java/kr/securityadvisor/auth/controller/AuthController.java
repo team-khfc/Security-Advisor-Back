@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.controller;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -23,15 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final SessionAuthenticator sessionAuthenticator;
-
-    public AuthController(AuthService authService, SessionAuthenticator sessionAuthenticator) {
-        this.authService = authService;
-        this.sessionAuthenticator = sessionAuthenticator;
-    }
 
     /** 로그인. 성공하면 세션을 만들고 사용자 정보를 돌려준다. 실패는 401(ProblemDetail). */
     @PostMapping("/login")

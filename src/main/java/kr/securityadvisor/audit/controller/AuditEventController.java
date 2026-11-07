@@ -1,5 +1,6 @@
 package kr.securityadvisor.audit.controller;
 
+import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
 import kr.securityadvisor.audit.service.AuditQueryService;
@@ -16,15 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 /** 감사 이력 API(F-14). 조회만 있고 수정·삭제 API 는 없다. */
 @RestController
 @RequestMapping("/api/audit-events")
+@RequiredArgsConstructor
 public class AuditEventController {
 
     private static final int MAX_PAGE_SIZE = 100;
 
     private final AuditQueryService auditQueryService;
-
-    public AuditEventController(AuditQueryService auditQueryService) {
-        this.auditQueryService = auditQueryService;
-    }
 
     /** 기관 관리자 전체 조회. targetType·targetId 로 좁힐 수 있다. 관리자가 아니면 403. */
     @GetMapping

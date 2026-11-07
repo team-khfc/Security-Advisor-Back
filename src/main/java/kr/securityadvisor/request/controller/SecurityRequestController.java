@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.controller;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.util.List;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
@@ -30,15 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/security-requests")
+@RequiredArgsConstructor
 public class SecurityRequestController {
 
     private final SecurityRequestService securityRequestService;
     private final AnswerService answerService;
-
-    public SecurityRequestController(SecurityRequestService securityRequestService, AnswerService answerService) {
-        this.securityRequestService = securityRequestService;
-        this.answerService = answerService;
-    }
 
     /** 신청 상세(서류별 답변 포함). 남의 신청은 404. */
     @GetMapping("/{id}")

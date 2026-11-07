@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class DeadlineService {
 
     static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
@@ -38,17 +40,6 @@ public class DeadlineService {
     private final PublicationService publicationService;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
-
-    public DeadlineService(
-            DeadlineRepository deadlineRepository,
-            PublicationService publicationService,
-            AuditRecorder auditRecorder,
-            Clock clock) {
-        this.deadlineRepository = deadlineRepository;
-        this.publicationService = publicationService;
-        this.auditRecorder = auditRecorder;
-        this.clock = clock;
-    }
 
     /** 2단계 진입: 분야별 협의 기한을 만든다(이미 활성 기한이 있는 분야는 건너뜀). */
     public List<DeadlineResponse> startReviewDeadlines(

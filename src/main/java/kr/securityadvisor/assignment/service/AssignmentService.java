@@ -1,5 +1,6 @@
 package kr.securityadvisor.assignment.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,23 +31,13 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final ReviewerPoolRepository reviewerPoolRepository;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
-
-    public AssignmentService(
-            AssignmentRepository assignmentRepository,
-            ReviewerPoolRepository reviewerPoolRepository,
-            AuditRecorder auditRecorder,
-            Clock clock) {
-        this.assignmentRepository = assignmentRepository;
-        this.reviewerPoolRepository = reviewerPoolRepository;
-        this.auditRecorder = auditRecorder;
-        this.clock = clock;
-    }
 
     /**
      * 2단계 진입 시 분야별 자동 배정.

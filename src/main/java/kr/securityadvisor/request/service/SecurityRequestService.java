@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class SecurityRequestService {
 
     private final RequestAccessPolicy accessPolicy;
@@ -36,23 +38,6 @@ public class SecurityRequestService {
     private final AuditRecorder auditRecorder;
     private final AuditQueryService auditQueryService;
     private final Clock clock;
-
-    public SecurityRequestService(
-            RequestAccessPolicy accessPolicy,
-            AnswerService answerService,
-            AssignmentService assignmentService,
-            DeadlineService deadlineService,
-            AuditRecorder auditRecorder,
-            AuditQueryService auditQueryService,
-            Clock clock) {
-        this.accessPolicy = accessPolicy;
-        this.answerService = answerService;
-        this.assignmentService = assignmentService;
-        this.deadlineService = deadlineService;
-        this.auditRecorder = auditRecorder;
-        this.auditQueryService = auditQueryService;
-        this.clock = clock;
-    }
 
     /** 신청 상세(서류별 답변 포함). */
     public SecurityRequestResponse get(MemberPrincipal principal, Long securityRequestId) {

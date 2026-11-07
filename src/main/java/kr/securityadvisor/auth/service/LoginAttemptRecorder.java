@@ -1,7 +1,7 @@
 package kr.securityadvisor.auth.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Instant;
-import kr.securityadvisor.auth.domain.LoginLockPolicy;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,15 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
  * 별도 빈의 독립 트랜잭션으로 저장한다.
  */
 @Service
+@RequiredArgsConstructor
 public class LoginAttemptRecorder {
 
     private final MemberRepository memberRepository;
-    private final LoginLockPolicy policy;
-
-    public LoginAttemptRecorder(MemberRepository memberRepository, LoginPolicyProperties properties) {
-        this.memberRepository = memberRepository;
-        this.policy = properties.toPolicy();
-    }
+    private final LoginPolicyProperties properties;
 
     /**
      * 비밀번호 오류를 기록한다.
@@ -32,7 +28,7 @@ public class LoginAttemptRecorder {
     public boolean recordFailure(String username, Instant now) {
         return memberRepository
                 .findById(username)
-                .map(member -> member.recordLoginFailure(now, policy))
+                .map(member -> member.recordLoginFailure(now, properties.toPolicy()))
                 .orElse(false);
     }
 

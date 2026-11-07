@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.util.List;
 import kr.securityadvisor.audit.domain.AuditAction;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class AnswerService {
 
     private final AnswerRepository answerRepository;
@@ -39,21 +41,6 @@ public class AnswerService {
     private final RequestAccessPolicy accessPolicy;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
-
-    public AnswerService(
-            AnswerRepository answerRepository,
-            SecurityRequestRepository securityRequestRepository,
-            PublicationService publicationService,
-            RequestAccessPolicy accessPolicy,
-            AuditRecorder auditRecorder,
-            Clock clock) {
-        this.answerRepository = answerRepository;
-        this.securityRequestRepository = securityRequestRepository;
-        this.publicationService = publicationService;
-        this.accessPolicy = accessPolicy;
-        this.auditRecorder = auditRecorder;
-        this.clock = clock;
-    }
 
     /** 답변 변경 기록(F-14). 값 자체는 남기지 않고 항목·출처만 남긴다(기관 사실 값 보호, 불변식 25). */
     private void audit(MemberPrincipal actor, Answer answer, AuditAction action, String what) {

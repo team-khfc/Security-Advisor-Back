@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.common.error.ForbiddenException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -15,16 +16,11 @@ import org.springframework.stereotype.Component;
  * 담당자·관리자는 조회 가능하며, 검토 행위의 배정 검사는 review 컨텍스트가 한다.
  */
 @Component
+@RequiredArgsConstructor
 public class RequestAccessPolicy {
 
     private final BusinessCaseRepository businessCaseRepository;
     private final SecurityRequestRepository securityRequestRepository;
-
-    public RequestAccessPolicy(
-            BusinessCaseRepository businessCaseRepository, SecurityRequestRepository securityRequestRepository) {
-        this.businessCaseRepository = businessCaseRepository;
-        this.securityRequestRepository = securityRequestRepository;
-    }
 
     /**
      * 조회 가능한 사업 건을 읽는다.

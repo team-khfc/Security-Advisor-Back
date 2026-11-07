@@ -1,5 +1,6 @@
 package kr.securityadvisor.procedure.controller;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.procedure.dto.ProcedureResponse;
 import kr.securityadvisor.procedure.service.ProcedureService;
@@ -13,13 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/procedures")
+@RequiredArgsConstructor
 public class ProcedureController {
 
     private final ProcedureService procedureService;
-
-    public ProcedureController(ProcedureService procedureService) {
-        this.procedureService = procedureService;
-    }
 
     /** 신청 가능한 절차 목록. */
     @GetMapping

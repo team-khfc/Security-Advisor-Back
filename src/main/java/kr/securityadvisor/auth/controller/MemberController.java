@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.controller;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.net.URI;
 import kr.securityadvisor.auth.dto.MemberResponse;
@@ -15,13 +16,10 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 /** 사용자 계정 API. 회원가입은 익명 허용이며 CSRF 토큰이 필요하다. */
 @RestController
 @RequestMapping("/api/members")
+@RequiredArgsConstructor
 public class MemberController {
 
     private final MemberRegistrationService memberRegistrationService;
-
-    public MemberController(MemberRegistrationService memberRegistrationService) {
-        this.memberRegistrationService = memberRegistrationService;
-    }
 
     /** 회원가입. 성공하면 201 과 {@code Location: /api/members/{username}}. 아이디 중복은 409, 형식 오류는 400. */
     @PostMapping

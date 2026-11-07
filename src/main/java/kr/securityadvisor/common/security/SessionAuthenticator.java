@@ -1,5 +1,6 @@
 package kr.securityadvisor.common.security;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
@@ -18,14 +19,11 @@ import org.springframework.stereotype.Component;
  * <p>자격 증명 검증(아이디·비밀번호 대조)은 auth 컨텍스트의 서비스가 하고, 이 클래스는 세션 저장만 맡는다.
  */
 @Component
+@RequiredArgsConstructor
 public class SessionAuthenticator {
 
     private final SecurityContextRepository securityContextRepository;
     private final SecurityContextLogoutHandler logoutHandler = new SecurityContextLogoutHandler();
-
-    public SessionAuthenticator(SecurityContextRepository securityContextRepository) {
-        this.securityContextRepository = securityContextRepository;
-    }
 
     /** 검증이 끝난 사용자를 현재 요청의 세션에 로그인 상태로 저장한다. */
     public void login(MemberPrincipal principal, HttpServletRequest request, HttpServletResponse response) {

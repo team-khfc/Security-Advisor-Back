@@ -1,5 +1,6 @@
 package kr.securityadvisor.review.controller;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.util.List;
 import kr.securityadvisor.common.security.CurrentMember;
@@ -20,13 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 /** 협의 API. 협의 요청은 신청의 하위 자원 생성(POST …/reviews)으로 표현한다(AGENTS.md 5장). */
 @RestController
 @RequestMapping("/api/security-requests/{id}/reviews")
+@RequiredArgsConstructor
 public class ReviewController {
 
     private final ReviewService reviewService;
-
-    public ReviewController(ReviewService reviewService) {
-        this.reviewService = reviewService;
-    }
 
     /** 협의 요청(1→2단계). 분야별 협의 생성 + 자동 배정 + 협의 기한. 201. */
     @PostMapping

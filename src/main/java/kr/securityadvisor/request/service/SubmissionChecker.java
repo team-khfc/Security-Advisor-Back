@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,15 +22,11 @@ import org.springframework.stereotype.Component;
  * 판단 자체는 {@link SecurityRequest#submit} 이 한다.
  */
 @Component
+@RequiredArgsConstructor
 public class SubmissionChecker {
 
     private final AnswerRepository answerRepository;
     private final PublicationService publicationService;
-
-    public SubmissionChecker(AnswerRepository answerRepository, PublicationService publicationService) {
-        this.answerRepository = answerRepository;
-        this.publicationService = publicationService;
-    }
 
     public SubmissionPreconditions check(
             BusinessCase businessCase, SecurityRequest request, int openSupplementCount, boolean allReviewsCompleted) {

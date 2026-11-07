@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.service;
 
+import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
@@ -14,18 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 /** 회원가입(F-11). 가입 계정은 운영 기관의 APPLICANT 로만 생성한다(불변식 32). */
 @Service
+@RequiredArgsConstructor
 public class MemberRegistrationService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditRecorder auditRecorder;
-
-    public MemberRegistrationService(
-            MemberRepository memberRepository, PasswordEncoder passwordEncoder, AuditRecorder auditRecorder) {
-        this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.auditRecorder = auditRecorder;
-    }
 
     /**
      * 계정을 만든다. 역할은 요청에 없고 도메인이 APPLICANT 로 고정한다.

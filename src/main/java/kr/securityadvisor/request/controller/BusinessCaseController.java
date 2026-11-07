@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.controller;
 
+import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.net.URI;
 import kr.securityadvisor.common.dto.PageResponse;
@@ -30,17 +31,13 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 /** 사업 건 API(F-01·F-03 공통 답변). 경로는 자원 명사, 답변은 필드 키 단위 하위 자원(PUT, 멱등). */
 @RestController
 @RequestMapping("/api/business-cases")
+@RequiredArgsConstructor
 public class BusinessCaseController {
 
     private static final int MAX_PAGE_SIZE = 100;
 
     private final BusinessCaseService businessCaseService;
     private final AnswerService answerService;
-
-    public BusinessCaseController(BusinessCaseService businessCaseService, AnswerService answerService) {
-        this.businessCaseService = businessCaseService;
-        this.answerService = answerService;
-    }
 
     /** 사업 건 + 선택한 서류 유형별 신청 생성. 201 + Location. */
     @PostMapping

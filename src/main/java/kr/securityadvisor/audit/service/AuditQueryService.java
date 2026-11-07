@@ -1,5 +1,6 @@
 package kr.securityadvisor.audit.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
@@ -14,13 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 /** 감사 이력 조회. 권한별 범위(3-3장): 관리자 전체, 그 외는 대상별 조회를 호출 컨텍스트가 접근 검사 후 요청한다. */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class AuditQueryService {
 
     private final AuditEventRepository auditEventRepository;
-
-    public AuditQueryService(AuditEventRepository auditEventRepository) {
-        this.auditEventRepository = auditEventRepository;
-    }
 
     /** 특정 대상의 이력(시간순). 호출자가 대상 접근 권한을 먼저 검사한다. */
     public List<AuditEventResponse> forTarget(AuditTargetType targetType, String targetId) {

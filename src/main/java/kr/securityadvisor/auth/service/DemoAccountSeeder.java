@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.repository.MemberRepository;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 계정 이름·표시 이름은 전부 합성 데이터다.
  */
 @Component
+@RequiredArgsConstructor
 public class DemoAccountSeeder implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DemoAccountSeeder.class);
@@ -35,13 +37,6 @@ public class DemoAccountSeeder implements ApplicationRunner {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final DemoAccountProperties properties;
-
-    public DemoAccountSeeder(
-            MemberRepository memberRepository, PasswordEncoder passwordEncoder, DemoAccountProperties properties) {
-        this.memberRepository = memberRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.properties = properties;
-    }
 
     @Override
     @Transactional

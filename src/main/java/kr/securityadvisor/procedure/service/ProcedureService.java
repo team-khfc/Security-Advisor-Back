@@ -1,5 +1,6 @@
 package kr.securityadvisor.procedure.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.procedure.dto.ProcedureResponse;
@@ -12,13 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class ProcedureService {
 
     private final ProcedureRepository procedureRepository;
-
-    public ProcedureService(ProcedureRepository procedureRepository) {
-        this.procedureRepository = procedureRepository;
-    }
 
     /** 신청 가능한(활성화된) 절차 목록을 등록 순서대로 반환한다. */
     public List<ProcedureResponse> findActiveProcedures() {

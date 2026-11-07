@@ -1,5 +1,6 @@
 package kr.securityadvisor.configuration.service;
 
+import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.configuration.domain.Publication;
@@ -14,15 +15,11 @@ import tools.jackson.databind.ObjectMapper;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class PublicationService {
 
     private final PublicationRepository publicationRepository;
     private final ObjectMapper objectMapper;
-
-    public PublicationService(PublicationRepository publicationRepository, ObjectMapper objectMapper) {
-        this.publicationRepository = publicationRepository;
-        this.objectMapper = objectMapper;
-    }
 
     /**
      * 현재 게시본(가장 최근 버전).

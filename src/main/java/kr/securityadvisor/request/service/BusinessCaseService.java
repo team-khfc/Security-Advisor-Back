@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
@@ -33,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class BusinessCaseService {
 
     private final BusinessCaseRepository businessCaseRepository;
@@ -41,21 +43,6 @@ public class BusinessCaseService {
     private final PublicationService publicationService;
     private final RequestAccessPolicy accessPolicy;
     private final AuditRecorder auditRecorder;
-
-    public BusinessCaseService(
-            BusinessCaseRepository businessCaseRepository,
-            SecurityRequestRepository securityRequestRepository,
-            AnswerRepository answerRepository,
-            PublicationService publicationService,
-            RequestAccessPolicy accessPolicy,
-            AuditRecorder auditRecorder) {
-        this.businessCaseRepository = businessCaseRepository;
-        this.securityRequestRepository = securityRequestRepository;
-        this.answerRepository = answerRepository;
-        this.publicationService = publicationService;
-        this.accessPolicy = accessPolicy;
-        this.auditRecorder = auditRecorder;
-    }
 
     /**
      * 사업 건과 서류별 신청을 만든다. 현재 게시본을 고정하고, 사업명·개요·부서는 공통 답변(USER_ANSWER)으로도 저장하며,
