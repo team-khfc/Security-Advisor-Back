@@ -19,6 +19,24 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 기동 시 `DemoAccountSeeder` 가 역할별 시연 계정 5건(`applicant`·`applicant2`·`security`·`infra`·`admin`, 비밀번호는 `DEMO_ACCOUNT_PASSWORD`)을 bcrypt 해시로 만든다. 비밀번호를 비우면 만들지 않는다. 마이그레이션에는 계정을 넣지 않는다.
 
+## 사업 건·신청 API (F-01·F-03·F-05 일부)
+
+| 요청 | 설명 | 응답 |
+|---|---|---|
+| `GET /api/publications/current` | 현재 게시본(질문 항목 스키마) | 200 |
+| `POST /api/business-cases` | 사업 건 + 선택한 서류 유형별 신청 생성. 사업명·개요·부서는 공통 답변으로, 담당자 항목은 "담당자 확인 필요"로 미리 생성 | 201 + `Location`, 유형 없음 400 |
+| `GET /api/business-cases?page&size` | 내 사업 건 목록(진행 요약은 하위 신청에서 계산) | 200 |
+| `GET /api/business-cases/{id}` | 사업 건 상세 + 공통 답변 + 신청 요약 | 200, 남의 것 404 |
+| `PUT /api/business-cases/{id}` | 사업 개요 수정(`expectedRevision`) | 200, 불일치 409 |
+| `PUT /api/business-cases/{id}/answers/{fieldKey}` | 공통 항목 사용자 답변(처음이면 `expectedRevision` 생략) | 200, 스키마에 없는 항목 404, 범위 불일치 422 |
+| `PUT …/answers/{fieldKey}/confirmation` | AI 제안 값 사용자 확인 | 200 |
+| `PUT …/answers/{fieldKey}/staff-check` | 담당자 확인 요청으로 넘김 | 200 |
+| `GET /api/security-requests/{id}` | 신청 상세 + 서류별 답변 | 200, 남의 것 404 |
+| `PUT /api/security-requests/{id}/answers/{fieldKey}` (+`/confirmation`, `/staff-check`) | 서류별 항목 답변·확인·담당자 확인 요청 | 위와 같음, 제출·종결·철회 후 422 |
+| `PUT /api/security-requests/{id}/withdrawal` | 신청 철회(사유 필수) | 200, 종료 상태 422 |
+
+협의 요청(1→2단계)·할당·협의 완료·보완·차수 반환·종결·제출·최종 확인·확정은 review 컨텍스트(다음 단계)에서 추가한다. 제출 전 검사(`SecurityRequest.submit`)와 상태 전이 규칙은 이미 도메인에 있다.
+
 ## 인증 API (F-11)
 
 | 요청 | 설명 | 응답 |
@@ -35,6 +53,8 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 ## 현재 구현 범위
 
 - `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
+- `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API
+- `configuration`: seed 게시본(필드 스키마) 조회
 - `procedure`: 예제 기능(절차 목록 조회)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
 
@@ -44,10 +64,19 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 2건)
+### ERD — 현재 (마이그레이션 3건: members · publications · 사업 건/신청/답변/제출본)
 
 ```mermaid
 erDiagram
+    members ||--o{ business_cases : "applicant_username"
+    members ||--o{ submissions : "submitted_by"
+    publications ||--o{ business_cases : "생성 시점 게시본 고정"
+    publications ||--o{ submissions : "제출 시점 설정 버전"
+    business_cases ||--|{ security_requests : "1 : N, (business_case_id, doc_type) 유일"
+    business_cases ||--o{ answers : "scope=CASE (security_request_id NULL)"
+    security_requests ||--o{ answers : "scope=REQUEST"
+    security_requests ||--o{ submissions : "sequence_no 증가"
+
     members {
         varchar(50)  username PK "로그인 아이디"
         varchar(100) password_hash "bcrypt 해시"
@@ -61,18 +90,59 @@ erDiagram
         timestamptz  created_at
         timestamptz  updated_at
     }
-    procedures {
-        bigint       procedure_id PK "IDENTITY"
-        varchar(50)  code UK "SECURITY_REVIEW 등"
-        varchar(100) name
-        varchar(500) description
-        boolean      active "false면 목록 숨김"
-        timestamptz  created_at
-        timestamptz  updated_at
+    publications {
+        bigint      publication_id PK
+        integer     version UK
+        jsonb       field_schema "질문 항목: key·scope·docTypes·type·required·askRole"
+        timestamptz published_at
+    }
+    business_cases {
+        bigint       business_case_id PK
+        varchar(50)  applicant_username FK
+        varchar(200) title
+        text         summary
+        varchar(100) department
+        bigint       publication_id FK
+        bigint       revision "낙관적 잠금"
+        varchar(50)  created_by
+        varchar(50)  updated_by
+    }
+    security_requests {
+        bigint      security_request_id PK
+        bigint      business_case_id FK
+        varchar(20) doc_type "FIREWALL | SECURITY_REVIEW"
+        smallint    stage "1~4"
+        varchar(30) status "단계x상태 CHECK"
+        bigint      revision
+    }
+    answers {
+        bigint       answer_id PK
+        varchar(10)  scope "CASE | REQUEST"
+        bigint       business_case_id FK
+        bigint       security_request_id FK "REQUEST 만"
+        varchar(100) field_key "게시본 저장 키"
+        text         value
+        varchar(20)  value_source "NULL = 담당자 확인 필요"
+        text         evidence "AI 근거"
+        boolean      confirmed
+        varchar(50)  confirmed_by
+        timestamptz  confirmed_at
+        boolean      needs_review "재검토 표시"
+        bigint       revision
+    }
+    submissions {
+        bigint       submission_id PK
+        bigint       security_request_id FK
+        bigint       publication_id FK
+        integer      sequence_no "신청 내 개정본 번호"
+        jsonb        snapshot "불변 스냅샷"
+        varchar(100) idempotency_key UK
+        varchar(50)  submitted_by FK
+        timestamptz  submitted_at
     }
 ```
 
-### ERD — 예정 (FUNCTIONAL_SPEC.md 8-1 스키마 확정 기준, 컬럼은 대표 항목만)
+### ERD — 예정 (FUNCTIONAL_SPEC.md 8-1 스키마 확정 기준, 아직 없는 테이블 — 컬럼은 대표 항목만)
 
 ```mermaid
 erDiagram

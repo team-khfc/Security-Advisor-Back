@@ -46,7 +46,14 @@ class MemberControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"newuser\",\"password\":\"secret1234\",\"displayName\":\"홍길동\"}"))
                 .hasStatus(HttpStatus.CREATED)
-                .hasHeader(HttpHeaders.LOCATION, "http://localhost/api/members/newuser")
+                .headers()
+                .hasValue(HttpHeaders.LOCATION, "http://localhost/api/members/newuser");
+        given(memberRegistrationService.register(any())).willReturn(CREATED);
+        assertThat(mvc.post()
+                        .uri("/api/members")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"newuser\",\"password\":\"secret1234\",\"displayName\":\"홍길동\"}"))
                 .bodyJson()
                 .extractingPath("$.role")
                 .isEqualTo("APPLICANT");
