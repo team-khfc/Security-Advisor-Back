@@ -3,7 +3,7 @@
 
 CREATE TABLE procedures
 (
-    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    procedure_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     code        VARCHAR(50)  NOT NULL UNIQUE,
     name        VARCHAR(100) NOT NULL,
     description VARCHAR(500),

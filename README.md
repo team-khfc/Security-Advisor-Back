@@ -26,7 +26,7 @@
 
 ## DB 명세
 
-스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
+스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
 ### ERD — 현재 (마이그레이션 2건)
 
@@ -42,7 +42,7 @@ erDiagram
         timestamptz  updated_at
     }
     procedures {
-        bigint       id PK "IDENTITY"
+        bigint       procedure_id PK "IDENTITY"
         varchar(50)  code UK "SECURITY_REVIEW 등"
         varchar(100) name
         varchar(500) description
@@ -79,12 +79,12 @@ erDiagram
     reviewer_pools }o--|| members : "분야별 담당자"
 
     business_cases {
-        bigint id PK
+        bigint  business_case_id PK
         varchar applicant_username FK
         bigint  publication_id FK "상태 컬럼 없음(계산값)"
     }
     security_requests {
-        bigint  id PK
+        bigint  security_request_id PK
         bigint  business_case_id FK
         varchar doc_type "FIREWALL | SECURITY_REVIEW"
         smallint stage "1~4"
@@ -92,37 +92,41 @@ erDiagram
         bigint  revision
     }
     answers {
-        bigint  id PK
+        bigint  answer_id PK
         varchar scope "CASE | REQUEST"
         varchar field_key
         varchar value_source "USER_ANSWER | AI_INFERRED | STAFF_INPUT | STAFF_CONFIRMED"
         bigint  revision
     }
     reviews {
-        bigint  id PK
+        bigint  review_id PK
+        bigint  security_request_id FK
         varchar field "INFRA | SECURITY"
         varchar status "검토대기 | 할당완료 | 검토중 | 보완요청 | 협의완료 | 재검토"
     }
     submissions {
-        bigint  id PK
+        bigint  submission_id PK
+        bigint  security_request_id FK
         jsonb   snapshot "공통값+서류별값+설정버전"
         varchar idempotency_key UK
     }
     assignments {
-        bigint  id PK
+        bigint  assignment_id PK
+        bigint  security_request_id FK
         varchar field
         varchar assignee_username FK
         boolean active
         varchar reason
     }
     deadlines {
-        bigint  id PK
+        bigint  deadline_id PK
+        bigint  security_request_id FK
         varchar kind "협의 | 보완응답 | 최종확정"
         date    due_date "저장형"
         boolean active
     }
     audit_events {
-        bigint  id PK "추가 전용"
+        bigint  audit_event_id PK "추가 전용"
         varchar actor_username FK
         varchar target_type
         bigint  target_id
@@ -130,14 +134,14 @@ erDiagram
         varchar reason
     }
     firewall_rules {
-        bigint  id PK
+        bigint  firewall_rule_id PK
         bigint  submission_id FK
         varchar status "적용대기 | 적용완료 | 적용불가 | 만료예정 | 만료 | 회수"
         date    end_date
         date    review_date "end_date 또는 review_date 필수"
     }
     llm_configurations {
-        bigint  id PK
+        bigint  llm_configuration_id PK
         varchar provider
         varchar base_url "허용 목록"
         varchar api_key_env "환경변수 이름만"

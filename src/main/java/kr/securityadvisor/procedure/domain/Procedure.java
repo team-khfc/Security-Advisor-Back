@@ -17,8 +17,10 @@ import kr.securityadvisor.common.entity.BaseTimeEntity;
 @Table(name = "procedures")
 public class Procedure extends BaseTimeEntity {
 
+    /** 기본 키 컬럼은 테이블명을 붙인 {@code procedure_id} 다(팀 규칙: 같은 이름의 컬럼은 같은 의미·형식, 맨 {@code id} 금지). */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "procedure_id")
     private Long id;
 
     /** 절차를 구분하는 고정 코드. 화면·API 에서 id 대신 사용한다. 예: SECURITY_REVIEW */
