@@ -166,6 +166,25 @@ class BusinessCaseApiTest {
     }
 
     @Test
+    @DisplayName("게시본에 없는 서류 유형 코드는 422, 형식이 틀린 코드는 400")
+    void unknownDocType() {
+        assertThat(mvc.post()
+                        .uri("/api/business-cases")
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"민원 포털\",\"docTypes\":[\"USB_REQUEST\"]}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(mvc.post()
+                        .uri("/api/business-cases")
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"민원 포털\",\"docTypes\":[\"usb request!\"]}"))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     @DisplayName("현재 게시본을 조회할 수 있다")
     void currentPublication() {
         assertThat(mvc.get().uri("/api/publications/current").with(authentication(APPLICANT)))
@@ -173,6 +192,10 @@ class BusinessCaseApiTest {
                 .bodyJson()
                 .extractingPath("$.fieldSchema.fields.length()")
                 .isEqualTo(16);
+        assertThat(mvc.get().uri("/api/publications/current").with(authentication(APPLICANT)))
+                .bodyJson()
+                .extractingPath("$.fieldSchema.docTypes[0].code")
+                .isEqualTo("FIREWALL");
     }
 
     private static Authentication auth(String username, String displayName) {

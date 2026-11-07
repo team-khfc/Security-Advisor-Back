@@ -14,7 +14,7 @@ import java.util.Set;
 import kr.securityadvisor.common.entity.BaseAuditEntity;
 import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
-import kr.securityadvisor.common.schema.DocType;
+import kr.securityadvisor.common.schema.DocTypeCode;
 
 /**
  * 신청(서류 1건) 애그리거트 루트. 4단계 절차·차수 반환·종결·철회의 상태 전이를 도메인 메서드로만 한다(불변식 10·33·35).
@@ -38,9 +38,9 @@ public class SecurityRequest extends BaseAuditEntity {
     @Column(name = "business_case_id", nullable = false)
     private Long businessCaseId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "doc_type", nullable = false, length = 20)
-    private DocType docType;
+    /** 서류 유형 코드. 허용 값은 사업 건이 고정한 게시본의 docTypes 가 정한다(ADR 0005) — DB CHECK 없음. */
+    @Column(name = "doc_type", nullable = false, length = 30)
+    private String docType;
 
     @Column(nullable = false)
     private int stage;
@@ -57,15 +57,15 @@ public class SecurityRequest extends BaseAuditEntity {
     /** JPA 전용 기본 생성자. */
     protected SecurityRequest() {}
 
-    private SecurityRequest(Long businessCaseId, DocType docType) {
+    private SecurityRequest(Long businessCaseId, DocTypeCode docType) {
         this.businessCaseId = businessCaseId;
-        this.docType = docType;
+        this.docType = docType.code();
         this.stage = 1;
         this.status = RequestStatus.DRAFTING;
     }
 
     /** 사업 건 생성 시 선택한 서류 유형마다 하나씩 만든다. 1단계 작성 중으로 시작한다. */
-    public static SecurityRequest create(Long businessCaseId, DocType docType) {
+    public static SecurityRequest create(Long businessCaseId, DocTypeCode docType) {
         return new SecurityRequest(businessCaseId, docType);
     }
 
@@ -77,8 +77,8 @@ public class SecurityRequest extends BaseAuditEntity {
         return businessCaseId;
     }
 
-    public DocType getDocType() {
-        return docType;
+    public DocTypeCode getDocType() {
+        return DocTypeCode.of(docType);
     }
 
     public int getStage() {

@@ -2,7 +2,7 @@ package kr.securityadvisor.request.dto;
 
 import java.time.Instant;
 import java.util.List;
-import kr.securityadvisor.common.schema.DocType;
+import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 
@@ -12,7 +12,7 @@ import kr.securityadvisor.request.domain.SecurityRequest;
 public record SecurityRequestResponse(
         Long securityRequestId,
         Long businessCaseId,
-        DocType docType,
+        DocTypeCode docType,
         int stage,
         RequestStatus status,
         String statusLabel,

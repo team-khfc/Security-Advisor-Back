@@ -14,7 +14,7 @@ CREATE TABLE publications
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-COMMENT ON TABLE publications IS '기관 설정 게시본. field_schema 는 질문 항목(저장 키·범위 CASE/REQUEST·적용 서류 유형·형식·필수·작성 역할)';
+COMMENT ON TABLE publications IS '기관 설정 게시본. field_schema = 서류 유형 목록(docTypes: 코드·이름·활성·양식 키·행위 속성) + 질문 항목(fields: 저장 키·범위·적용 서류 유형·형식·필수·작성 역할). 서류 유형은 코드가 아니라 이 데이터가 정한다(ADR 0005)';
 
 -- 2) 사업 건: 공통 정보 1회 수집. 상태 컬럼 없음 — 하위 신청에서 계산(불변식 15).
 CREATE TABLE business_cases
@@ -39,7 +39,7 @@ CREATE TABLE security_requests
 (
     security_request_id BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     business_case_id    BIGINT      NOT NULL,
-    doc_type            VARCHAR(20) NOT NULL CHECK (doc_type IN ('FIREWALL', 'SECURITY_REVIEW')),
+    doc_type            VARCHAR(30) NOT NULL,
     stage               SMALLINT    NOT NULL CHECK (stage BETWEEN 1 AND 4),
     status              VARCHAR(30) NOT NULL,
     revision            BIGINT      NOT NULL DEFAULT 0,
@@ -59,6 +59,7 @@ CREATE TABLE security_requests
 CREATE INDEX idx_security_requests_case ON security_requests (business_case_id);
 CREATE INDEX idx_security_requests_stage_status ON security_requests (stage, status);
 COMMENT ON TABLE security_requests IS '서류별 신청. 4단계·차수 반환·협의·제출은 신청 단위. 종결(CLOSED)·철회(WITHDRAWN)는 종료 상태';
+COMMENT ON COLUMN security_requests.doc_type IS '서류 유형 코드. 허용 값은 사업 건이 고정한 게시본의 docTypes — CHECK 제약 없음(ADR 0005)';
 COMMENT ON COLUMN security_requests.status IS 'DRAFTING 작성 중 / IN_REVIEW 협의 중 / SUPPLEMENT_REQUESTED 보완 요청 / FINAL_REVIEW 최종 검토 중 / SUBMITTED 제출됨 / CONFIRMED 확정 / CLOSED 종결(반려) / WITHDRAWN 철회';
 
 -- 4) 답변: 범위에 따라 사업 건(CASE) 또는 신청(REQUEST)에 속한다. 모든 값은 출처를 가지며, 출처 없음 = 담당자 확인 필요.
@@ -111,9 +112,13 @@ CREATE TABLE submissions
 CREATE INDEX idx_submissions_request ON submissions (security_request_id);
 COMMENT ON TABLE submissions IS '제출본. 생성 후 불변 — 보완은 새 개정본(sequence_no 증가)';
 
--- 6) seed 게시본 v1: 서류 2종 최소 필드 스키마(기획 확정 전 임시, 전부 합성). 기획(안대웅) 확정 시 새 게시본으로 교체한다.
+-- 6) seed 게시본 v1: 서류 유형 2종 + 최소 필드 스키마(기획 확정 전 임시, 전부 합성). 운영자가 유형·질문을 바꾸면 새 게시본 버전으로 추가한다(기존 게시본 수정 금지).
 INSERT INTO publications (version, field_schema)
 VALUES (1, '{
+  "docTypes": [
+    {"code": "FIREWALL", "name": "방화벽 정책 허용 신청서", "description": "서버·IP·포트 통신 허용을 신청합니다.", "active": true, "templateKey": "firewall-v1", "generatesFirewallRules": true, "reviewFields": ["INFRA", "SECURITY"], "sortOrder": 1},
+    {"code": "SECURITY_REVIEW", "name": "정보화사업 보안성검토 신청서", "description": "정보화사업·서비스의 보안성검토를 의뢰합니다.", "active": true, "templateKey": "security-review-v1", "generatesFirewallRules": false, "reviewFields": ["INFRA", "SECURITY"], "sortOrder": 2}
+  ],
   "fields": [
     {"key": "project.name", "label": "사업(서비스)명", "scope": "CASE", "docTypes": ["FIREWALL", "SECURITY_REVIEW"], "type": "TEXT", "required": true, "askRole": "APPLICANT", "hint": "기관 내부에서 부르는 사업 또는 서비스 이름"},
     {"key": "project.summary", "label": "사업 개요", "scope": "CASE", "docTypes": ["FIREWALL", "SECURITY_REVIEW"], "type": "LONG_TEXT", "required": true, "askRole": "APPLICANT", "hint": "무엇을 위해 어떤 시스템을 쓰는지 2~3문장"},

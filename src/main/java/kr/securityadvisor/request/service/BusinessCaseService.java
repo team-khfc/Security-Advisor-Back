@@ -4,6 +4,7 @@ import java.util.List;
 import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.schema.AnswerScope;
+import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.common.schema.FieldDefinition;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -54,7 +55,7 @@ public class BusinessCaseService {
      * 사업 건과 서류별 신청을 만든다. 현재 게시본을 고정하고, 사업명·개요·부서는 공통 답변(USER_ANSWER)으로도 저장하며,
      * 담당자가 답할 항목은 "담당자 확인 필요" 자리로 미리 만든다.
      *
-     * @throws DomainRuleViolationException 서류 유형이 비었을 때(422)
+     * @throws DomainRuleViolationException 서류 유형이 비었거나 게시본에 없는(비활성) 유형일 때(422)
      */
     @Transactional
     public BusinessCaseResponse create(MemberPrincipal principal, CreateBusinessCaseRequest request) {
@@ -63,6 +64,12 @@ public class BusinessCaseService {
         }
         Long publicationId = publicationService.currentPublicationId();
         FieldSchema schema = publicationService.getFieldSchema(publicationId);
+        for (DocTypeCode docType : request.docTypes()) {
+            boolean active = schema.findDocType(docType).map(definition -> definition.active()).orElse(false);
+            if (!active) {
+                throw new DomainRuleViolationException("현재 게시본에서 고를 수 없는 서류 유형입니다: " + docType);
+            }
+        }
 
         BusinessCase businessCase = businessCaseRepository.save(BusinessCase.create(
                 principal.username(), request.title(), request.summary(), request.department(), publicationId));

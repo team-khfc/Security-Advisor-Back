@@ -23,8 +23,8 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 | 요청 | 설명 | 응답 |
 |---|---|---|
-| `GET /api/publications/current` | 현재 게시본(질문 항목 스키마) | 200 |
-| `POST /api/business-cases` | 사업 건 + 선택한 서류 유형별 신청 생성. 사업명·개요·부서는 공통 답변으로, 담당자 항목은 "담당자 확인 필요"로 미리 생성 | 201 + `Location`, 유형 없음 400 |
+| `GET /api/publications/current` | 현재 게시본 — 서류 유형 목록(`docTypes`)과 질문 항목(`fields`). 서류 유형은 코드가 아니라 이 데이터가 정한다(ADR 0005) | 200 |
+| `POST /api/business-cases` | 사업 건 + 선택한 서류 유형별 신청 생성. `docTypes` 는 현재 게시본 `docTypes` 의 활성 코드(문자열). 사업명·개요·부서는 공통 답변으로, 담당자 항목은 "담당자 확인 필요"로 미리 생성 | 201 + `Location`, 유형 없음 400, 게시본에 없는 유형 422 |
 | `GET /api/business-cases?page&size` | 내 사업 건 목록(진행 요약은 하위 신청에서 계산) | 200 |
 | `GET /api/business-cases/{id}` | 사업 건 상세 + 공통 답변 + 신청 요약 | 200, 남의 것 404 |
 | `PUT /api/business-cases/{id}` | 사업 개요 수정(`expectedRevision`) | 200, 불일치 409 |
@@ -54,13 +54,15 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 - `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
 - `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API
-- `configuration`: seed 게시본(필드 스키마) 조회
+- `configuration`: seed 게시본(서류 유형 목록 + 필드 스키마) 조회 — 서류 유형은 데이터로 정의(docs/adr/0005)
 - `procedure`: 예제 기능(절차 목록 조회)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
 
 시연 계정·비밀번호는 합성 데이터이며 운영 값이 아니다. 비밀값은 환경변수로만 받는다.
 
 ## DB 명세
+
+규칙 문서와 의도적으로 다른 결정은 `docs/DEVIATIONS.md`, 기술 결정은 `docs/adr/` 에 있다.
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
@@ -93,7 +95,7 @@ erDiagram
     publications {
         bigint      publication_id PK
         integer     version UK
-        jsonb       field_schema "질문 항목: key·scope·docTypes·type·required·askRole"
+        jsonb       field_schema "docTypes(유형 목록) + fields(질문 항목)"
         timestamptz published_at
     }
     business_cases {
@@ -110,7 +112,7 @@ erDiagram
     security_requests {
         bigint      security_request_id PK
         bigint      business_case_id FK
-        varchar(20) doc_type "FIREWALL | SECURITY_REVIEW"
+        varchar(30) doc_type "게시본 docTypes 코드(CHECK 없음)"
         smallint    stage "1~4"
         varchar(30) status "단계x상태 CHECK"
         bigint      revision

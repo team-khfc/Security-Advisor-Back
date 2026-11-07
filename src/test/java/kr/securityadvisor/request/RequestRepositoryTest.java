@@ -7,7 +7,7 @@ import kr.securityadvisor.TestcontainersConfiguration;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.schema.AnswerScope;
-import kr.securityadvisor.common.schema.DocType;
+import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.configuration.domain.Publication;
@@ -58,9 +58,12 @@ class RequestRepositoryTest {
         FieldSchema schema = new ObjectMapper().readValue(publication.getFieldSchemaJson(), FieldSchema.class);
 
         assertThat(publication.getVersion()).isEqualTo(1);
+        assertThat(schema.activeDocTypes()).extracting(definition -> definition.code().code())
+                .containsExactly("FIREWALL", "SECURITY_REVIEW");
+        assertThat(schema.findDocType(DocTypeCode.of("FIREWALL")).orElseThrow().generatesFirewallRules()).isTrue();
         assertThat(schema.caseFields()).hasSize(9);
-        assertThat(schema.requestFields(DocType.FIREWALL)).hasSize(4);
-        assertThat(schema.requestFields(DocType.SECURITY_REVIEW)).hasSize(3);
+        assertThat(schema.requestFields(DocTypeCode.of("FIREWALL"))).hasSize(4);
+        assertThat(schema.requestFields(DocTypeCode.of("SECURITY_REVIEW"))).hasSize(3);
         assertThat(schema.find("network.source").orElseThrow().isStaffField()).isTrue();
     }
 
@@ -72,7 +75,7 @@ class RequestRepositoryTest {
         BusinessCase businessCase = businessCaseRepository.saveAndFlush(
                 BusinessCase.create("applicant", "민원 포털", "개요", "정보화부", publicationId));
         SecurityRequest request = securityRequestRepository.saveAndFlush(
-                SecurityRequest.create(businessCase.getId(), DocType.FIREWALL));
+                SecurityRequest.create(businessCase.getId(), DocTypeCode.of("FIREWALL")));
         answerRepository.saveAndFlush(
                 Answer.userAnswer(AnswerScope.CASE, businessCase.getId(), null, "project.name", "민원 포털"));
         answerRepository.saveAndFlush(
@@ -98,10 +101,10 @@ class RequestRepositoryTest {
         memberRepository.saveAndFlush(Member.seed("applicant", "{bcrypt}hash", "김신청", MemberRole.APPLICANT));
         BusinessCase businessCase =
                 businessCaseRepository.saveAndFlush(BusinessCase.create("applicant", "민원 포털", null, null, publicationId));
-        securityRequestRepository.saveAndFlush(SecurityRequest.create(businessCase.getId(), DocType.FIREWALL));
+        securityRequestRepository.saveAndFlush(SecurityRequest.create(businessCase.getId(), DocTypeCode.of("FIREWALL")));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> securityRequestRepository.saveAndFlush(
-                        SecurityRequest.create(businessCase.getId(), DocType.FIREWALL)))
+                        SecurityRequest.create(businessCase.getId(), DocTypeCode.of("FIREWALL"))))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

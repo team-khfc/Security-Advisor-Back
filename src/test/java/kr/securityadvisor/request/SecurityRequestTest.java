@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
-import kr.securityadvisor.common.schema.DocType;
+import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.domain.SubmissionPreconditions;
@@ -19,7 +19,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class SecurityRequestTest {
 
     private static SecurityRequest inFinalReview() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
         request.requestReview();
         request.completeReviews(true);
         return request;
@@ -28,7 +28,7 @@ class SecurityRequestTest {
     @Test
     @DisplayName("새 신청은 1단계 작성 중이다")
     void created() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
 
         assertThat(request.getStage()).isEqualTo(1);
         assertThat(request.getStatus()).isEqualTo(RequestStatus.DRAFTING);
@@ -38,7 +38,7 @@ class SecurityRequestTest {
     @Test
     @DisplayName("정상 흐름: 작성 중 → 협의 중 → 최종 검토 중 → 제출됨 → 확정")
     void happyPath() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
 
         request.requestReview();
         assertThat(request.getStage()).isEqualTo(2);
@@ -61,7 +61,7 @@ class SecurityRequestTest {
     @Test
     @DisplayName("협의 완료 전이는 두 분야 협의가 모두 끝나야 한다 — 할당 완료만으로는 불가(불변식 12)")
     void completeReviewsRequiresAll() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
         request.requestReview();
 
         assertThatThrownBy(() -> request.completeReviews(false)).isInstanceOf(DomainRuleViolationException.class);
@@ -93,7 +93,7 @@ class SecurityRequestTest {
     @Test
     @DisplayName("1단계에서는 제출할 수 없다")
     void submitOnlyFromFinalReview() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
 
         assertThatThrownBy(() -> request.submit(SubmissionPreconditions.satisfied()))
                 .isInstanceOf(DomainRuleViolationException.class);
@@ -102,7 +102,7 @@ class SecurityRequestTest {
     @Test
     @DisplayName("보완 요청은 협의 중·최종 검토 중에서만, 답변하면 원래 상태로 돌아온다")
     void supplementCycle() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
         assertThatThrownBy(request::requestSupplement).isInstanceOf(DomainRuleViolationException.class);
 
         request.requestReview();
@@ -150,7 +150,7 @@ class SecurityRequestTest {
         assertThatThrownBy(() -> closed.returnToStage(1, "사유")).isInstanceOf(DomainRuleViolationException.class);
         assertThatThrownBy(() -> closed.withdraw("사유")).isInstanceOf(DomainRuleViolationException.class);
 
-        SecurityRequest withdrawn = SecurityRequest.create(1L, DocType.SECURITY_REVIEW);
+        SecurityRequest withdrawn = SecurityRequest.create(1L, DocTypeCode.of("SECURITY_REVIEW"));
         withdrawn.withdraw("사업 취소");
         assertThat(withdrawn.getStatus()).isEqualTo(RequestStatus.WITHDRAWN);
         assertThatThrownBy(withdrawn::requestReview).isInstanceOf(DomainRuleViolationException.class);
@@ -170,14 +170,14 @@ class SecurityRequestTest {
     @Test
     @DisplayName("오래된 revision 으로 쓰면 ConflictException(409)(불변식 10)")
     void staleRevision() {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
 
         request.requireRevision(0);
         assertThatThrownBy(() -> request.requireRevision(5)).isInstanceOf(ConflictException.class);
     }
 
     private static SecurityRequest atStage(int stage) {
-        SecurityRequest request = SecurityRequest.create(1L, DocType.FIREWALL);
+        SecurityRequest request = SecurityRequest.create(1L, DocTypeCode.of("FIREWALL"));
         if (stage >= 2) {
             request.requestReview();
         }
