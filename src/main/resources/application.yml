@@ -1,0 +1,39 @@
+# 기본 설정. 환경마다 다른 값은 환경변수로 덮어쓴다 (compose.yaml, .env.example 참고).
+spring:
+  application:
+    name: securityadvisor
+  profiles:
+    # 프로필을 지정하지 않고 실행하면 local 로 동작한다. 서버·도커에서는 SPRING_PROFILES_ACTIVE 로 지정.
+    default: local
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/boan}
+    username: ${DB_USERNAME:boan}
+    password: ${DB_PASSWORD:boan}
+  jpa:
+    # 뷰 렌더링 중 지연 로딩 금지. 필요한 데이터는 서비스 계층에서 모두 조회한다.
+    open-in-view: false
+    hibernate:
+      # 스키마는 Flyway 가 관리한다. JPA 는 엔티티와 테이블이 맞는지만 확인한다.
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      # 시연용 세션 만료 시간. 만료 후 요청은 401 ProblemDetail 로 응답한다 (design.md 11장 세션 만료 안내).
+      timeout: ${SESSION_TIMEOUT:30m}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

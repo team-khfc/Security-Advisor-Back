@@ -1,0 +1,88 @@
+// 백엔드 빌드 설정.
+// 버전을 올릴 때는 docs/adr/0001-tech-stack.md 의 버전 표도 함께 고친다.
+plugins {
+    java
+    id("org.springframework.boot") version "4.1.2"
+    id("io.spring.dependency-management") version "1.1.7"
+    id("com.diffplug.spotless") version "8.10.4"
+}
+
+group = "kr.securityadvisor"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+val springdocVersion = "3.1.1"
+val archunitVersion = "1.4.2"
+
+dependencies {
+    // 웹(MVC), 검증, 운영 상태 확인
+    implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    // 인증·권한(시연용 세션 로그인, 역할·기관 격리 검사)
+    implementation("org.springframework.boot:spring-boot-starter-security")
+
+    // 데이터베이스: JPA + Flyway(스키마 버전 관리) + PostgreSQL
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
+    implementation("org.flywaydb:flyway-database-postgresql")
+    runtimeOnly("org.postgresql:postgresql")
+
+    // API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+    // 테스트: 실제 PostgreSQL 컨테이너(Testcontainers)로 DB 테스트, ArchUnit 으로 패키지 규칙 검사
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("com.tngtech.archunit:archunit-junit5:$archunitVersion")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+    // 파라미터 이름을 런타임에 유지 (@PathVariable 등에서 이름 생략 가능)
+    options.compilerArgs.add("-parameters")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
+// 실행 가능한 jar(bootJar)만 만든다. -plain.jar 는 만들지 않는다.
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
+// 코드 포맷 통일. 직접 맞추지 말고 ./gradlew spotlessApply 로 자동 정리한다.
+// ./gradlew check 에 spotlessCheck 가 포함되어, 포맷이 다르면 빌드가 실패한다.
+spotless {
+    java {
+        target("src/**/*.java")
+        palantirJavaFormat()
+        removeUnusedImports()
+        importOrder()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}

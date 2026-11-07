@@ -1,0 +1,15 @@
+# Gradle
+.gradle/
+build/
+# IDE
+.idea/
+*.iml
+.vscode/
+# 환경변수(비밀값) — .env.example만 커밋한다
+.env
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude 세션 산출물(저장소 외부 자료)
+Claude outputs/

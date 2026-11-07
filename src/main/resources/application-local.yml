@@ -1,0 +1,11 @@
+# 로컬 개발용 추가 설정. 실행: ./gradlew bootRun (기본 활성 프로필이 local)
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    kr.securityadvisor: debug
+    org.hibernate.SQL: debug
