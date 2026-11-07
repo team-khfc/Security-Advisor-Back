@@ -13,6 +13,9 @@
 | 8 | **담당자 입력·확인을 review 컨텍스트 API(`/api/reviews/{id}/answers/{fieldKey}`)로 노출** — 저장은 request 컨텍스트 `AnswerService.inputByStaff/confirmByStaff` 가 하고, 배정·단계 검사는 review 가 먼저 한다 | FUNCTIONAL_SPEC 1장 도메인 맵(답변은 request, 검토는 review — 담당자 입력의 경로 미지정) | FUNCTIONAL_SPEC 1장·AGENTS 5장 API 예시 | "검토 행위는 배정자만" 규칙을 한곳(review.ReviewerAccessPolicy)에서 강제하기 위함. 값·출처는 여전히 `Answer` 도메인 메서드가 지킨다 |
 | 9 | **답변 변경 → 협의 재검토 연결은 Spring `ApplicationEvent`(동기, 같은 트랜잭션)** — request 가 `AnswerChangedEvent` 를 내고 review 가 `@EventListener` 로 받음 | AGENTS 5장 "컨텍스트 간 ID + 공개 서비스로 연결"(이벤트 언급 없음), PROJECT_CONTEXT "이벤트 소싱·CQRS 미도입" | AGENTS 5장에 "같은 트랜잭션의 동기 ApplicationEvent 허용" 명시 | request → review 의존을 만들지 않고 불변식 7(공통 정보 변경 시 미제출 신청 재검토)을 구현하는 최소 수단. 이벤트 소싱이 아니다(저장하지 않음) |
 | 10 | **차수 반환·종결 권한** — 그 신청에 활성 배정된 담당자(어느 분야든). 관리자(ADMIN)는 할 수 없음 | FUNCTIONAL_SPEC F-05 "담당자" (배정 요건 명시 없음) | FUNCTIONAL_SPEC F-05·3-1장 배정 불변식 | "검토 행위는 배정자만"의 일관된 적용. 관리자가 필요하면 재배정 후 처리 |
+| 11 | **제출 전 검사의 협의 사실은 포트(`request.service.ReviewFactsProvider`)로 받음** — 구현은 review 컨텍스트(`ReviewFactsAdapter`) | AGENTS 5장 "컨텍스트 간 ID + 공개 서비스" (의존 역전 언급 없음) | AGENTS 5장에 "하위 컨텍스트가 상위 사실을 필요로 하면 포트 인터페이스 허용" 명시 | request → review 순환 의존을 피하면서 제출 판단(`SecurityRequest.submit`)을 request 도메인에 두기 위함 |
+| 12 | **문서함(`GET /api/submissions`)은 1차 범위에서 메모리 필터·전체 목록** — page/size 없음 | AGENTS 5장 목록 API 규칙(page·size·sort) | 제출본 수가 늘면 JPQL 필터·페이징으로 교체(BACKLOG) | 시연 규모(수십 건) 기준의 단순화. 응답 형식은 배열 |
+| 13 | **불변식 7(답변 변경 → 완료된 협의 재검토)의 적용 범위를 2단계 신청으로 한정** — 3단계 최종 검토의 보충 답변은 협의 상태를 바꾸지 않는다 | FUNCTIONAL_SPEC 불변식 7 "중요 답변 변경 시 완료된 Review 는 재검토" (단계 범위 미지정) | FUNCTIONAL_SPEC 불변식 7 에 "2단계에서" 명시 또는 3단계 보충 규칙 추가 | 3단계는 명세상 사용자가 내용을 보충하는 단계인데, 보충할 때마다 협의가 되돌아가면 제출 조건(협의 완료)을 영원히 못 채운다(3단계에서는 담당자가 협의 완료를 다시 할 수 없음). 3단계 변경분은 4단계 최종 확인에서 담당자가 스냅샷으로 검증하고, 부족하면 4→3 반환이 재검토 표시를 만든다 |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

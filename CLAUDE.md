@@ -26,12 +26,8 @@ gradlew spotlessApply check     # 포맷 + 컴파일 + 단위/통합 테스트(T
 gradlew test --tests "kr.securityadvisor.auth.AuthControllerTest"
 ```
 
-## 현재 상태 (2026-11-07, 미커밋 작업 트리)
+## 현재 상태 (2026-11-08)
 
-마지막 커밋 `502223c` 이후 F-04(담당자 검토)·F-05(보완·차수 반환·종결)를 구현했고 아직 커밋하지 않았다. 첫 `check` 실행 결과: 컴파일 통과, 103건 중 20건 실패 → 두 원인은 수정함, 하나는 진단 중.
-
-1. (수정함) `security_requests.stage`·`stage_returns.from_stage/to_stage` SMALLINT ↔ int 검증 실패 → `@JdbcTypeCode(SqlTypes.SMALLINT)`.
-2. (수정함) ArchUnit `controllerDoesNotExposeEntity` 가 `org.springframework.data.domain` 까지 잡음 → 패턴을 `kr.securityadvisor..domain..` 으로, `AuditEventController` 의 `targetType` 은 String 으로.
-3. (수정함) XSRF-TOKEN 쿠키 테스트 — 원인은 `SecurityMockMvcRequestPostProcessors.csrf()` 가 싱글턴 CsrfFilter 의 저장소를 HttpSession 기반 TestCsrfTokenRepository 로 바꿔치기해 같은 컨텍스트의 다른 테스트에 영향을 준 것. 쿠키 테스트를 `CsrfCookieTest`(고유 속성으로 컨텍스트 분리, csrf() 미사용)로 옮김.
-
-그다음: 나머지 실패 수정 → 사용자 확인 → 커밋. 이후 남은 기능은 F-07(제출·최종 확인·확정·문서함), llm 컨텍스트(F-02·F-06·F-03 AI·F-09·F-10), P2(F-08·F-15·F-16·F-17).
+- 커밋 `da9ad74` 까지: F-01·F-03(사람 입력)·F-04·F-05·F-11·F-12·F-13·F-14 구현, 로컬 `gradlew check` 103건 통과.
+- 작업 트리(미커밋): **F-07 제출·최종 확인·확정·문서함** — `request.SubmissionService/SubmissionController`, `review.FinalConfirmation*`, `ReviewFactsProvider` 포트, 마이그레이션 `V202611081000__create_final_confirmations.sql`, 테스트 `SubmissionApiTest`(docker)·`FinalConfirmationTest`. VM 에서 컴파일·단위 테스트 통과, Docker 테스트는 PC 실행 필요.
+- 남은 기능: llm 컨텍스트(어댑터+Spring AI, F-02·F-03 AI 제안·F-06·F-09·F-10), F-15 방화벽 규칙(확정 시 생성·적용 기록), F-16 지표, F-17 알림, F-08 설정 편집 API, 제출 준비물(GET /api/installation, OpenAPI 파일, compose.yaml, 규칙 문서 복사, ADR 0001~0004).

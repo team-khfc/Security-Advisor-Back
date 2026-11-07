@@ -74,7 +74,21 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 - 사용자가 답변을 바꾸면(`PUT …/answers/{fieldKey}`) 영향받는 미제출 신청의 **완료된 협의가 재검토로** 돌아간다(불변식 7). request 컨텍스트가 `AnswerChangedEvent` 를 내고 review 컨텍스트가 같은 트랜잭션에서 받는다.
 - 보완 답변·협의 완료 시 ANSWERED 보완은 RESOLVED 로 해소된다. 제출(F-07)은 OPEN 보완이 없어야 한다.
 
-제출·최종 확인·확정·문서함(F-07)은 다음 단계에서 추가한다. 제출 전 검사(`SecurityRequest.submit`)와 상태 전이 규칙은 이미 도메인에 있다.
+## 제출·최종 확인·확정·문서함 API (F-07)
+
+| 경로 | 설명 | 응답 |
+| --- | --- | --- |
+| `POST /api/security-requests/{id}/submissions` + 헤더 `Idempotency-Key` | **제출**(3단계 최종 검토 중, 신청자 본인). 제출 전 검사 전부 통과해야 함 — 필수값 완료·미확정 값 없음·미해결 보완 없음·필요 분야 협의 완료. 그 시점의 공통 값 + 서류별 값 + 설정 버전을 불변 스냅샷으로 저장하고 최종 확정 기한 생성. 같은 키 재요청은 기존 제출본 반환 | 201 + `Location` / 같은 키 200, 키 없음 400, 검사 실패·3단계 아님 422(detail 에 항목 키), revision 409 |
+| `GET /api/security-requests/{id}/submissions` | 신청의 제출본 개정 목록(최근 먼저, `latest` 표시) | 200 |
+| `GET /api/submissions/{id}` | 제출본 상세(스냅샷 포함) | 200, 남의 것 404 |
+| `GET /api/submissions?docType&status&latestOnly` | **문서함** — 신청자는 자기 사업 건, 담당자·관리자는 전체. 각 줄에 신청·사업 건 현재 상태 포함(확정 여부 = 신청 상태 `CONFIRMED`) | 200 |
+| `POST /api/submissions/{id}/final-confirmations` | **분야 최종 확인**(4단계, 호출자 역할이 분야). 배정 담당자만, INFRA 선행, 분야당 1건, 최신 제출본만 | 201, SECURITY 선행 시도·중복 422, 미배정 403 |
+| `GET /api/submissions/{id}/final-confirmations` | 최종 확인 목록 | 200 |
+| `PUT /api/submissions/{id}/confirmation` | **확정** — 배정된 SECURITY 담당자만, 두 분야 최종 확인 이후. 신청 상태 → `CONFIRMED`(종료, 이후 전이 불가), 최종 확정 기한 종료 | 200, 두 분야 미확인 422, INFRA·신청자 403 |
+
+- 부족하면 4→3 차수 반환(`POST …/stage-returns`)으로 돌려보내고, 다시 제출하면 새 개정본(`sequenceNo` 증가)이 된다. 이전 제출본은 불변·조회만.
+- 서류 확정 ≠ 방화벽 적용. 방화벽 규칙 생성(불변식 26)·적용 기록은 policy 컨텍스트(F-15)에서 추가한다 — 미구현.
+- 3단계 AI 최종 초안(F-06·F-07 의 AI 보완)과 서류 렌더링·다운로드(document 컨텍스트)는 미구현. 문서함은 제출본(스냅샷) 단위로만 동작한다.
 
 ## 인증 API (F-11)
 
@@ -92,9 +106,9 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 ## 현재 구현 범위
 
 - `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
-- `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API
+- `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API, 제출(멱등성 키·스냅샷)·문서함(F-07)
 - `configuration`: seed 게시본(서류 유형 목록 + 필드 스키마 + 기한 정책) 조회 — 서류 유형은 데이터로 정의(docs/adr/0005)
-- `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05)
+- `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05), 4단계 최종 확인·확정(F-07)
 - `assignment`: 분야별 담당자 목록(seed)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
@@ -109,7 +123,7 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 5건: members · publications · 사업 건/신청/답변/제출본 · 협의/배정/기한/감사 · 보완/차수 반환)
+### ERD — 현재 (마이그레이션 6건: members · publications · 사업 건/신청/답변/제출본 · 협의/배정/기한/감사 · 보완/차수 반환 · 최종 확인)
 
 ```mermaid
 erDiagram
@@ -121,6 +135,7 @@ erDiagram
     business_cases ||--o{ answers : "scope=CASE (security_request_id NULL)"
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ submissions : "sequence_no 증가"
+    submissions ||--o{ final_confirmations : "분야별 1건, INFRA 선행"
     security_requests ||--o{ supplements : "보완 요청"
     reviews ||--o{ supplements : "요청한 분야 협의"
     security_requests ||--o{ stage_returns : "차수 반환 이력"
@@ -212,6 +227,15 @@ erDiagram
         timestamptz resolved_at
         bigint      revision
     }
+    final_confirmations {
+        bigint      final_confirmation_id PK
+        bigint      submission_id
+        bigint      security_request_id
+        varchar(20) field "INFRA | SECURITY, UNIQUE(submission_id, field)"
+        text        opinion
+        varchar(50) confirmed_by
+        timestamptz confirmed_at
+    }
     stage_returns {
         bigint      stage_return_id PK
         bigint      security_request_id
@@ -296,7 +320,6 @@ erDiagram
     security_requests ||--o{ assignments : "분야당 활성 1건"
     security_requests ||--o{ deadlines : "저장형 기한일"
     security_requests ||--o{ generated_documents : ""
-    submissions ||--o{ final_confirmations : "분야별 1건"
     submissions ||--o{ firewall_rules : "FIREWALL 확정 시 생성"
     reviewer_pools }o--|| members : "분야별 담당자"
 
@@ -376,4 +399,4 @@ erDiagram
 
 ### 예정 테이블
 
-FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`(이상 생성됨)·`final_confirmations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
+FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`(이상 생성됨)·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.

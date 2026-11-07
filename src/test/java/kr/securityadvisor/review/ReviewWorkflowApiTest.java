@@ -174,17 +174,23 @@ class ReviewWorkflowApiTest {
         assertThat(answered).bodyJson().extractingPath("$.status").isEqualTo("ANSWERED");
         assertThat(requestStatus(requestId)).isEqualTo("IN_REVIEW");
 
-        // INFRA 완료(체크리스트 누락은 422) → SECURITY 완료 → 3단계 최종 검토, 협의 기한 종료, 보완은 RESOLVED
+        // INFRA 완료(체크리스트 누락은 422) → 2단계에서 사용자가 답변을 바꾸면 완료된 INFRA 협의는 재검토(RECHECK)로(불변식 7)
         assertThat(complete(INFRA, infraReviewId, "{\"source\":true}")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(complete(INFRA, infraReviewId, INFRA_CHECKLIST)).hasStatusOk();
         assertThat(requestStatus(requestId)).isEqualTo("IN_REVIEW");
-        MvcTestResult securityDone = complete(SECURITY, securityReviewId, SECURITY_CHECKLIST);
-        assertThat(securityDone).hasStatusOk();
-        assertThat(securityDone).bodyJson().extractingPath("$.status").isEqualTo("COMPLETED");
-        assertThat(securityDone)
+        answerAsApplicant(requestId, "firewall.purpose", "목적 다시 수정");
+        assertThat(mvc.get().uri("/api/reviews/{id}", infraReviewId).with(authentication(APPLICANT)))
+                .hasStatusOk()
                 .bodyJson()
-                .extractingPath("$.checklist.logging")
-                .isEqualTo(true);
+                .extractingPath("$.status")
+                .isEqualTo("RECHECK");
+        // SECURITY 완료만으로는 전이하지 않고(INFRA 재검토 중), INFRA 가 다시 완료해야 3단계 최종 검토 + 협의 기한 종료 + 보완 RESOLVED
+        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
+        assertThat(requestStage(requestId)).isEqualTo(2);
+        MvcTestResult infraDone = complete(INFRA, infraReviewId, INFRA_CHECKLIST);
+        assertThat(infraDone).hasStatusOk();
+        assertThat(infraDone).bodyJson().extractingPath("$.status").isEqualTo("COMPLETED");
+        assertThat(infraDone).bodyJson().extractingPath("$.checklist.port").isEqualTo(true);
         assertThat(requestStage(requestId)).isEqualTo(3);
         assertThat(requestStatus(requestId)).isEqualTo("FINAL_REVIEW");
         assertThat(mvc.get()
@@ -203,13 +209,13 @@ class ReviewWorkflowApiTest {
                 .extractingPath("$[0].status")
                 .isEqualTo("RESOLVED");
 
-        // 3단계에서 사용자가 답변을 바꾸면 완료된 협의가 재검토(RECHECK)로 돌아간다(불변식 7)
-        answerAsApplicant(requestId, "firewall.purpose", "목적 다시 수정");
+        // 3단계 최종 검토의 보충 답변은 협의를 되돌리지 않는다(담당자는 4단계 최종 확인에서 검증, 부족하면 4→3 반환)
+        answerAsApplicant(requestId, "firewall.purpose", "3단계 보충 수정");
         assertThat(mvc.get().uri("/api/reviews/{id}", securityReviewId).with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.status")
-                .isEqualTo("RECHECK");
+                .isEqualTo("COMPLETED");
 
         // 차수 반환 3→1: 신청자는 403, 사유 없으면 400, 담당자+사유는 201, 지정 항목 강조, 1단계 작성 중
         String returnBody =
