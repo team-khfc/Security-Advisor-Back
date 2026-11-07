@@ -1,9 +1,11 @@
 package kr.securityadvisor.common.error;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -39,9 +41,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.FORBIDDEN, "권한이 없습니다", e.getMessage());
     }
 
+    /** CSRF 토큰 누락·불일치. {@code AccessDeniedException} 의 하위 타입이라 더 구체적인 이 핸들러가 먼저 잡는다. */
+    @ExceptionHandler(CsrfException.class)
+    public ProblemDetail handleCsrf(CsrfException e) {
+        return problem(
+                HttpStatus.FORBIDDEN,
+                "권한이 없습니다",
+                "CSRF 토큰이 없거나 유효하지 않습니다. XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내세요");
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException e) {
         return problem(HttpStatus.FORBIDDEN, "권한이 없습니다", "이 작업을 수행할 권한이 없습니다");
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ProblemDetail handleTooManyRequests(TooManyRequestsException e) {
+        return problem(HttpStatus.TOO_MANY_REQUESTS, "요청이 제한되었습니다", e.getMessage());
+    }
+
+    /** 유일 제약 위반 등 DB 무결성 충돌(동시 가입 경쟁 등). 내부 메시지는 노출하지 않는다. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException e) {
+        return problem(HttpStatus.CONFLICT, "충돌이 발생했습니다", "이미 존재하는 값이거나 데이터 제약에 어긋납니다");
     }
 
     @ExceptionHandler(ConflictException.class)

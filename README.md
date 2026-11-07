@@ -12,13 +12,29 @@
 ## 실행
 
 ```bash
+cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD) 등 — .env 는 커밋하지 않는다
 ./gradlew bootRun            # http://localhost:8080 , Swagger UI: /swagger-ui.html
 ./gradlew spotlessApply check  # 커밋 전 필수: 포맷 + 테스트 + ArchUnit
 ```
 
+기동 시 `DemoAccountSeeder` 가 역할별 시연 계정 5건(`applicant`·`applicant2`·`security`·`infra`·`admin`, 비밀번호는 `DEMO_ACCOUNT_PASSWORD`)을 bcrypt 해시로 만든다. 비밀번호를 비우면 만들지 않는다. 마이그레이션에는 계정을 넣지 않는다.
+
+## 인증 API (F-11)
+
+| 요청 | 설명 | 응답 |
+|---|---|---|
+| `POST /api/members` | 회원가입(익명). 아이디·비밀번호·표시 이름·부서(선택). 역할은 요청과 무관하게 APPLICANT | 201 + `Location`, 중복 409, 형식 400 |
+| `POST /api/auth/login` | 로그인(세션 쿠키 발급) | 200, 실패 401, 잠김 429 |
+| `POST /api/auth/logout` | 로그아웃 | 204 |
+| `GET /api/auth/me` | 현재 사용자 | 200, 미로그인·만료 401 |
+
+- **CSRF:** 상태 변경 요청(POST 등)은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 한다(로그인·회원가입 포함). 쿠키는 아무 GET 응답(예: `GET /api/auth/me`, 401이어도)에 실려 온다. 없거나 틀리면 403.
+- **로그인 실패 제한:** 연속 `LOGIN_MAX_FAILURES`(기본 5)회 실패하면 `LOGIN_LOCK_DURATION`(기본 15분) 동안 429. 성공하면 초기화.
+- 오류는 전부 ProblemDetail(JSON).
+
 ## 현재 구현 범위
 
-- `auth`: 시연용 세션 로그인(`POST /api/auth/login`, `/logout`, `GET /api/auth/me`), 역할 4종, 시연 계정 seed
+- `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
 - `procedure`: 예제 기능(절차 목록 조회)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
 
@@ -36,8 +52,12 @@ erDiagram
         varchar(50)  username PK "로그인 아이디"
         varchar(100) password_hash "bcrypt 해시"
         varchar(100) display_name
+        varchar(100) department "선택"
         varchar(20)  role "APPLICANT | SECURITY | INFRA | ADMIN"
+        varchar(10)  signup_source "SEED | SELF"
         boolean      active "false면 로그인 불가"
+        integer      failed_login_count "연속 실패 횟수"
+        timestamptz  locked_until "잠금 해제 시각"
         timestamptz  created_at
         timestamptz  updated_at
     }

@@ -2,8 +2,12 @@ package kr.securityadvisor.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.time.Instant;
 import kr.securityadvisor.TestcontainersConfiguration;
+import kr.securityadvisor.auth.domain.LoginLockPolicy;
 import kr.securityadvisor.auth.domain.Member;
+import kr.securityadvisor.auth.domain.SignupSource;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
-/** 시드 계정이 마이그레이션으로 적재되는지 확인한다. */
+/** members 테이블 매핑(마이그레이션 ↔ 엔티티)과 잠금 컬럼이 저장·조회되는지 실제 PostgreSQL 로 확인한다. */
 @DataJpaTest
 @Import(TestcontainersConfiguration.class)
 class MemberRepositoryTest {
@@ -21,19 +25,26 @@ class MemberRepositoryTest {
     private MemberRepository memberRepository;
 
     @Test
-    @DisplayName("시드 계정 4종(역할별)이 username 으로 조회된다")
-    void seededMembers() {
-        for (MemberRole role : MemberRole.values()) {
-            Member member = memberRepository.findById(role.name().toLowerCase()).orElseThrow();
-            assertThat(member.getRole()).isEqualTo(role);
-            assertThat(member.canLogin()).isTrue();
-        }
+    @DisplayName("마이그레이션은 시연 계정을 넣지 않는다 (기동 시 DemoAccountSeeder 가 환경변수로 만든다)")
+    void noSeedInMigration() {
+        assertThat(memberRepository.count()).isZero();
     }
 
     @Test
-    @DisplayName("시드 비밀번호 해시는 DelegatingPasswordEncoder 형식({bcrypt})이다")
-    void passwordHashFormat() {
-        Member member = memberRepository.findById("admin").orElseThrow();
-        assertThat(member.getPasswordHash()).startsWith("{bcrypt}$2");
+    @DisplayName("회원가입 계정이 부서·가입 경로·잠금 컬럼과 함께 저장되고 다시 읽힌다")
+    void saveAndReload() {
+        Instant now = Instant.parse("2026-11-07T09:00:00Z");
+        Member member = Member.signUp("newuser", "{bcrypt}$2b$10$hash", "홍길동", "정보화부");
+        member.recordLoginFailure(now, new LoginLockPolicy(1, Duration.ofMinutes(15)));
+        memberRepository.saveAndFlush(member);
+
+        Member reloaded = memberRepository.findById("newuser").orElseThrow();
+
+        assertThat(reloaded.getRole()).isEqualTo(MemberRole.APPLICANT);
+        assertThat(reloaded.getSignupSource()).isEqualTo(SignupSource.SELF);
+        assertThat(reloaded.getDepartment()).isEqualTo("정보화부");
+        assertThat(reloaded.getFailedLoginCount()).isEqualTo(1);
+        assertThat(reloaded.isLocked(now)).isTrue();
+        assertThat(reloaded.getCreatedAt()).isNotNull();
     }
 }

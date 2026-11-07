@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.util.List;
 import kr.securityadvisor.auth.controller.AuthController;
@@ -11,6 +12,7 @@ import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.MemberResponse.LoginResult;
 import kr.securityadvisor.auth.service.AuthService;
 import kr.securityadvisor.common.config.SecurityConfig;
+import kr.securityadvisor.common.error.TooManyRequestsException;
 import kr.securityadvisor.common.error.UnauthorizedException;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
@@ -28,7 +30,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-/** 인증 API 와 SecurityConfig 의 HTTP 동작(익명 허용 경로, 401 ProblemDetail)을 확인한다. */
+/** 인증 API 와 SecurityConfig 의 HTTP 동작(익명 허용 경로, CSRF, 401/429 ProblemDetail)을 확인한다. */
 @WebMvcTest(AuthController.class)
 @Import(SecurityConfig.class)
 class AuthControllerTest {
@@ -36,6 +38,7 @@ class AuthControllerTest {
     private static final MemberPrincipal APPLICANT = new MemberPrincipal("applicant", "김신청", MemberRole.APPLICANT);
     private static final MemberResponse APPLICANT_RESPONSE =
             new MemberResponse("applicant", "김신청", MemberRole.APPLICANT);
+    private static final String LOGIN_JSON = "{\"username\":\"applicant\",\"password\":\"password1!\"}";
 
     @Autowired
     private MockMvcTester mvc;
@@ -53,12 +56,30 @@ class AuthControllerTest {
 
         assertThat(mvc.post()
                         .uri("/api/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"applicant\",\"password\":\"password1!\"}"))
+                        .content(LOGIN_JSON))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.role")
                 .isEqualTo("APPLICANT");
+    }
+
+    @Test
+    @DisplayName("CSRF 토큰 없는 로그인 요청은 403 ProblemDetail 로 거부한다 (로그인 CSRF 방지)")
+    void loginWithoutCsrf() {
+        assertThat(mvc.post().uri("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(LOGIN_JSON))
+                .hasStatus(HttpStatus.FORBIDDEN)
+                .bodyJson()
+                .extractingPath("$.detail")
+                .asString()
+                .contains("CSRF");
+    }
+
+    @Test
+    @DisplayName("GET 응답에는 XSRF-TOKEN 쿠키가 실린다 (프론트가 먼저 받아 헤더로 보낸다)")
+    void csrfCookieIssuedOnGet() {
+        assertThat(mvc.get().uri("/api/auth/me")).hasStatus(HttpStatus.UNAUTHORIZED).cookies().containsCookie("XSRF-TOKEN");
     }
 
     @Test
@@ -68,6 +89,7 @@ class AuthControllerTest {
 
         assertThat(mvc.post()
                         .uri("/api/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"applicant\",\"password\":\"wrong\"}"))
                 .hasStatus(HttpStatus.UNAUTHORIZED)
@@ -77,10 +99,27 @@ class AuthControllerTest {
     }
 
     @Test
+    @DisplayName("잠긴 계정의 로그인은 429 ProblemDetail 을 반환한다")
+    void loginLocked() {
+        given(authService.login(any())).willThrow(new TooManyRequestsException("로그인 실패가 반복되어 잠시 후 다시 시도할 수 있습니다"));
+
+        assertThat(mvc.post()
+                        .uri("/api/auth/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(LOGIN_JSON))
+                .hasStatus(HttpStatus.TOO_MANY_REQUESTS)
+                .bodyJson()
+                .extractingPath("$.title")
+                .isEqualTo("요청이 제한되었습니다");
+    }
+
+    @Test
     @DisplayName("빈 아이디·비밀번호는 400 으로 거부한다")
     void loginValidation() {
         assertThat(mvc.post()
                         .uri("/api/auth/login")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"\",\"password\":\"\"}"))
                 .hasStatus(HttpStatus.BAD_REQUEST);
@@ -113,6 +152,6 @@ class AuthControllerTest {
     @Test
     @DisplayName("로그아웃은 세션 유무와 관계없이 204 를 반환한다")
     void logout() {
-        assertThat(mvc.post().uri("/api/auth/logout")).hasStatus(HttpStatus.NO_CONTENT);
+        assertThat(mvc.post().uri("/api/auth/logout").with(csrf())).hasStatus(HttpStatus.NO_CONTENT);
     }
 }

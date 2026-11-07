@@ -1,7 +1,10 @@
-# 기본 설정. 환경마다 다른 값은 환경변수로 덮어쓴다 (compose.yaml, .env.example 참고).
+# 기본 설정. 환경마다 다른 값은 환경변수로 덮어쓴다. 로컬에서는 `cp .env.example .env` 로 만든 .env 를 아래 config.import 가 읽는다.
 spring:
   application:
     name: securityadvisor
+  config:
+    # .env 가 있으면 환경변수처럼 읽는다(없어도 됨). .env 는 커밋하지 않는다.
+    import: optional:file:.env[.properties]
   profiles:
     # 프로필을 지정하지 않고 실행하면 local 로 동작한다. 서버·도커에서는 SPRING_PROFILES_ACTIVE 로 지정.
     default: local
@@ -27,6 +30,20 @@ server:
     session:
       # 시연용 세션 만료 시간. 만료 후 요청은 401 ProblemDetail 로 응답한다 (design.md 11장 세션 만료 안내).
       timeout: ${SESSION_TIMEOUT:30m}
+      cookie:
+        # 세션 쿠키는 HttpOnly + SameSite=Lax. HTTPS 로 서비스할 때 SESSION_COOKIE_SECURE=true (SECURE_CODING.md 2절).
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+securityadvisor:
+  demo:
+    # 시연 계정 공통 비밀번호. 환경변수로만 받는다 — 비어 있으면 시연 계정을 만들지 않는다 (F-11).
+    account-password: ${DEMO_ACCOUNT_PASSWORD:}
+  auth:
+    # 로그인 실패 제한: 연속 N회 실패 시 잠금, 잠금 시간 (SECURE_CODING.md 2절)
+    max-failed-logins: ${LOGIN_MAX_FAILURES:5}
+    lock-duration: ${LOGIN_LOCK_DURATION:15m}
 
 management:
   endpoints:
