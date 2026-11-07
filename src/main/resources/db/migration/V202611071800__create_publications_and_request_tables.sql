@@ -1,5 +1,7 @@
 -- 기관 설정 게시본(configuration) + 사업 건·신청·답변·제출본(request). FUNCTIONAL_SPEC 8-1 스키마 확정 기준.
 -- 기본 키는 <테이블 단수형>_id, 같은 이름의 컬럼은 어디서나 같은 형식(README DB 명세).
+-- 외래 키 제약은 두지 않는다(팀 결정 2026-11-07): 참조 무결성은 애플리케이션(도메인·서비스)이 지키고, 조회용 인덱스만 둔다.
+-- 업무 규칙을 담은 CHECK·UNIQUE(단계x상태, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키)는 유지한다.
 -- 이미 main 에 머지된 마이그레이션 파일은 절대 고치지 않는다. 변경은 새 파일로 추가한다.
 
 -- 1) 게시본: 1차는 seed 게시본 1개로 운영(편집 화면 F-08 은 P2). 새 게시본은 새 사업 건에만 적용(불변식 8).
@@ -18,11 +20,11 @@ COMMENT ON TABLE publications IS '기관 설정 게시본. field_schema 는 질�
 CREATE TABLE business_cases
 (
     business_case_id   BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    applicant_username VARCHAR(50)  NOT NULL REFERENCES members (username),
+    applicant_username VARCHAR(50)  NOT NULL,
     title              VARCHAR(200) NOT NULL,
     summary            TEXT,
     department         VARCHAR(100),
-    publication_id     BIGINT       NOT NULL REFERENCES publications (publication_id),
+    publication_id     BIGINT       NOT NULL,
     revision           BIGINT       NOT NULL DEFAULT 0,
     created_by         VARCHAR(50),
     updated_by         VARCHAR(50),
@@ -36,7 +38,7 @@ COMMENT ON TABLE business_cases IS '사업 건. 서류별 신청 N건을 거느�
 CREATE TABLE security_requests
 (
     security_request_id BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    business_case_id    BIGINT      NOT NULL REFERENCES business_cases (business_case_id),
+    business_case_id    BIGINT      NOT NULL,
     doc_type            VARCHAR(20) NOT NULL CHECK (doc_type IN ('FIREWALL', 'SECURITY_REVIEW')),
     stage               SMALLINT    NOT NULL CHECK (stage BETWEEN 1 AND 4),
     status              VARCHAR(30) NOT NULL,
@@ -64,8 +66,8 @@ CREATE TABLE answers
 (
     answer_id           BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     scope               VARCHAR(10)  NOT NULL CHECK (scope IN ('CASE', 'REQUEST')),
-    business_case_id    BIGINT       NOT NULL REFERENCES business_cases (business_case_id),
-    security_request_id BIGINT       REFERENCES security_requests (security_request_id),
+    business_case_id    BIGINT       NOT NULL,
+    security_request_id BIGINT      ,
     field_key           VARCHAR(100) NOT NULL,
     value               TEXT,
     value_source        VARCHAR(20)  CHECK (value_source IN ('USER_ANSWER', 'AI_INFERRED', 'STAFF_INPUT', 'STAFF_CONFIRMED')),
@@ -86,6 +88,7 @@ CREATE TABLE answers
 );
 CREATE UNIQUE INDEX uq_answers_case_field ON answers (business_case_id, field_key) WHERE scope = 'CASE';
 CREATE UNIQUE INDEX uq_answers_request_field ON answers (security_request_id, field_key) WHERE scope = 'REQUEST';
+CREATE INDEX idx_answers_request ON answers (security_request_id) WHERE scope = 'REQUEST';
 COMMENT ON TABLE answers IS '인터뷰 답변(필드 단위). value_source NULL = 담당자 확인 필요. AI_INFERRED 는 confirmed 전까지 미확정(불변식 1)';
 COMMENT ON COLUMN answers.evidence IS 'AI 추론 근거(원문 위치·요약). AI_INFERRED 이면 필수';
 COMMENT ON COLUMN answers.needs_review IS '앞선 답변 변경·차수 반환으로 재검토가 필요한 항목';
@@ -94,17 +97,18 @@ COMMENT ON COLUMN answers.needs_review IS '앞선 답변 변경·차수 반환�
 CREATE TABLE submissions
 (
     submission_id       BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    security_request_id BIGINT       NOT NULL REFERENCES security_requests (security_request_id),
-    publication_id      BIGINT       NOT NULL REFERENCES publications (publication_id),
+    security_request_id BIGINT       NOT NULL,
+    publication_id      BIGINT       NOT NULL,
     sequence_no         INTEGER      NOT NULL,
     snapshot            JSONB        NOT NULL,
     idempotency_key     VARCHAR(100) NOT NULL UNIQUE,
-    submitted_by        VARCHAR(50)  NOT NULL REFERENCES members (username),
+    submitted_by        VARCHAR(50)  NOT NULL,
     submitted_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
     CONSTRAINT uq_submissions_request_sequence UNIQUE (security_request_id, sequence_no)
 );
+CREATE INDEX idx_submissions_request ON submissions (security_request_id);
 COMMENT ON TABLE submissions IS '제출본. 생성 후 불변 — 보완은 새 개정본(sequence_no 증가)';
 
 -- 6) seed 게시본 v1: 서류 2종 최소 필드 스키마(기획 확정 전 임시, 전부 합성). 기획(안대웅) 확정 시 새 게시본으로 교체한다.
