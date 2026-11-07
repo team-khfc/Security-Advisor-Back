@@ -9,6 +9,7 @@ import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.auth.service.DemoAccountSeeder;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.DefaultApplicationArguments;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /** 시연 계정 5건(신청자 2·SECURITY 1·INFRA 1·ADMIN 1)이 환경변수 비밀번호로 만들어지고, 다시 기동해도 중복 생성되지 않는지 확인한다. */
+@Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
 @SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
 @Import(TestcontainersConfiguration.class)
 class DemoAccountSeederTest {
@@ -38,13 +40,20 @@ class DemoAccountSeederTest {
                 .get()
                 .extracting(Member::getRole)
                 .isEqualTo(MemberRole.APPLICANT);
-        assertThat(memberRepository.findById("security")).get().extracting(Member::getRole).isEqualTo(MemberRole.SECURITY);
-        assertThat(memberRepository.findById("infra")).get().extracting(Member::getRole).isEqualTo(MemberRole.INFRA);
+        assertThat(memberRepository.findById("security"))
+                .get()
+                .extracting(Member::getRole)
+                .isEqualTo(MemberRole.SECURITY);
+        assertThat(memberRepository.findById("infra"))
+                .get()
+                .extracting(Member::getRole)
+                .isEqualTo(MemberRole.INFRA);
         Member admin = memberRepository.findById("admin").orElseThrow();
         assertThat(admin.getRole()).isEqualTo(MemberRole.ADMIN);
         assertThat(admin.getSignupSource()).isEqualTo(SignupSource.SEED);
         assertThat(admin.getPasswordHash()).startsWith("{bcrypt}");
-        assertThat(passwordEncoder.matches("Test-Demo-1234", admin.getPasswordHash())).isTrue();
+        assertThat(passwordEncoder.matches("Test-Demo-1234", admin.getPasswordHash()))
+                .isTrue();
     }
 
     @Test

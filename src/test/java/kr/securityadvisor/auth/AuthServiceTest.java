@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.domain.LoginLockPolicy;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.dto.LoginRequest;
@@ -20,7 +21,6 @@ import kr.securityadvisor.auth.dto.MemberResponse.LoginResult;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.auth.service.AuthService;
 import kr.securityadvisor.auth.service.LoginAttemptRecorder;
-import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.error.TooManyRequestsException;
 import kr.securityadvisor.common.error.UnauthorizedException;
 import kr.securityadvisor.common.security.MemberRole;
@@ -57,7 +57,11 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         authService = new AuthService(
-                memberRepository, passwordEncoder, loginAttemptRecorder, auditRecorder, Clock.fixed(NOW, ZoneOffset.UTC));
+                memberRepository,
+                passwordEncoder,
+                loginAttemptRecorder,
+                auditRecorder,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         member = Member.seed("applicant", "{bcrypt}hash", "김신청", MemberRole.APPLICANT);
     }
 

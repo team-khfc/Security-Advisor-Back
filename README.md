@@ -52,7 +52,29 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 - 감사 이력은 업무 변경과 같은 트랜잭션에서 기록되며(기록 실패 = 업무 실패), `audit_events` 는 DB 트리거로 UPDATE·DELETE 를 거부한다. 값·비밀값·원문은 기록하지 않고 항목 키·출처·참조 ID 만 남긴다.
 - 기한 정책(영업일 수·공휴일·임박 기준)은 게시본 `deadlinePolicy` 에 있고 사업 건 생성 시점 버전으로 고정된다. 기한 경과는 상태를 바꾸지 않는다.
 
-할당·협의 완료·보완·차수 반환·종결·제출·최종 확인·확정은 다음 단계(review 컨텍스트)에서 추가한다. 제출 전 검사(`SecurityRequest.submit`)와 상태 전이 규칙은 이미 도메인에 있다.
+## 담당자 검토·보완·반환·종결 API (F-04·F-05)
+
+검토 행위는 **그 신청·분야에 활성 배정된 담당자**만 할 수 있다(역할만 맞으면 403). 조회는 신청을 볼 수 있는 사람 누구나. 협의·보완·신청의 `revision` 은 각각 따로 움직이므로 요청 전에 `GET` 으로 최신 값을 읽는다.
+
+| 경로 | 설명 | 응답 |
+| --- | --- | --- |
+| `GET /api/reviews` | **담당자 요청함** — 내게 활성 배정된 신청의 협의(사업 건 제목·신청자·협의 기한일 포함) | 200 |
+| `GET /api/reviews/{id}` | 협의 상세(할당 여부·체크리스트·의견) | 200 |
+| `PUT /api/reviews/{id}/answers/{fieldKey}` | **담당자 입력**(출처 STAFF_INPUT) — 예: INFRA 가 출발지·목적지·대상 서버를 할당. scope=CASE 항목은 사업 건에 저장되어 같은 사업 건의 다른 신청에도 보인다. 2단계 협의 중인 신청만 | 200, 미배정 403, 항목 없음 404, 2단계 아님 422 |
+| `PUT /api/reviews/{id}/answers/{fieldKey}/confirmation` | **담당자 확인**(출처 STAFF_CONFIRMED) — 사용자 답변·AI 추론 값이 맞다고 확인. 값은 바뀌지 않는다 | 200, 답변 없음 404 |
+| `PUT /api/reviews/{id}/allocation-completion` | **INFRA 할당 완료** — 협의 완료가 아니다(불변식 12). SECURITY 완료의 선행 조건 | 200, SECURITY 협의 422 |
+| `PUT /api/reviews/{id}/completion` | **분야 협의 완료** — 의견 필수, 분야 체크리스트 전부 `true`(INFRA: source·destination·protocol·port·period / SECURITY: processed_info·external_transfer·access_control·logging), 미해결 보완 없음, SECURITY 는 INFRA 할당 완료 이후. 필요한 분야가 모두 완료되면 신청이 **3단계 최종 검토**로 넘어가고 협의 기한이 종료된다 | 200, 규칙 위반 422, revision 409 |
+| `POST /api/reviews/{id}/supplements` | **보완 요청** — 대상 항목 1개 이상 + 사유 필수. 신청 상태 → 보완 요청(단계 유지), 대상 답변 `needsReview=true`(값 보존), 보완 응답 기한 재산정 | 201 + `Location`, 완료된 협의 422 |
+| `POST /api/supplements/{id}/answers` | **신청자 보완 답변** — 항목 값은 답변 API 로 먼저 고친 뒤 호출. 협의의 미해결 보완이 없으면 협의·신청 상태가 원래대로, 보완 응답 기한 종료 | 201, 남의 신청 404, 본인 아님 403 |
+| `GET /api/security-requests/{id}/supplements` | 보완 요청 목록 | 200 |
+| `POST /api/security-requests/{id}/stage-returns` | **차수 반환**(2→1, 3→2, 3→1, 4→3) — 사유 필수, `fieldKeys` 로 지정한 항목만 "보완 필요" 강조(기존 값 보존), 완료된 협의는 재검토(RECHECK)로, 협의·최종 확정 기한 종료 + 보완 응답 기한 생성. 어느 분야든 배정 담당자 | 201, 허용되지 않는 반환 422 |
+| `GET /api/security-requests/{id}/stage-returns` | 차수 반환 이력 | 200 |
+| `PUT /api/security-requests/{id}/closure` | **종결(반려)** — 사유 필수, 모든 활성 기한 종료, 이후 전이 불가. 같은 사업 건의 다른 신청은 영향 없음 | 200, 종료 상태 422 |
+
+- 사용자가 답변을 바꾸면(`PUT …/answers/{fieldKey}`) 영향받는 미제출 신청의 **완료된 협의가 재검토로** 돌아간다(불변식 7). request 컨텍스트가 `AnswerChangedEvent` 를 내고 review 컨텍스트가 같은 트랜잭션에서 받는다.
+- 보완 답변·협의 완료 시 ANSWERED 보완은 RESOLVED 로 해소된다. 제출(F-07)은 OPEN 보완이 없어야 한다.
+
+제출·최종 확인·확정·문서함(F-07)은 다음 단계에서 추가한다. 제출 전 검사(`SecurityRequest.submit`)와 상태 전이 규칙은 이미 도메인에 있다.
 
 ## 인증 API (F-11)
 
@@ -72,7 +94,7 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 - `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
 - `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API
 - `configuration`: seed 게시본(서류 유형 목록 + 필드 스키마 + 기한 정책) 조회 — 서류 유형은 데이터로 정의(docs/adr/0005)
-- `review`: 협의 요청(1→2단계) 진입점과 분야별 협의(Review) — 검토 행위는 다음 단계
+- `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05)
 - `assignment`: 분야별 담당자 목록(seed)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
@@ -87,7 +109,7 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 4건: members · publications · 사업 건/신청/답변/제출본 · 협의/배정/기한/감사)
+### ERD — 현재 (마이그레이션 5건: members · publications · 사업 건/신청/답변/제출본 · 협의/배정/기한/감사 · 보완/차수 반환)
 
 ```mermaid
 erDiagram
@@ -99,6 +121,9 @@ erDiagram
     business_cases ||--o{ answers : "scope=CASE (security_request_id NULL)"
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ submissions : "sequence_no 증가"
+    security_requests ||--o{ supplements : "보완 요청"
+    reviews ||--o{ supplements : "요청한 분야 협의"
+    security_requests ||--o{ stage_returns : "차수 반환 이력"
 
     members {
         varchar(50)  username PK "로그인 아이디"
@@ -165,9 +190,37 @@ erDiagram
         varchar(30) status "WAITING…COMPLETED, RECHECK"
         jsonb       checklist
         text        opinion
+        varchar(50) allocated_by "INFRA 할당 완료자"
+        timestamptz allocated_at
         varchar(50) completed_by
         timestamptz completed_at
         bigint      revision
+    }
+    supplements {
+        bigint      supplement_id PK
+        bigint      security_request_id
+        bigint      review_id
+        varchar(20) field
+        jsonb       target_field_keys "보완 대상 항목 키"
+        text        reason "필수"
+        varchar(20) status "OPEN | ANSWERED | RESOLVED"
+        varchar(50) requested_by
+        timestamptz requested_at
+        text        answer_note
+        timestamptz answered_at
+        varchar(50) resolved_by
+        timestamptz resolved_at
+        bigint      revision
+    }
+    stage_returns {
+        bigint      stage_return_id PK
+        bigint      security_request_id
+        smallint    from_stage "2~4"
+        smallint    to_stage "1~3, 허용 조합 CHECK"
+        text        reason "필수"
+        jsonb       target_field_keys "보완 필요 강조 항목"
+        varchar(50) returned_by
+        timestamptz returned_at
     }
     reviewer_pools {
         bigint      reviewer_pool_id PK
@@ -239,8 +292,6 @@ erDiagram
     business_cases ||--o{ analysis_jobs : ""
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ reviews : "분야별 INFRA/SECURITY"
-    security_requests ||--o{ supplements : ""
-    security_requests ||--o{ stage_returns : "사유 필수"
     security_requests ||--o{ submissions : "불변 스냅샷"
     security_requests ||--o{ assignments : "분야당 활성 1건"
     security_requests ||--o{ deadlines : "저장형 기한일"
@@ -325,4 +376,4 @@ erDiagram
 
 ### 예정 테이블
 
-FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
+FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`(이상 생성됨)·`final_confirmations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.

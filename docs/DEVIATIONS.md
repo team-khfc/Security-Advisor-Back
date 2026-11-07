@@ -10,6 +10,9 @@
 | 4 | **답변(`answers`)을 별도 리포지토리로 관리** — 사업 건·신청 애그리거트의 컬렉션으로 매핑하지 않고 ID 로 묶음 | AGENTS 5장 "리포지토리는 애그리거트 루트 단위로만" | ADR 0001 또는 AGENTS 5장 예외 명시 | 한 테이블(`answers`)을 두 범위(CASE/REQUEST)가 쓰는 구조에서 양쪽 JPA 컬렉션 매핑 위험을 피하기 위한 실용적 예외. 답변 규칙은 `Answer` 도메인 메서드가 지킨다 |
 | 5 | **처리 기한(Deadline) 엔티티·서비스를 `request` 컨텍스트에 둠** — 명세는 "별도 컨텍스트 없음, 정책은 configuration·영업일 계산은 common"만 정함 | FUNCTIONAL_SPEC 1장(기한 컨텍스트 위치 미지정) | FUNCTIONAL_SPEC 1장 도메인 맵에 "Deadline 엔티티는 request" 명시 | 기한은 신청 단위 자원이라 request 에 두는 것이 ID 참조 규칙과 맞음. 정책(DeadlinePolicy)은 게시본, 계산(BusinessCalendar)은 common — 명세대로 |
 | 6 | **감사 이력 대상 단위** — 배정·기한 이벤트도 `target_type=SECURITY_REQUEST` 로 기록(배정·기한 ID 는 summary 에) | FUNCTIONAL_SPEC 3-3장 기록 항목(대상 유형·ID) | 해석 명시 | 신청의 "처리 이력" 탭이 한 번의 조회로 완성되도록. 답변 변경은 값 없이 항목 키·출처만 기록(기관 사실 값 보호, 불변식 25 확장 해석) |
+| 8 | **담당자 입력·확인을 review 컨텍스트 API(`/api/reviews/{id}/answers/{fieldKey}`)로 노출** — 저장은 request 컨텍스트 `AnswerService.inputByStaff/confirmByStaff` 가 하고, 배정·단계 검사는 review 가 먼저 한다 | FUNCTIONAL_SPEC 1장 도메인 맵(답변은 request, 검토는 review — 담당자 입력의 경로 미지정) | FUNCTIONAL_SPEC 1장·AGENTS 5장 API 예시 | "검토 행위는 배정자만" 규칙을 한곳(review.ReviewerAccessPolicy)에서 강제하기 위함. 값·출처는 여전히 `Answer` 도메인 메서드가 지킨다 |
+| 9 | **답변 변경 → 협의 재검토 연결은 Spring `ApplicationEvent`(동기, 같은 트랜잭션)** — request 가 `AnswerChangedEvent` 를 내고 review 가 `@EventListener` 로 받음 | AGENTS 5장 "컨텍스트 간 ID + 공개 서비스로 연결"(이벤트 언급 없음), PROJECT_CONTEXT "이벤트 소싱·CQRS 미도입" | AGENTS 5장에 "같은 트랜잭션의 동기 ApplicationEvent 허용" 명시 | request → review 의존을 만들지 않고 불변식 7(공통 정보 변경 시 미제출 신청 재검토)을 구현하는 최소 수단. 이벤트 소싱이 아니다(저장하지 않음) |
+| 10 | **차수 반환·종결 권한** — 그 신청에 활성 배정된 담당자(어느 분야든). 관리자(ADMIN)는 할 수 없음 | FUNCTIONAL_SPEC F-05 "담당자" (배정 요건 명시 없음) | FUNCTIONAL_SPEC F-05·3-1장 배정 불변식 | "검토 행위는 배정자만"의 일관된 적용. 관리자가 필요하면 재배정 후 처리 |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

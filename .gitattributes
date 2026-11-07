@@ -1,0 +1,5 @@
+# 줄 끝은 OS 와 무관하게 LF 로 고정한다(Windows PC 와 Linux VM/Docker 에서 같은 소스를 빌드하므로 Spotless 결과가 일치해야 한다).
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jar binary

@@ -1,12 +1,11 @@
 package kr.securityadvisor.audit.controller;
 
-import lombok.RequiredArgsConstructor;
-import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
 import kr.securityadvisor.audit.service.AuditQueryService;
 import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,12 +27,14 @@ public class AuditEventController {
     @GetMapping
     public PageResponse<AuditEventResponse> search(
             @CurrentMember MemberPrincipal member,
-            @RequestParam(required = false) AuditTargetType targetType,
+            @RequestParam(required = false) String targetType,
             @RequestParam(required = false) String targetId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         PageRequest pageable = PageRequest.of(
-                Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("occurredAt").descending());
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by("occurredAt").descending());
         return auditQueryService.search(member, targetType, targetId, pageable);
     }
 }

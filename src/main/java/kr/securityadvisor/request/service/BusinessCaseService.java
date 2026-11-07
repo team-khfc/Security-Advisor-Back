@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.service;
 
-import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
@@ -25,6 +24,7 @@ import kr.securityadvisor.request.dto.UpdateBusinessCaseRequest;
 import kr.securityadvisor.request.repository.AnswerRepository;
 import kr.securityadvisor.request.repository.BusinessCaseRepository;
 import kr.securityadvisor.request.repository.SecurityRequestRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,7 +58,9 @@ public class BusinessCaseService {
         Long publicationId = publicationService.currentPublicationId();
         FieldSchema schema = publicationService.getFieldSchema(publicationId);
         for (DocTypeCode docType : request.docTypes()) {
-            boolean active = schema.findDocType(docType).map(definition -> definition.active()).orElse(false);
+            boolean active = schema.findDocType(docType)
+                    .map(definition -> definition.active())
+                    .orElse(false);
             if (!active) {
                 throw new DomainRuleViolationException("현재 게시본에서 고를 수 없는 서류 유형입니다: " + docType);
             }
@@ -169,7 +171,9 @@ public class BusinessCaseService {
 
     private BusinessCaseResponse toResponse(BusinessCase businessCase, List<SecurityRequest> requests) {
         List<AnswerResponse> caseAnswers =
-                answerRepository.findByBusinessCaseIdAndScopeOrderByFieldKeyAsc(businessCase.getId(), AnswerScope.CASE).stream()
+                answerRepository
+                        .findByBusinessCaseIdAndScopeOrderByFieldKeyAsc(businessCase.getId(), AnswerScope.CASE)
+                        .stream()
                         .map(AnswerResponse::from)
                         .toList();
         return BusinessCaseResponse.from(

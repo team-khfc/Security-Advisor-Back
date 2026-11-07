@@ -1,10 +1,10 @@
 package kr.securityadvisor.auth.service;
 
-import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.auth.domain.Member;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.security.MemberRole;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;

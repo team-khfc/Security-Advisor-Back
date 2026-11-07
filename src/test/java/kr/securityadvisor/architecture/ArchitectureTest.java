@@ -41,7 +41,7 @@ class ArchitectureTest {
             .resideInAPackage("..controller..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("..domain..")
+            .resideInAPackage("kr.securityadvisor..domain..")
             .because("API 는 엔티티 대신 dto 패키지의 record 로 응답한다");
 
     @ArchTest

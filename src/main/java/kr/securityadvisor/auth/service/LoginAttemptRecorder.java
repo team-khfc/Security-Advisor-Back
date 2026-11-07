@@ -1,8 +1,8 @@
 package kr.securityadvisor.auth.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Instant;
 import kr.securityadvisor.auth.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

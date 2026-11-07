@@ -10,6 +10,7 @@ import kr.securityadvisor.TestcontainersConfiguration;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * 시연 필수 경로의 앞부분(F-01·F-03·F-05 철회)을 실제 DB·보안 설정과 함께 HTTP 로 확인한다.
  * 시연 계정은 DemoAccountSeeder 가 만든다(applicant·applicant2).
  */
+@Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
 @SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)

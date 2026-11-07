@@ -31,7 +31,8 @@ class DeadlineTest {
         assertThat(deadline.isActive()).isTrue();
         assertThatThrownBy(() -> Deadline.start(1L, null, DeadlineKind.REVIEW, NOW, FRIDAY, 5, CALENDAR, 1))
                 .isInstanceOf(DomainRuleViolationException.class);
-        assertThatThrownBy(() -> Deadline.start(1L, ReviewField.INFRA, DeadlineKind.SUPPLEMENT_RESPONSE, NOW, FRIDAY, 5, CALENDAR, 1))
+        assertThatThrownBy(() -> Deadline.start(
+                        1L, ReviewField.INFRA, DeadlineKind.SUPPLEMENT_RESPONSE, NOW, FRIDAY, 5, CALENDAR, 1))
                 .isInstanceOf(DomainRuleViolationException.class);
     }
 

@@ -17,12 +17,14 @@ import jakarta.validation.constraints.Size;
  */
 public record SignupRequest(
         @NotBlank
-                @Size(min = 4, max = 50)
-                @Pattern(regexp = "^[a-z0-9][a-z0-9._-]*$", message = "아이디는 영문 소문자·숫자·._- 만 쓸 수 있습니다")
-                String username,
+        @Size(min = 4, max = 50)
+        @Pattern(regexp = "^[a-z0-9][a-z0-9._-]*$", message = "아이디는 영문 소문자·숫자·._- 만 쓸 수 있습니다")
+        String username,
+
         @NotBlank
-                @Size(min = 8, max = 72)
-                @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).*$", message = "비밀번호는 영문과 숫자를 모두 포함해야 합니다")
-                String password,
+        @Size(min = 8, max = 72)
+        @Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).*$", message = "비밀번호는 영문과 숫자를 모두 포함해야 합니다")
+        String password,
+
         @NotBlank @Size(max = 100) String displayName,
         @Size(max = 100) String department) {}

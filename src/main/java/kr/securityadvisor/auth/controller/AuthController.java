@@ -1,6 +1,5 @@
 package kr.securityadvisor.auth.controller;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -11,6 +10,7 @@ import kr.securityadvisor.auth.service.AuthService;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.SessionAuthenticator;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;

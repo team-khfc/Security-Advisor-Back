@@ -69,8 +69,20 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 
+// 다른 환경(오프라인 VM 등)에서 같은 소스 트리를 빌드할 때 PC 쪽 build/ 결과를 덮어쓰지 않도록 출력 폴더를 바꿀 수 있다.
+// 예: gradlew test -PbuildDirOverride=/home/me/build-out
+project.findProperty("buildDirOverride")?.toString()?.takeIf { it.isNotBlank() }?.let {
+    layout.buildDirectory.set(file(it))
+}
+
 tasks.withType<Test> {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // Docker 가 없는 환경(오프라인 VM 등)에서 단위 테스트만 돌릴 때: gradlew test -PexcludeTags=docker
+        val excluded = project.findProperty("excludeTags")?.toString()
+        if (!excluded.isNullOrBlank()) {
+            excludeTags(*excluded.split(',').map { it.trim() }.toTypedArray())
+        }
+    }
 }
 
 // 실행 가능한 jar(bootJar)만 만든다. -plain.jar 는 만들지 않는다.
@@ -81,6 +93,8 @@ tasks.named<Jar>("jar") {
 // 코드 포맷 통일. 직접 맞추지 말고 ./gradlew spotlessApply 로 자동 정리한다.
 // ./gradlew check 에 spotlessCheck 가 포함되어, 포맷이 다르면 빌드가 실패한다.
 spotless {
+    // Windows·Linux 어디서 돌려도 같은 결과가 나오도록 줄 끝을 LF 로 고정(.gitattributes 와 동일)
+    lineEndings = com.diffplug.spotless.LineEnding.UNIX
     java {
         target("src/**/*.java")
         palantirJavaFormat()

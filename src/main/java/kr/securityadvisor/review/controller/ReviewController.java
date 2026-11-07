@@ -1,6 +1,5 @@
 package kr.securityadvisor.review.controller;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.util.List;
 import kr.securityadvisor.common.security.CurrentMember;
@@ -9,6 +8,7 @@ import kr.securityadvisor.review.dto.ReviewRequestCommand;
 import kr.securityadvisor.review.dto.ReviewRequestResult;
 import kr.securityadvisor.review.dto.ReviewResponse;
 import kr.securityadvisor.review.service.ReviewService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +30,9 @@ public class ReviewController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReviewRequestResult requestReview(
-            @CurrentMember MemberPrincipal member, @PathVariable Long id, @Valid @RequestBody ReviewRequestCommand command) {
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody ReviewRequestCommand command) {
         return reviewService.requestReview(member, id, command);
     }
 

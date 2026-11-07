@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.service;
 
-import lombok.RequiredArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,7 @@ import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.domain.SubmissionPreconditions;
 import kr.securityadvisor.request.repository.AnswerRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
@@ -51,8 +51,8 @@ public class SubmissionChecker {
 
     /** 공통 답변 + 서류별 답변을 저장 키로 모은다(제출본 스냅샷의 재료이기도 하다). */
     public Map<String, Answer> answersByKey(BusinessCase businessCase, SecurityRequest request) {
-        List<Answer> all = new ArrayList<>(
-                answerRepository.findByBusinessCaseIdAndScopeOrderByFieldKeyAsc(businessCase.getId(), AnswerScope.CASE));
+        List<Answer> all = new ArrayList<>(answerRepository.findByBusinessCaseIdAndScopeOrderByFieldKeyAsc(
+                businessCase.getId(), AnswerScope.CASE));
         all.addAll(answerRepository.findBySecurityRequestIdOrderByFieldKeyAsc(request.getId()));
         return all.stream().collect(Collectors.toMap(Answer::getFieldKey, Function.identity(), (a, b) -> b));
     }

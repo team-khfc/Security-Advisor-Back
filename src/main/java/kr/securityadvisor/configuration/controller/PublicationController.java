@@ -1,8 +1,8 @@
 package kr.securityadvisor.configuration.controller;
 
-import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.configuration.dto.PublicationResponse;
 import kr.securityadvisor.configuration.service.PublicationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

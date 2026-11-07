@@ -95,7 +95,6 @@ class MemberTest {
     void policyRejectsInvalidValues() {
         assertThatThrownBy(() -> new LoginLockPolicy(0, Duration.ofMinutes(1)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new LoginLockPolicy(3, Duration.ZERO))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new LoginLockPolicy(3, Duration.ZERO)).isInstanceOf(IllegalArgumentException.class);
     }
 }

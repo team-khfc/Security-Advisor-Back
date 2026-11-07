@@ -73,7 +73,8 @@ class SecurityRequestTest {
     void submitRejectsUnconfirmed() {
         SecurityRequest request = inFinalReview();
 
-        assertThatThrownBy(() -> request.submit(new SubmissionPreconditions(List.of(), List.of("network.source"), 0, true)))
+        assertThatThrownBy(() ->
+                        request.submit(new SubmissionPreconditions(List.of(), List.of("network.source"), 0, true)))
                 .isInstanceOf(DomainRuleViolationException.class)
                 .hasMessageContaining("network.source");
         assertThat(request.getStage()).isEqualTo(3);
@@ -82,7 +83,8 @@ class SecurityRequestTest {
     @Test
     @DisplayName("필수값 누락·미해결 보완·협의 미완료는 각각 제출을 막는다(불변식 2·3)")
     void submitRejectsOtherConditions() {
-        assertThatThrownBy(() -> inFinalReview().submit(new SubmissionPreconditions(List.of("firewall.port"), List.of(), 0, true)))
+        assertThatThrownBy(() -> inFinalReview()
+                        .submit(new SubmissionPreconditions(List.of("firewall.port"), List.of(), 0, true)))
                 .isInstanceOf(DomainRuleViolationException.class);
         assertThatThrownBy(() -> inFinalReview().submit(new SubmissionPreconditions(List.of(), List.of(), 1, true)))
                 .isInstanceOf(DomainRuleViolationException.class);

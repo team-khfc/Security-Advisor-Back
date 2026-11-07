@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.controller;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.net.URI;
 import kr.securityadvisor.common.dto.PageResponse;
@@ -15,6 +14,7 @@ import kr.securityadvisor.request.dto.CreateBusinessCaseRequest;
 import kr.securityadvisor.request.dto.UpdateBusinessCaseRequest;
 import kr.securityadvisor.request.service.AnswerService;
 import kr.securityadvisor.request.service.BusinessCaseService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
@@ -57,8 +57,10 @@ public class BusinessCaseController {
             @CurrentMember MemberPrincipal member,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        PageRequest pageable =
-                PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE), Sort.by("createdAt").descending());
+        PageRequest pageable = PageRequest.of(
+                Math.max(page, 0),
+                Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
+                Sort.by("createdAt").descending());
         return businessCaseService.listMine(member, pageable);
     }
 

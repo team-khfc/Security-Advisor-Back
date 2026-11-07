@@ -13,3 +13,7 @@ Thumbs.db
 
 # Claude 세션 산출물(저장소 외부 자료)
 Claude outputs/
+
+# 로컬 도구·캐시 (VM 오프라인 빌드용)
+.tools/
+.gradle-home/

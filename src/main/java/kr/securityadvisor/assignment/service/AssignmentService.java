@@ -1,6 +1,5 @@
 package kr.securityadvisor.assignment.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -20,6 +19,7 @@ import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +57,9 @@ public class AssignmentService {
         List<AssignmentResponse> assigned = new ArrayList<>();
         List<ReviewField> unassigned = new ArrayList<>();
         for (ReviewField field : fields) {
-            if (assignmentRepository.findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, field).isPresent()) {
+            if (assignmentRepository
+                    .findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, field)
+                    .isPresent()) {
                 continue;
             }
             Optional<String> candidate = preferredSibling(siblingRequestIds, field)
@@ -151,7 +153,9 @@ public class AssignmentService {
     /** 내게 배정된 활성 배정 목록(요청함 기본 보기). */
     @Transactional(readOnly = true)
     public List<AssignmentResponse> listMine(MemberPrincipal principal) {
-        return assignmentRepository.findByAssigneeUsernameAndActiveTrueOrderByAssignedAtDesc(principal.username()).stream()
+        return assignmentRepository
+                .findByAssigneeUsernameAndActiveTrueOrderByAssignedAtDesc(principal.username())
+                .stream()
                 .map(AssignmentResponse::from)
                 .toList();
     }

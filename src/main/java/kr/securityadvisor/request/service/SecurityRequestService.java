@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +18,7 @@ import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.DeadlineResponse;
 import kr.securityadvisor.request.dto.SecurityRequestResponse;
 import kr.securityadvisor.request.dto.WithdrawRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +50,8 @@ public class SecurityRequestService {
      * 활성 기한은 종료하고(기록 보존) 감사 이력을 남긴다.
      */
     @Transactional
-    public SecurityRequestResponse withdraw(MemberPrincipal principal, Long securityRequestId, WithdrawRequest request) {
+    public SecurityRequestResponse withdraw(
+            MemberPrincipal principal, Long securityRequestId, WithdrawRequest request) {
         SecurityRequest securityRequest = accessPolicy.ownedRequest(principal, securityRequestId);
         securityRequest.requireRevision(request.expectedRevision());
         securityRequest.withdraw(request.reason());

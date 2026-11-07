@@ -1,13 +1,14 @@
 package kr.securityadvisor.audit.service;
 
-import lombok.RequiredArgsConstructor;
 import java.util.List;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
 import kr.securityadvisor.audit.repository.AuditEventRepository;
 import kr.securityadvisor.common.dto.PageResponse;
+import kr.securityadvisor.common.error.BadRequestException;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +30,20 @@ public class AuditQueryService {
 
     /** 기관 관리자 전용 전체 조회(대상 필터 선택). */
     public PageResponse<AuditEventResponse> search(
-            MemberPrincipal principal, AuditTargetType targetType, String targetId, Pageable pageable) {
+            MemberPrincipal principal, String targetType, String targetId, Pageable pageable) {
         principal.requireAnyRole(MemberRole.ADMIN);
         if (targetType != null && targetId != null) {
+            AuditTargetType type;
+            try {
+                type = AuditTargetType.valueOf(targetType);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("알 수 없는 대상 유형입니다: " + targetType);
+            }
             return PageResponse.from(
-                    auditEventRepository.findByTargetTypeAndTargetId(targetType, targetId, pageable),
+                    auditEventRepository.findByTargetTypeAndTargetId(type, targetId, pageable),
                     AuditEventResponse::from);
         }
-        return PageResponse.from(auditEventRepository.findAllByOrderByOccurredAtDescIdDesc(pageable), AuditEventResponse::from);
+        return PageResponse.from(
+                auditEventRepository.findAllByOrderByOccurredAtDescIdDesc(pageable), AuditEventResponse::from);
     }
 }

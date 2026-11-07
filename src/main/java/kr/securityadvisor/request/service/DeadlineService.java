@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,6 +21,7 @@ import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.DeadlineResponse;
 import kr.securityadvisor.request.repository.DeadlineRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -64,7 +64,8 @@ public class DeadlineService {
     }
 
     /** 보완 요청·차수 반환: 기존 보완 응답 기한을 종료하고 새로 만든다(불변식 23). */
-    public DeadlineResponse restartSupplementDeadline(MemberPrincipal actor, SecurityRequest request, Long publicationId) {
+    public DeadlineResponse restartSupplementDeadline(
+            MemberPrincipal actor, SecurityRequest request, Long publicationId) {
         PublicationContext context = contextOf(publicationId);
         Instant now = clock.instant();
         endActive(actor, request.getId(), DeadlineKind.SUPPLEMENT_RESPONSE, now, "재산정");
@@ -97,8 +98,10 @@ public class DeadlineService {
     }
 
     /** 단계가 끝날 때(협의 완료·종결·철회 등) 해당 종류의 활성 기한을 모두 종료한다. 기록은 보존된다. */
-    public void endActive(MemberPrincipal actor, Long securityRequestId, DeadlineKind kind, Instant now, String reason) {
-        for (Deadline deadline : deadlineRepository.findBySecurityRequestIdAndKindAndActiveTrue(securityRequestId, kind)) {
+    public void endActive(
+            MemberPrincipal actor, Long securityRequestId, DeadlineKind kind, Instant now, String reason) {
+        for (Deadline deadline :
+                deadlineRepository.findBySecurityRequestIdAndKindAndActiveTrue(securityRequestId, kind)) {
             deadline.end(now);
             auditRecorder.record(
                     actor,
@@ -122,7 +125,8 @@ public class DeadlineService {
         return deadlineRepository.findBySecurityRequestIdOrderByStartedAtAscIdAsc(securityRequestId).stream()
                 .map(deadline -> DeadlineResponse.from(
                         deadline,
-                        deadline.statusOn(today, context.calendar(), context.policy().imminentBusinessDays())))
+                        deadline.statusOn(
+                                today, context.calendar(), context.policy().imminentBusinessDays())))
                 .toList();
     }
 
@@ -147,7 +151,9 @@ public class DeadlineService {
                 kind + (field == null ? "" : "/" + field) + " 기한일 " + deadline.getDueDate() + " (기한 " + deadline.getId()
                         + ")");
         return DeadlineResponse.from(
-                deadline, deadline.statusOn(startDate, context.calendar(), context.policy().imminentBusinessDays()));
+                deadline,
+                deadline.statusOn(
+                        startDate, context.calendar(), context.policy().imminentBusinessDays()));
     }
 
     private PublicationContext contextOf(Long publicationId) {

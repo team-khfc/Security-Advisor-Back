@@ -11,7 +11,8 @@ import java.util.Optional;
  * @param docTypes 이 게시본이 제공하는 서류 유형(ADR 0005 — 유형은 데이터)
  * @param fields 항목 목록(키는 유일)
  */
-public record FieldSchema(DeadlinePolicy deadlinePolicy, List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
+public record FieldSchema(
+        DeadlinePolicy deadlinePolicy, List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
 
     public FieldSchema {
         deadlinePolicy = deadlinePolicy == null ? DeadlinePolicy.defaults() : deadlinePolicy;
@@ -37,7 +38,9 @@ public record FieldSchema(DeadlinePolicy deadlinePolicy, List<DocTypeDefinition>
 
     /** 사업 건 공통 항목. */
     public List<FieldDefinition> caseFields() {
-        return fields.stream().filter(field -> field.scope() == AnswerScope.CASE).toList();
+        return fields.stream()
+                .filter(field -> field.scope() == AnswerScope.CASE)
+                .toList();
     }
 
     /** 특정 서류의 서류별 항목. */

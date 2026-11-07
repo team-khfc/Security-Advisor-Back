@@ -9,4 +9,5 @@ import jakarta.validation.constraints.Size;
  * @param value 답변 값
  * @param expectedRevision 기존 답변의 revision. 처음 답하는 항목이면 null
  */
-public record AnswerUpdateRequest(@NotBlank @Size(max = 4000) String value, Long expectedRevision) {}
+public record AnswerUpdateRequest(
+        @NotBlank @Size(max = 4000) String value, Long expectedRevision) {}

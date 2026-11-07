@@ -12,4 +12,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findBySecurityRequestIdOrderByIdAsc(Long securityRequestId);
 
     Optional<Review> findBySecurityRequestIdAndField(Long securityRequestId, ReviewField field);
+
+    List<Review> findBySecurityRequestIdInOrderByIdAsc(List<Long> securityRequestIds);
 }

@@ -11,6 +11,8 @@ CREATE TABLE reviews
     status              VARCHAR(30) NOT NULL CHECK (status IN ('WAITING', 'ALLOCATED', 'IN_PROGRESS', 'SUPPLEMENT_REQUESTED', 'COMPLETED', 'RECHECK')),
     checklist           JSONB,
     opinion             TEXT,
+    allocated_by        VARCHAR(50),
+    allocated_at        TIMESTAMPTZ,
     completed_by        VARCHAR(50),
     completed_at        TIMESTAMPTZ,
     revision            BIGINT      NOT NULL DEFAULT 0,
@@ -20,7 +22,7 @@ CREATE TABLE reviews
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT uq_reviews_request_field UNIQUE (security_request_id, field)
 );
-COMMENT ON TABLE reviews IS '분야별 협의. WAITING 검토 대기 / ALLOCATED 할당 완료(INFRA) / IN_PROGRESS 검토 중 / SUPPLEMENT_REQUESTED 보완 요청 / COMPLETED 협의 완료 / RECHECK 재검토';
+COMMENT ON TABLE reviews IS '분야별 협의. WAITING 검토 대기 / ALLOCATED 할당 완료(INFRA) / IN_PROGRESS 검토 중 / SUPPLEMENT_REQUESTED 보완 요청 / COMPLETED 협의 완료 / RECHECK 재검토. allocated_at 은 INFRA 할당 완료 시각(할당 완료 ≠ 협의 완료)';
 
 -- 2) 분야별 담당자 목록과 기본 담당자(기관 설정). 1차는 seed, 편집 화면은 P2.
 CREATE TABLE reviewer_pools

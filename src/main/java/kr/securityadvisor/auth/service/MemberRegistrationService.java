@@ -1,6 +1,5 @@
 package kr.securityadvisor.auth.service;
 
-import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
@@ -9,6 +8,7 @@ import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.SignupRequest;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.error.ConflictException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

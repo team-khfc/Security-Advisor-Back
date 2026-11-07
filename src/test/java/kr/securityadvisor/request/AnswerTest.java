@@ -56,7 +56,8 @@ class AnswerTest {
     void confirmByUserOnlyForAi() {
         Answer answer = Answer.userAnswer(AnswerScope.CASE, 1L, null, "project.name", "민원 포털");
 
-        assertThatThrownBy(() -> answer.confirmByUser("applicant", NOW)).isInstanceOf(DomainRuleViolationException.class);
+        assertThatThrownBy(() -> answer.confirmByUser("applicant", NOW))
+                .isInstanceOf(DomainRuleViolationException.class);
     }
 
     @Test

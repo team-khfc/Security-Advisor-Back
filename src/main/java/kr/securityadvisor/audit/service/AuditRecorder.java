@@ -1,6 +1,5 @@
 package kr.securityadvisor.audit.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditEvent;
@@ -9,6 +8,7 @@ import kr.securityadvisor.audit.repository.AuditEventRepository;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.common.web.RequestIdHolder;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;

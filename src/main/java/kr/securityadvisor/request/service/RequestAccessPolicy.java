@@ -1,6 +1,5 @@
 package kr.securityadvisor.request.service;
 
-import lombok.RequiredArgsConstructor;
 import kr.securityadvisor.common.error.ForbiddenException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -9,6 +8,7 @@ import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.repository.BusinessCaseRepository;
 import kr.securityadvisor.request.repository.SecurityRequestRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**

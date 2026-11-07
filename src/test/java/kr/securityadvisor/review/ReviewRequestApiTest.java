@@ -10,6 +10,7 @@ import kr.securityadvisor.TestcontainersConfiguration;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * 2단계 진입(협의 요청)과 운영 도메인 P1: 자동 배정(F-12)·협의 기한(F-13)·감사 이력(F-14)이 한 트랜잭션에서 만들어지는지,
  * 재배정 권한·규칙, 요청함·관리자 감사 조회를 실제 DB 로 확인한다. 시연 계정은 DemoAccountSeeder, 기본 담당자는 seed.
  */
+@Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
 @SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -55,8 +57,14 @@ class ReviewRequestApiTest {
         assertThat(result).bodyJson().extractingPath("$.request.stage").isEqualTo(2);
         assertThat(result).bodyJson().extractingPath("$.request.status").isEqualTo("IN_REVIEW");
         assertThat(result).bodyJson().extractingPath("$.reviews.length()").isEqualTo(2);
-        assertThat(result).bodyJson().extractingPath("$.assignments.assigned.length()").isEqualTo(2);
-        assertThat(result).bodyJson().extractingPath("$.assignments.unassigned.length()").isEqualTo(0);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.assignments.assigned.length()")
+                .isEqualTo(2);
+        assertThat(result)
+                .bodyJson()
+                .extractingPath("$.assignments.unassigned.length()")
+                .isEqualTo(0);
         assertThat(result).bodyJson().extractingPath("$.deadlines.length()").isEqualTo(2);
         assertThat(result).bodyJson().extractingPath("$.deadlines[0].status").isEqualTo("ON_TRACK");
 
@@ -106,18 +114,23 @@ class ReviewRequestApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(reassignBody))
                 .hasStatus(HttpStatus.CREATED);
-        assertThat(mvc.get().uri("/api/security-requests/{id}/assignments", requestId).with(authentication(APPLICANT)))
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/assignments", requestId)
+                        .with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$[?(@.field=='INFRA')].active")
                 .isEqualTo(List.of(false, true));
 
         // 기한 목록과 처리 이력(감사): 협의 요청·배정·기한·재배정이 신청 대상으로 남는다
-        assertThat(mvc.get().uri("/api/security-requests/{id}/deadlines", requestId).with(authentication(APPLICANT)))
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/deadlines", requestId)
+                        .with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
-                .extractingPath("$[?(@.kind=='REVIEW' && @.active==true)].length()")
-                .isEqualTo(2);
+                .extractingPath("$[?(@.kind=='REVIEW' && @.active==true)]")
+                .asArray()
+                .hasSize(2);
         MvcTestResult trail = mvc.get()
                 .uri("/api/security-requests/{id}/audit-events", requestId)
                 .with(authentication(APPLICANT))
@@ -136,7 +149,8 @@ class ReviewRequestApiTest {
                 .extractingPath("$.totalElements")
                 .asNumber()
                 .isNotNull();
-        assertThat(mvc.get().uri("/api/audit-events").with(authentication(APPLICANT))).hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.get().uri("/api/audit-events").with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.FORBIDDEN);
     }
 
     @Test
@@ -157,10 +171,12 @@ class ReviewRequestApiTest {
                 .with(authentication(APPLICANT))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"협의 요청 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .content(
+                        "{\"title\":\"협의 요청 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
                 .exchange();
         assertThat(created).hasStatus(HttpStatus.CREATED);
-        return ((Number) JsonPath.read(created.getResponse().getContentAsString(), "$.requests[0].securityRequestId")).longValue();
+        return ((Number) JsonPath.read(created.getResponse().getContentAsString(), "$.requests[0].securityRequestId"))
+                .longValue();
     }
 
     private static Authentication auth(String username, String displayName, MemberRole role) {

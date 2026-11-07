@@ -23,22 +23,62 @@ class FieldSchemaTest {
     private static final FieldSchema SCHEMA = new FieldSchema(
             null,
             List.of(
-                    new DocTypeDefinition(USB, "USB 사용 신청서", null, true, "usb-v1", false, Set.of(MemberRole.SECURITY), 2),
-                    new DocTypeDefinition(FIREWALL, "방화벽", null, true, "fw-v1", true, Set.of(MemberRole.INFRA, MemberRole.SECURITY), 1),
+                    new DocTypeDefinition(
+                            USB, "USB 사용 신청서", null, true, "usb-v1", false, Set.of(MemberRole.SECURITY), 2),
+                    new DocTypeDefinition(
+                            FIREWALL,
+                            "방화벽",
+                            null,
+                            true,
+                            "fw-v1",
+                            true,
+                            Set.of(MemberRole.INFRA, MemberRole.SECURITY),
+                            1),
                     new DocTypeDefinition(DocTypeCode.of("OLD_TYPE"), "폐지", null, false, "old", false, Set.of(), 3)),
             List.of(
-                    new FieldDefinition("project.name", "사업명", AnswerScope.CASE, Set.of(), "TEXT", true, MemberRole.APPLICANT, null),
-                    new FieldDefinition("usb.purpose", "목적", AnswerScope.REQUEST, Set.of(USB), "TEXT", true, MemberRole.APPLICANT, null),
-                    new FieldDefinition("firewall.port", "포트", AnswerScope.REQUEST, Set.of(FIREWALL), "TEXT", false, MemberRole.APPLICANT, null)));
+                    new FieldDefinition(
+                            "project.name",
+                            "사업명",
+                            AnswerScope.CASE,
+                            Set.of(),
+                            "TEXT",
+                            true,
+                            MemberRole.APPLICANT,
+                            null),
+                    new FieldDefinition(
+                            "usb.purpose",
+                            "목적",
+                            AnswerScope.REQUEST,
+                            Set.of(USB),
+                            "TEXT",
+                            true,
+                            MemberRole.APPLICANT,
+                            null),
+                    new FieldDefinition(
+                            "firewall.port",
+                            "포트",
+                            AnswerScope.REQUEST,
+                            Set.of(FIREWALL),
+                            "TEXT",
+                            false,
+                            MemberRole.APPLICANT,
+                            null)));
 
     @Test
     @DisplayName("코드 작업 없이 데이터로 추가한 서류 유형(USB)이 활성 목록·서류별 항목·필수 항목에 반영된다")
     void dataDrivenDocType() {
         assertThat(SCHEMA.activeDocTypes()).extracting(DocTypeDefinition::code).containsExactly(FIREWALL, USB);
-        assertThat(SCHEMA.findDocType(DocTypeCode.of("OLD_TYPE"))).get().extracting(DocTypeDefinition::active).isEqualTo(false);
+        assertThat(SCHEMA.findDocType(DocTypeCode.of("OLD_TYPE")))
+                .get()
+                .extracting(DocTypeDefinition::active)
+                .isEqualTo(false);
         assertThat(SCHEMA.requestFields(USB)).extracting(FieldDefinition::key).containsExactly("usb.purpose");
-        assertThat(SCHEMA.requiredFieldsFor(USB)).extracting(FieldDefinition::key).containsExactly("project.name", "usb.purpose");
-        assertThat(SCHEMA.requiredFieldsFor(FIREWALL)).extracting(FieldDefinition::key).containsExactly("project.name");
+        assertThat(SCHEMA.requiredFieldsFor(USB))
+                .extracting(FieldDefinition::key)
+                .containsExactly("project.name", "usb.purpose");
+        assertThat(SCHEMA.requiredFieldsFor(FIREWALL))
+                .extracting(FieldDefinition::key)
+                .containsExactly("project.name");
     }
 
     @Test

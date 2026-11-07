@@ -10,4 +10,5 @@ import jakarta.validation.constraints.Size;
  * @param reason 철회 사유
  * @param expectedRevision 신청의 revision — 다르면 409
  */
-public record WithdrawRequest(@NotBlank @Size(max = 1000) String reason, @NotNull Long expectedRevision) {}
+public record WithdrawRequest(
+        @NotBlank @Size(max = 1000) String reason, @NotNull Long expectedRevision) {}

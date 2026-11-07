@@ -31,7 +31,8 @@ class AssignmentTest {
     void applicantCannotBeAssignee() {
         assertThatThrownBy(() -> Assignment.autoAssign(1L, ReviewField.INFRA, "applicant", "applicant", NOW))
                 .isInstanceOf(DomainRuleViolationException.class);
-        assertThatThrownBy(() -> Assignment.reassign(1L, ReviewField.INFRA, "applicant", "applicant", "admin", "사유", NOW))
+        assertThatThrownBy(
+                        () -> Assignment.reassign(1L, ReviewField.INFRA, "applicant", "applicant", "admin", "사유", NOW))
                 .isInstanceOf(DomainRuleViolationException.class);
     }
 
@@ -43,7 +44,8 @@ class AssignmentTest {
                 .isInstanceOf(DomainRuleViolationException.class);
 
         previous.deactivate(NOW.plusSeconds(10));
-        Assignment next = Assignment.reassign(1L, ReviewField.INFRA, "infra2", "applicant", "admin", "휴가", NOW.plusSeconds(10));
+        Assignment next =
+                Assignment.reassign(1L, ReviewField.INFRA, "infra2", "applicant", "admin", "휴가", NOW.plusSeconds(10));
 
         assertThat(previous.isActive()).isFalse();
         assertThat(previous.getDeactivatedAt()).isEqualTo(NOW.plusSeconds(10));

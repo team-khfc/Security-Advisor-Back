@@ -13,4 +13,6 @@ import kr.securityadvisor.common.schema.ReviewField;
  * @param reason 사유(필수)
  */
 public record ReassignRequest(
-        @NotNull ReviewField field, @NotBlank @Size(max = 50) String assigneeUsername, @NotBlank @Size(max = 1000) String reason) {}
+        @NotNull ReviewField field,
+        @NotBlank @Size(max = 50) String assigneeUsername,
+        @NotBlank @Size(max = 1000) String reason) {}

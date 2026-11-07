@@ -48,7 +48,8 @@ public class BusinessCase extends BaseAuditEntity {
     /** JPA 전용 기본 생성자. */
     protected BusinessCase() {}
 
-    private BusinessCase(String applicantUsername, String title, String summary, String department, Long publicationId) {
+    private BusinessCase(
+            String applicantUsername, String title, String summary, String department, Long publicationId) {
         this.applicantUsername = applicantUsername;
         this.title = title;
         this.summary = summary;

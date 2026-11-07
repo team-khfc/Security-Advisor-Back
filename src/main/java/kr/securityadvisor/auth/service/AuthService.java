@@ -1,6 +1,5 @@
 package kr.securityadvisor.auth.service;
 
-import lombok.RequiredArgsConstructor;
 import java.time.Clock;
 import java.time.Instant;
 import kr.securityadvisor.audit.domain.AuditAction;
@@ -15,6 +14,7 @@ import kr.securityadvisor.common.error.TooManyRequestsException;
 import kr.securityadvisor.common.error.UnauthorizedException;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

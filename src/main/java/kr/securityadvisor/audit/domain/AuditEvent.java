@@ -98,7 +98,16 @@ public class AuditEvent {
             throw new IllegalArgumentException("감사 이력에는 시각·대상·행위가 필요합니다");
         }
         return new AuditEvent(
-                occurredAt, actorUsername, actorRole, targetType, targetId, targetRevision, action, reason, summary, requestId);
+                occurredAt,
+                actorUsername,
+                actorRole,
+                targetType,
+                targetId,
+                targetRevision,
+                action,
+                reason,
+                summary,
+                requestId);
     }
 
     public Long getId() {

@@ -11,12 +11,14 @@ import kr.securityadvisor.auth.domain.SignupSource;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 /** members 테이블 매핑(마이그레이션 ↔ 엔티티)과 잠금 컬럼이 저장·조회되는지 실제 PostgreSQL 로 확인한다. */
+@Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
 @DataJpaTest
 @Import(TestcontainersConfiguration.class)
 class MemberRepositoryTest {

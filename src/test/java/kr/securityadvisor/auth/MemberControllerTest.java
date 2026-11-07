@@ -64,11 +64,13 @@ class MemberControllerTest {
     void roleInRequestIsIgnored() {
         given(memberRegistrationService.register(any())).willReturn(CREATED);
 
-        assertThat(mvc.post()
-                        .uri("/api/members")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"newuser\",\"password\":\"secret1234\",\"displayName\":\"홍길동\",\"role\":\"ADMIN\"}"))
+        assertThat(
+                        mvc.post()
+                                .uri("/api/members")
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"username\":\"newuser\",\"password\":\"secret1234\",\"displayName\":\"홍길동\",\"role\":\"ADMIN\"}"))
                 .hasStatus(HttpStatus.CREATED)
                 .bodyJson()
                 .extractingPath("$.role")

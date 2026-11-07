@@ -30,9 +30,11 @@ class BusinessCalendarTest {
     void businessDaysBetween() {
         LocalDate monday = LocalDate.of(2026, 11, 9);
 
-        assertThat(CALENDAR.businessDaysBetween(monday, LocalDate.of(2026, 11, 11))).isEqualTo(1);
+        assertThat(CALENDAR.businessDaysBetween(monday, LocalDate.of(2026, 11, 11)))
+                .isEqualTo(1);
         assertThat(CALENDAR.businessDaysBetween(monday, monday)).isZero();
-        assertThat(CALENDAR.businessDaysBetween(LocalDate.of(2026, 11, 12), monday)).isEqualTo(-2);
+        assertThat(CALENDAR.businessDaysBetween(LocalDate.of(2026, 11, 12), monday))
+                .isEqualTo(-2);
     }
 
     @Test

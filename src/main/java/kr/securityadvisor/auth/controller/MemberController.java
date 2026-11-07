@@ -1,11 +1,11 @@
 package kr.securityadvisor.auth.controller;
 
-import lombok.RequiredArgsConstructor;
 import jakarta.validation.Valid;
 import java.net.URI;
 import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.SignupRequest;
 import kr.securityadvisor.auth.service.MemberRegistrationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

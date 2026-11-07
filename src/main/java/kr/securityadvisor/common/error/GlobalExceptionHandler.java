@@ -1,7 +1,8 @@
 package kr.securityadvisor.common.error;
 
-import org.springframework.http.HttpStatus;
+import kr.securityadvisor.common.web.RequestIdHolder;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
@@ -9,7 +10,6 @@ import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import kr.securityadvisor.common.web.RequestIdHolder;
 
 /**
  * 모든 API 오류를 RFC 9457 ProblemDetail 형식(JSON)으로 통일한다.
@@ -20,6 +20,11 @@ import kr.securityadvisor.common.web.RequestIdHolder;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail handleBadRequest(BadRequestException e) {
+        return problem(HttpStatus.BAD_REQUEST, "요청이 올바르지 않습니다", e.getMessage());
+    }
 
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail handleNotFound(NotFoundException e) {
@@ -46,9 +51,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(CsrfException.class)
     public ProblemDetail handleCsrf(CsrfException e) {
         return problem(
-                HttpStatus.FORBIDDEN,
-                "권한이 없습니다",
-                "CSRF 토큰이 없거나 유효하지 않습니다. XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내세요");
+                HttpStatus.FORBIDDEN, "권한이 없습니다", "CSRF 토큰이 없거나 유효하지 않습니다. XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 보내세요");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

@@ -15,6 +15,8 @@ import kr.securityadvisor.common.entity.BaseAuditEntity;
 import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.schema.DocTypeCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * 신청(서류 1건) 애그리거트 루트. 4단계 절차·차수 반환·종결·철회의 상태 전이를 도메인 메서드로만 한다(불변식 10·33·35).
@@ -42,6 +44,7 @@ public class SecurityRequest extends BaseAuditEntity {
     @Column(name = "doc_type", nullable = false, length = 30)
     private String docType;
 
+    @JdbcTypeCode(SqlTypes.SMALLINT)
     @Column(nullable = false)
     private int stage;
 
