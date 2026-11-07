@@ -148,32 +148,6 @@ erDiagram
 
 모든 테이블은 `BaseTimeEntity`의 `created_at`·`updated_at`(TIMESTAMPTZ, JPA Auditing이 자동 기록)을 가진다. 담당자·시각을 남겨야 하는 업무 테이블은 `BaseAuditEntity`로 `created_by`·`updated_by`(VARCHAR(50), 로그인 username)를 추가한다.
 
-### members — 사용자 계정 (`V202611070900__create_members.sql`)
-
-| 컬럼 | 타입 | 제약 | 설명 |
-|---|---|---|---|
-| username | VARCHAR(50) | PK | 로그인 아이디. 다른 테이블의 `created_by` 등이 이 값으로 사용자를 참조 |
-| password_hash | VARCHAR(100) | NOT NULL | bcrypt 해시(`{bcrypt}$2b$…`, DelegatingPasswordEncoder 형식). 평문 저장 금지 |
-| display_name | VARCHAR(100) | NOT NULL | 화면 표시 이름 |
-| role | VARCHAR(20) | NOT NULL, CHECK IN (APPLICANT, SECURITY, INFRA, ADMIN) | 역할 4종. 계정당 1개 |
-| active | BOOLEAN | NOT NULL DEFAULT TRUE | false면 로그인 불가. 이력이 참조하므로 삭제 대신 비활성화 |
-| created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 공통 컬럼 |
-
-seed: 시연 계정 4건(`applicant`·`security`·`infra`·`admin`, 역할별 1건) — 전부 합성 데이터. 비밀번호를 환경변수로 받아 해시하는 방식(F-11)과 부서·가입 경로·로그인 실패 횟수·잠금 시각 컬럼, 신청자 2번째 계정은 후속 마이그레이션으로 추가 예정.
-
-### procedures — 보안 절차 종류 (`V202611041300__create_procedures.sql`, 예제 기능)
-
-| 컬럼 | 타입 | 제약 | 설명 |
-|---|---|---|---|
-| id | BIGINT | PK, IDENTITY | 내부 식별자 |
-| code | VARCHAR(50) | NOT NULL, UNIQUE | 절차 고정 코드. API·화면에서 id 대신 사용 |
-| name | VARCHAR(100) | NOT NULL | 표시 이름 |
-| description | VARCHAR(500) | | 설명 |
-| active | BOOLEAN | NOT NULL DEFAULT TRUE | false면 목록에서 숨김(삭제하지 않음) |
-| created_at / updated_at | TIMESTAMPTZ | NOT NULL DEFAULT now() | 공통 컬럼 |
-
-seed: `SECURITY_REVIEW`·`FIREWALL_REQUEST`·`USB_REQUEST` 3건. 이 테이블은 패키지 구조 예제이며, 1차 범위의 서류 유형은 FUNCTIONAL_SPEC.md의 `DocType`(FIREWALL / SECURITY_REVIEW)으로 정리될 예정이다(USB는 범위 밖).
-
 ### 예정 테이블
 
 FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
