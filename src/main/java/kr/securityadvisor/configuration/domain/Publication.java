@@ -13,7 +13,7 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * 기관 설정 게시본(F-08). 게시된 뒤에는 바뀌지 않으며 새 사업 건에만 적용된다(불변식 8).
- * 1차 범위는 seed 게시본 1개로 운영하고 편집·게시 기능은 P2 다.
+ * seed 게시본 v1 로 시작하고, 관리자가 초안(Configuration)을 게시하면 새 버전이 추가된다.
  */
 @Entity
 @Table(name = "publications")
@@ -35,8 +35,22 @@ public class Publication extends BaseTimeEntity {
     @Column(name = "published_at", nullable = false)
     private Instant publishedAt;
 
-    /** JPA 전용 기본 생성자. 게시본은 1차 범위에서 seed 로만 만들어진다. */
+    /** JPA 전용 기본 생성자. */
     protected Publication() {}
+
+    private Publication(int version, String fieldSchemaJson, Instant publishedAt) {
+        this.version = version;
+        this.fieldSchemaJson = fieldSchemaJson;
+        this.publishedAt = publishedAt;
+    }
+
+    /** 초안 게시(F-08). 게시본은 생성 후 바뀌지 않는다. */
+    public static Publication publish(int version, String fieldSchemaJson, Instant publishedAt) {
+        if (version < 1 || fieldSchemaJson == null || fieldSchemaJson.isBlank()) {
+            throw new IllegalArgumentException("게시본 버전·스키마가 필요합니다");
+        }
+        return new Publication(version, fieldSchemaJson, publishedAt);
+    }
 
     public Long getId() {
         return id;

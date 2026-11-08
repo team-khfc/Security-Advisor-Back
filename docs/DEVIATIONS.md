@@ -18,6 +18,10 @@
 | 13 | **불변식 7(답변 변경 → 완료된 협의 재검토)의 적용 범위를 2단계 신청으로 한정** — 3단계 최종 검토의 보충 답변은 협의 상태를 바꾸지 않는다 | FUNCTIONAL_SPEC 불변식 7 "중요 답변 변경 시 완료된 Review 는 재검토" (단계 범위 미지정) | FUNCTIONAL_SPEC 불변식 7 에 "2단계에서" 명시 또는 3단계 보충 규칙 추가 | 3단계는 명세상 사용자가 내용을 보충하는 단계인데, 보충할 때마다 협의가 되돌아가면 제출 조건(협의 완료)을 영원히 못 채운다(3단계에서는 담당자가 협의 완료를 다시 할 수 없음). 3단계 변경분은 4단계 최종 확인에서 담당자가 스냅샷으로 검증하고, 부족하면 4→3 반환이 재검토 표시를 만든다 |
 | 14 | **공개자료 RAG 에 pgvector 를 쓰지 않음** — 큐레이션 스니펫 + Postgres 전문검색(ADR 0006) | FUNCTIONAL_SPEC F-09 "PGVector 색인", 8-1 knowledge_sources 제안; INSTRUCTIONS 스택의 pgvector | FUNCTIONAL_SPEC F-09·8-1, PROJECT_CONTEXT 확정 결정, 스택 표기 | 2026-11-08 팀장 결정. 1차 코퍼스 규모에서 벡터 파이프라인은 비용만 더함. 테이블명도 knowledge_sources 대신 knowledge_snippets(문장 단위) |
 | 15 | **LLM 공급자 구현을 OpenAI 호환 API 하나로 통일** — Ollama 도 /v1 호환 엔드포인트로 호출. Spring AI starter(자동 구성) 대신 모델 모듈을 직접 써서 DB 구성으로 런타임 생성 | AGENTS 1장 Spring AI 사용 방식(starter 전제 여부 미지정), F-10 "공급자 2종" | AGENTS 1장에 "자동 구성 미사용, OpenAI 호환 단일 구현" 명시 | 공급자별 코드 없이 baseUrl 교체로 2종 이상 구동 입증. 실제 호출 검증은 수동(실제 키 필요) |
+| 16 | **알림은 동기 호출 + 별도 트랜잭션(REQUIRES_NEW)** — 업무 서비스가 `Notifier` 를 직접 호출, 실패는 로그만 | FUNCTIONAL_SPEC F-17(발송 방식 미지정), 불변식 30 | AGENTS 5장 컨텍스트 연결 방식 | 이벤트 버스 없이 불변식 30(알림 실패 ≠ 업무 실패)을 지키는 최소 구현. 수신자 결정(배정 담당자·신청자)은 호출하는 서비스가 안다 |
+| 17 | **담당자 AI 질의·문서 AI 요약을 llm 컨텍스트에 둠** — 명세는 질의를 review(F-04), 분석 작업을 request(uploaded_files·analysis_jobs)에 적음 | FUNCTIONAL_SPEC 1장 도메인 맵, 8-1 | FUNCTIONAL_SPEC 1장·8-1 | llm → request/review 의존은 되지만 역방향은 순환이 되므로 AI 호출이 필요한 유스케이스는 llm 에 모았다. 업로드 파일 자체는 request 에 있다 |
+| 18 | **서류 출력 형식은 Markdown** — PDF·HWP 렌더링 없음 | FUNCTIONAL_SPEC F-06 "미리보기·다운로드(형식·용량 표시)" | PROJECT_CONTEXT 범위 | 1차 범위. 섹션 JSON 을 함께 주므로 프론트가 화면 미리보기를 그리고, PDF 는 후속 |
+| 19 | **상시 방화벽 규칙의 재검토일 = 시작일 + 12개월 고정**, 만료 예고 30일 고정 | FUNCTIONAL_SPEC 8-1 configurations "규칙 만료 예고 일수·재검토 주기"(게시본 정책) | 게시본 deadlinePolicy 에 두 값 추가 | 1차 범위 상수. 게시본 정책으로 옮길 때 `RulePeriod`·`FirewallRuleService` 두 곳만 바꾸면 된다 |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

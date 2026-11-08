@@ -7,6 +7,8 @@ import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.notification.domain.NotificationKind;
+import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
@@ -41,6 +43,7 @@ public class StageReturnService {
     private final AnswerService answerService;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
+    private final Notifier notifier;
     private final ReviewJson json;
     private final Clock clock;
 
@@ -79,6 +82,12 @@ public class StageReturnService {
                 AuditAction.STAGE_RETURNED,
                 command.reason(),
                 fromStage + "단계 → " + command.targetStage() + "단계 반환, 보완 필요 항목 " + fieldKeys);
+        notifier.notify(
+                businessCase.getApplicantUsername(),
+                "stage-return:" + stageReturn.getId(),
+                NotificationKind.STAGE_RETURNED,
+                "신청 #" + securityRequestId + " 이(가) " + command.targetStage() + "단계로 반환되었습니다",
+                "/api/security-requests/" + securityRequestId + "/stage-returns");
         return StageReturnResponse.from(stageReturn, fieldKeys);
     }
 
@@ -98,6 +107,7 @@ public class StageReturnService {
         reviewerAccessPolicy.requireAnyAssignedReviewer(principal, securityRequestId);
         request.requireRevision(command.expectedRevision());
         request.close(command.reason());
+        BusinessCase closedCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
         Instant now = clock.instant();
         for (DeadlineKind kind : DeadlineKind.values()) {
             deadlineService.endActive(principal, securityRequestId, kind, now, "종결");
@@ -110,6 +120,12 @@ public class StageReturnService {
                 AuditAction.REQUEST_CLOSED,
                 command.reason(),
                 "담당자 종결(반려) — " + request.getStage() + "단계에서 종료");
+        notifier.notify(
+                closedCase.getApplicantUsername(),
+                "request:" + securityRequestId + ":closed",
+                NotificationKind.REQUEST_CLOSED,
+                "신청 #" + securityRequestId + " 이(가) 종결(반려)되었습니다",
+                "/api/security-requests/" + securityRequestId);
         return SecurityRequestSummary.from(request);
     }
 }

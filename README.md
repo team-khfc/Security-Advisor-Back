@@ -107,7 +107,25 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - 프롬프트는 [기관 사실](서버가 역할로 걸러 넣은 `private_contexts` 행, 신청자용에는 없음)과 [공개 지식](스니펫, `S<id>` 로 인용) 블록으로 분리된다(원칙 3). 모델 출력의 IP·대역이 사실 블록에 없으면 `InternalInfoGuard` 가 거른다.
 - 감사 이력에는 프롬프트·응답 원문을 넣지 않고 모델 참조·항목 키·조각 ID 만 남긴다(불변식 25).
 - seed: 합성 스니펫 6건, 합성 비공개 컨텍스트 4건, LLM 구성 2건(`openai-default`: `OPENAI_API_KEY`, `ollama-exaone`: Ollama 의 OpenAI 호환 `/v1`). 실제 모델 호출은 키를 넣고 수동 검증한다 — 자동 테스트는 fake 모드만.
-- 미구현: F-02 업로드·요약, F-06 서류 초안, 담당자 AI 질의(대화 메모리), F-08 설정 편집.
+- 서류 다운로드 형식은 1차 범위 Markdown(.md). PDF/HWP 출력은 미구현.
+
+## 담당자 AI 질의 · 문서 업로드·요약 · 서류 · 방화벽 규칙 · 알림 · 지표 · 설정 편집 API
+
+| 경로 | 설명 | 응답 |
+| --- | --- | --- |
+| `POST /api/security-requests/{id}/inquiries` / `GET …/inquiries` | **담당자 AI 질의 대화**(F-04) 생성·내 대화 목록. 그 신청의 분야에 배정된 담당자만, 분야는 역할로 결정 | 201, 미배정·신청자 403 |
+| `POST /api/inquiries/{id}/messages` / `GET …/messages` | 질문 한 턴(질문·답변 반환) / 대화 이력. 매 턴 신청 답변·공개 지식·역할로 걸러진 기관 사실을 주입, 최근 10개 메시지 기억. 답변의 근거 없는 IP·대역은 가리고 `flagged` | 201 / 200, 남의 대화 404 |
+| `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기 422 |
+| `POST /api/business-cases/{id}/analysis-jobs` → `GET /api/analysis-jobs/{id}` | **AI 요약**: 접수 202 + `Location`, 커밋 후 비동기 처리. 상태 `QUEUED → RUNNING → NEEDS_REVIEW`(요약은 미확정) / `FAILED`. 완료 요약은 AI 제안 컨텍스트에 포함 | 202 / 200 |
+| `POST /api/security-requests/{id}/generated-documents` | **서류 생성**(F-06): body 없으면 현재 답변으로 초안, `submissionId` 주면 제출본/확정본(신청이 CONFIRMED 이고 최신 제출본이면 확정본), `aiSupplement:true` 면 AI 보완 서술(미확정)을 덧붙임. 값마다 출처·확인 상태, 미확정은 "담당자 확인 필요" | 201 |
+| `GET /api/generated-documents/{id}` / `…/download` / `GET /api/security-requests/{id}/generated-documents` | 서류 조회(섹션 + Markdown) / 다운로드(`.md`, UTF-8) / 버전 목록 | 200 |
+| `GET /api/installation` | 운영 기관 표시 정보(`INSTITUTION_NAME`·`INSTITUTION_CODE`), 인증 없음 | 200 |
+| `GET /api/security-requests/{id}/firewall-rules` / `GET /api/firewall-rules?effectiveStatus=` | **방화벽 규칙**(F-15): FIREWALL 서류 확정 시 제출본에서 자동 생성(포트가 쉼표로 여럿이면 규칙도 여럿, 상시 규칙은 재검토일 = 시작일+12개월). `effectiveStatus` 는 오늘 기준 계산(APPLIED 의 종료일 30일 내 EXPIRING, 지나면 EXPIRED) | 200 |
+| `PUT /api/firewall-rules/{id}/application` / `…/revocation` | INFRA 가 사람으로서 적용 완료·적용 불가(사유 필수)·회수(사유 필수)를 기록. 시스템 자동 적용 없음 | 200, INFRA 아님 403, 상태 위반 422 |
+| `GET /api/notifications?unreadOnly=` / `GET …/unread-count` / `PATCH /api/notifications/{id}` `{"read":true}` | **알림**(F-17): 배정·보완 요청/답변·반환·제출·확정·종결·재검토 이벤트. 별도 트랜잭션으로 저장돼 실패해도 업무는 실패하지 않음. 수신자 본인만 | 200 |
+| `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 단계·상태별 신청 수, 활성 기한 상태, 보완 상태, 규칙 상태, 평균 협의 일수. 읽기 전용, 개인 순위 없음 | 200 |
+| `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 초안(현재 게시본에서 시작) 조회·저장(데이터 계약 검증: 코드·키 유일, REQUEST 항목 적용 서류, 참조) → 게시하면 새 게시본 버전. 기존 사업 건은 생성 시점 버전 유지 | 200 / 201, 검증 실패 422 |
+| `GET /api/publications/{id}` | 게시본 하나 | 200 |
 
 ## 인증 API (F-11)
 
@@ -125,15 +143,20 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 ## 현재 구현 범위
 
 - `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
-- `request`: 사업 건(BusinessCase)·신청(SecurityRequest)·답변(Answer, 출처 4종)·제출본(Submission) 애그리거트와 단계×상태 전이 규칙, 신청자 API, 제출(멱등성 키·스냅샷)·문서함(F-07)
-- `configuration`: seed 게시본(서류 유형 목록 + 필드 스키마 + 기한 정책) 조회 — 서류 유형은 데이터로 정의(docs/adr/0005)
+- `request`: 사업 건·신청·답변·제출본 애그리거트와 단계×상태 전이 규칙, 신청자 API, 제출(멱등성 키·스냅샷)·문서함(F-07), 업로드 문서(F-02)
+- `configuration`: 게시본 조회 + 설정 초안 편집·게시(F-08) — 서류 유형은 데이터로 정의(docs/adr/0005)
 - `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05), 4단계 최종 확인·확정(F-07)
 - `assignment`: 분야별 담당자 목록(seed)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
 - `procedure`: 예제 기능(절차 목록 조회)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
-- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), LLM 구성 관리(F-10)
+- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)
+- `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06)
+- `policy`: 방화벽 규칙 생성·적용 기록·회수(F-15)
+- `notification`: 화면 안 알림(F-17)
+- `insight`: 업무 지표(F-16)
+- `installation`: 운영 기관 설정값(`GET /api/installation`)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
 
 시연 계정·비밀번호는 합성 데이터이며 운영 값이 아니다. 비밀값은 환경변수로만 받는다.
@@ -144,7 +167,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 8건: … · 최종 확인 · 지식(스니펫·비공개 컨텍스트) · LLM 구성)
+### ERD — 현재 (마이그레이션 14건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안)
 
 ```mermaid
 erDiagram
@@ -157,6 +180,14 @@ erDiagram
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ submissions : "sequence_no 증가"
     submissions ||--o{ final_confirmations : "분야별 1건, INFRA 선행"
+    submissions ||--o{ firewall_rules : "FIREWALL 확정 시 생성"
+    security_requests ||--o{ inquiries : "담당자별 대화"
+    inquiries ||--o{ inquiry_messages : ""
+    security_requests ||--o{ generated_documents : "초안/제출본/확정본"
+    business_cases ||--o{ uploaded_files : ""
+    uploaded_files ||--o{ analysis_jobs : "AI 요약"
+    members ||--o{ notifications : "수신자"
+    publications ||--o{ configurations : "초안의 기준 버전"
     security_requests ||--o{ supplements : "보완 요청"
     reviews ||--o{ supplements : "요청한 분야 협의"
     security_requests ||--o{ stage_returns : "차수 반환 이력"
@@ -287,6 +318,61 @@ erDiagram
         jsonb        purposes
         integer      priority
         boolean      active
+    }
+    inquiries {
+        bigint      inquiry_id PK
+        bigint      security_request_id
+        varchar(50) staff_username
+        varchar(20) field
+    }
+    inquiry_messages {
+        bigint      inquiry_message_id PK
+        bigint      inquiry_id
+        varchar(20) role "USER | ASSISTANT"
+        text        text
+        jsonb       evidence_refs "S·P 태그"
+        boolean     flagged
+    }
+    generated_documents {
+        bigint      generated_document_id PK
+        bigint      security_request_id
+        bigint      submission_id "DRAFT 면 NULL"
+        varchar(20) kind "DRAFT | SUBMITTED | CONFIRMED"
+        integer     version
+        jsonb       sections
+        text        rendered_markdown
+        text        ai_supplement "미확정"
+    }
+    firewall_rules {
+        bigint      firewall_rule_id PK
+        bigint      security_request_id
+        bigint      submission_id
+        varchar(20) status "PENDING_APPLY | APPLIED | NOT_APPLICABLE | REVOKED"
+        date        end_date
+        date        review_date "end 또는 review 필수"
+    }
+    uploaded_files {
+        bigint      uploaded_file_id PK
+        bigint      business_case_id
+        varchar(64) stored_name UK "UUID"
+    }
+    analysis_jobs {
+        bigint      analysis_job_id PK
+        bigint      business_case_id
+        bigint      uploaded_file_id
+        varchar(20) status "QUEUED | RUNNING | NEEDS_REVIEW | FAILED"
+        text        summary "미확정"
+    }
+    notifications {
+        bigint       notification_id PK
+        varchar(50)  recipient_username
+        varchar(200) event_key "UNIQUE(수신자, 사건)"
+        timestamptz  read_at
+    }
+    configurations {
+        bigint      configuration_id PK
+        jsonb       draft_field_schema
+        integer     based_on_version
     }
     stage_returns {
         bigint      stage_return_id PK
@@ -451,4 +537,4 @@ erDiagram
 
 ### 예정 테이블
 
-FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`knowledge_snippets`(knowledge_sources 대신)·`private_contexts`·`llm_configurations`(이상 생성됨)·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
+FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`knowledge_snippets`(knowledge_sources 대신)·`private_contexts`·`llm_configurations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`uploaded_files`·`analysis_jobs`·`inquiries`·`inquiry_messages`(이상 생성됨)·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.

@@ -11,6 +11,8 @@ import kr.securityadvisor.common.error.ForbiddenException;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
+import kr.securityadvisor.notification.domain.NotificationKind;
+import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.domain.Submission;
@@ -24,13 +26,14 @@ import kr.securityadvisor.review.dto.FinalConfirmationCommand;
 import kr.securityadvisor.review.dto.FinalConfirmationResponse;
 import kr.securityadvisor.review.repository.FinalConfirmationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 4단계 최종 확인·확정(F-07). 제출본을 INFRA 가 먼저, SECURITY 가 다음으로 각자 최종 확인하고, 두 분야 확인이 끝나면
  * 배정된 SECURITY 담당자가 확정한다(불변식 34). 확정은 종료 상태(불변식 35)이며 방화벽 실제 적용이 아니다.
- * 방화벽 규칙 생성(불변식 26)은 policy 컨텍스트(F-15)에서 확정 이벤트를 받아 수행한다 — 아직 미구현.
+ * 방화벽 규칙 생성(불변식 26)은 확정 이벤트(RequestConfirmedEvent)를 받은 policy 컨텍스트(F-15)가 같은 트랜잭션에서 한다.
  */
 @Service
 @Transactional
@@ -43,6 +46,8 @@ public class FinalConfirmationService {
     private final ReviewerAccessPolicy reviewerAccessPolicy;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
+    private final Notifier notifier;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     /** 분야 최종 확인(POST /api/submissions/{id}/final-confirmations). 호출자의 역할이 분야를 정한다. */
@@ -96,6 +101,16 @@ public class FinalConfirmationService {
                 AuditAction.REQUEST_CONFIRMED,
                 null,
                 "4단계 제출됨 → 확정 (제출본 " + submissionId + "). 서류 확정 ≠ 방화벽 적용");
+        eventPublisher.publishEvent(
+                new RequestConfirmedEvent(principal, request.getId(), submissionId, request.getDocType()));
+        notifier.notify(
+                accessPolicy
+                        .viewableCase(principal, request.getBusinessCaseId())
+                        .getApplicantUsername(),
+                "request:" + request.getId() + ":confirmed",
+                NotificationKind.REQUEST_CONFIRMED,
+                "신청 #" + request.getId() + " 서류가 확정되었습니다(방화벽 적용은 별도)",
+                "/api/submissions/" + submissionId);
         return SecurityRequestSummary.from(request);
     }
 

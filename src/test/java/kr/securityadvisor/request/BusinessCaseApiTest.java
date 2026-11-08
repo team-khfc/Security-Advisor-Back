@@ -187,13 +187,20 @@ class BusinessCaseApiTest {
     }
 
     @Test
-    @DisplayName("현재 게시본을 조회할 수 있다")
+    @DisplayName("현재 게시본과 seed 게시본(v1)을 조회할 수 있다")
     void currentPublication() {
-        assertThat(mvc.get().uri("/api/publications/current").with(authentication(APPLICANT)))
+        // 다른 테스트(F-08)가 새 버전을 게시할 수 있으므로 seed 항목 수는 v1(게시본 1)로 확인한다
+        assertThat(mvc.get().uri("/api/publications/{id}", 1).with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.fieldSchema.fields.length()")
                 .isEqualTo(16);
+        assertThat(mvc.get().uri("/api/publications/current").with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.fieldSchema.fields.length()")
+                .asNumber()
+                .satisfies(n -> assertThat(n.intValue()).isGreaterThanOrEqualTo(16));
         assertThat(mvc.get().uri("/api/publications/current").with(authentication(APPLICANT)))
                 .bodyJson()
                 .extractingPath("$.fieldSchema.docTypes[0].code")

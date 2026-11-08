@@ -11,4 +11,6 @@ public interface DeadlineRepository extends JpaRepository<Deadline, Long> {
     List<Deadline> findBySecurityRequestIdOrderByStartedAtAscIdAsc(Long securityRequestId);
 
     List<Deadline> findBySecurityRequestIdAndKindAndActiveTrue(Long securityRequestId, DeadlineKind kind);
+
+    List<Deadline> findByActiveTrue();
 }

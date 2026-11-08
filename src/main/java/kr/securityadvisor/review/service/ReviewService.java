@@ -18,6 +18,8 @@ import kr.securityadvisor.common.schema.DocTypeDefinition;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.configuration.service.PublicationService;
+import kr.securityadvisor.notification.domain.NotificationKind;
+import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
@@ -66,6 +68,7 @@ public class ReviewService {
     private final DeadlineService deadlineService;
     private final AnswerService answerService;
     private final AuditRecorder auditRecorder;
+    private final Notifier notifier;
     private final ReviewJson json;
     private final Clock clock;
 
@@ -107,6 +110,14 @@ public class ReviewService {
                 null,
                 "1단계 작성 중 → 2단계 협의 중. 협의 분야 " + fields
                         + (assignments.unassigned().isEmpty() ? "" : ", 미배정 " + assignments.unassigned()));
+        notifier.notify(
+                assignments.assigned().stream()
+                        .map(AssignmentResponse::assigneeUsername)
+                        .toList(),
+                "request:" + securityRequestId + ":review-requested:" + request.getRevision(),
+                NotificationKind.ASSIGNED,
+                "신청 #" + securityRequestId + " 협의가 배정되었습니다",
+                "/api/security-requests/" + securityRequestId);
         return new ReviewRequestResult(SecurityRequestSummary.from(request), reviews, assignments, deadlines);
     }
 
@@ -231,6 +242,16 @@ public class ReviewService {
         for (Review review : reviewRepository.findBySecurityRequestIdInOrderByIdAsc(inReview)) {
             if (review.isCompleted()) {
                 review.markRecheck();
+                notifier.notify(
+                        assignmentService.listForRequest(review.getSecurityRequestId()).stream()
+                                .filter(a -> a.active() && a.field() == review.getField())
+                                .map(AssignmentResponse::assigneeUsername)
+                                .toList(),
+                        "request:" + review.getSecurityRequestId() + ":recheck:" + review.getField() + ":"
+                                + event.fieldKey() + ":" + java.util.UUID.randomUUID(),
+                        NotificationKind.REVIEW_RECHECK,
+                        "신청 #" + review.getSecurityRequestId() + " 답변이 바뀌어 " + review.getField() + " 협의 재검토가 필요합니다",
+                        "/api/security-requests/" + review.getSecurityRequestId());
                 auditRecorder.record(
                         event.actor(),
                         AuditTargetType.SECURITY_REQUEST,

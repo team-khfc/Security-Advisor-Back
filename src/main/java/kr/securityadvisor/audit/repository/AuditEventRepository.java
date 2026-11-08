@@ -15,4 +15,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
     Page<AuditEvent> findByTargetTypeAndTargetId(AuditTargetType targetType, String targetId, Pageable pageable);
 
     Page<AuditEvent> findAllByOrderByOccurredAtDescIdDesc(Pageable pageable);
+
+    List<AuditEvent> findByTargetTypeAndActionInOrderByOccurredAtAscIdAsc(
+            AuditTargetType targetType, java.util.Collection<kr.securityadvisor.audit.domain.AuditAction> actions);
 }

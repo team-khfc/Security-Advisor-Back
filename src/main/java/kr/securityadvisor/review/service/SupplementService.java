@@ -8,6 +8,8 @@ import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.notification.domain.NotificationKind;
+import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
@@ -42,6 +44,7 @@ public class SupplementService {
     private final AnswerService answerService;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
+    private final Notifier notifier;
     private final ReviewJson json;
     private final Clock clock;
 
@@ -78,6 +81,12 @@ public class SupplementService {
                 AuditAction.SUPPLEMENT_REQUESTED,
                 command.reason(),
                 review.getField() + " 보완 요청 " + fieldKeys + " (보완 " + supplement.getId() + ")");
+        notifier.notify(
+                businessCase.getApplicantUsername(),
+                "supplement:" + supplement.getId() + ":requested",
+                NotificationKind.SUPPLEMENT_REQUESTED,
+                "신청 #" + request.getId() + " 보완 요청이 도착했습니다",
+                "/api/security-requests/" + request.getId() + "/supplements");
         return SupplementResponse.from(supplement, fieldKeys);
     }
 
@@ -110,6 +119,12 @@ public class SupplementService {
                 AuditAction.SUPPLEMENT_ANSWERED,
                 null,
                 supplement.getField() + " 보완 답변 (보완 " + supplementId + ")");
+        notifier.notify(
+                supplement.getRequestedBy(),
+                "supplement:" + supplementId + ":answered",
+                NotificationKind.SUPPLEMENT_ANSWERED,
+                "신청 #" + request.getId() + " 보완 답변이 등록되었습니다",
+                "/api/security-requests/" + request.getId() + "/supplements");
         return SupplementResponse.from(supplement, json.readKeys(supplement.getTargetFieldKeys()));
     }
 

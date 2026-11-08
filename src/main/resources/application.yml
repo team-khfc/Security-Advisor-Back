@@ -2,6 +2,11 @@
 spring:
   application:
     name: securityadvisor
+  servlet:
+    multipart:
+      # F-02 업로드 한도(기획서·사업계획서·기능명세서·개요서)
+      max-file-size: 20MB
+      max-request-size: 25MB
   config:
     # .env 가 있으면 환경변수처럼 읽는다(없어도 됨). .env 는 커밋하지 않는다.
     import: optional:file:.env[.properties]
@@ -37,6 +42,10 @@ server:
         secure: ${SESSION_COOKIE_SECURE:false}
 
 securityadvisor:
+  installation:
+    # 운영 기관(설치당 1곳). 기관 테이블 없음 — 설정값만 (FUNCTIONAL_SPEC 3-4장)
+    name: ${INSTITUTION_NAME:합성 시연 기관}
+    code: ${INSTITUTION_CODE:DEMO}
   demo:
     # 시연 계정 공통 비밀번호. 환경변수로만 받는다 — 비어 있으면 시연 계정을 만들지 않는다 (F-11).
     account-password: ${DEMO_ACCOUNT_PASSWORD:}
@@ -44,6 +53,9 @@ securityadvisor:
     # 로그인 실패 제한: 연속 N회 실패 시 잠금, 잠금 시간 (SECURE_CODING.md 2절)
     max-failed-logins: ${LOGIN_MAX_FAILURES:5}
     lock-duration: ${LOGIN_LOCK_DURATION:15m}
+  storage:
+    # 업로드 파일 저장 폴더(서버 생성 파일명 UUID). Docker 에서는 볼륨으로 마운트
+    dir: ${STORAGE_DIR:./storage}
   llm:
     # live: llm_configurations 의 활성 구성으로 실제 모델 호출 / fake: 네트워크 없이 고정 응답(테스트·오프라인 시연)
     mode: ${LLM_MODE:live}

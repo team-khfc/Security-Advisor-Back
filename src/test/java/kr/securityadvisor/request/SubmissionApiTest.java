@@ -156,7 +156,54 @@ class SubmissionApiTest {
                 .with(authentication(APPLICANT))
                 .exchange();
         List<String> actions = JsonPath.read(trail.getResponse().getContentAsString(), "$[*].action");
-        assertThat(actions).contains("SUBMITTED", "FINAL_CONFIRMED", "REQUEST_CONFIRMED");
+        assertThat(actions).contains("SUBMITTED", "FINAL_CONFIRMED", "REQUEST_CONFIRMED", "FIREWALL_RULES_CREATED");
+
+        // F-15: FIREWALL 확정으로 규칙이 생성되고(적용 대기, 서류 확정 ≠ 적용), INFRA 만 적용 기록·회수를 남긴다
+        MvcTestResult rules = mvc.get()
+                .uri("/api/security-requests/{id}/firewall-rules", requestId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(rules).hasStatusOk();
+        assertThat(rules).bodyJson().extractingPath("$.length()").isEqualTo(1);
+        assertThat(rules).bodyJson().extractingPath("$[0].status").isEqualTo("PENDING_APPLY");
+        assertThat(rules).bodyJson().extractingPath("$[0].port").isEqualTo("443");
+        assertThat(rules).bodyJson().extractingPath("$[0].endDate").isEqualTo("2027-11-30");
+        Long ruleId =
+                ((Number) JsonPath.read(rules.getResponse().getContentAsString(), "$[0].firewallRuleId")).longValue();
+        String applied = "{\"result\":\"APPLIED\",\"note\":\"장비 반영(합성)\",\"expectedRevision\":0}";
+        assertThat(mvc.put()
+                        .uri("/api/firewall-rules/{id}/application", ruleId)
+                        .with(authentication(SECURITY))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(applied))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        MvcTestResult appliedResult = mvc.put()
+                .uri("/api/firewall-rules/{id}/application", ruleId)
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(applied)
+                .exchange();
+        assertThat(appliedResult).hasStatusOk();
+        assertThat(appliedResult).bodyJson().extractingPath("$.status").isEqualTo("APPLIED");
+        assertThat(appliedResult).bodyJson().extractingPath("$.effectiveStatus").isEqualTo("APPLIED");
+        assertThat(mvc.put()
+                        .uri("/api/firewall-rules/{id}/revocation", ruleId)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"서비스 종료(합성)\",\"expectedRevision\":1}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.status")
+                .isEqualTo("REVOKED");
+        assertThat(mvc.get().uri("/api/firewall-rules?effectiveStatus=REVOKED").with(authentication(INFRA)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.firewallRuleId==" + ruleId + ")]")
+                .asArray()
+                .hasSize(1);
     }
 
     private MvcTestResult submit(Long requestId, String key) throws Exception {

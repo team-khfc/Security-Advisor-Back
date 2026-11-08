@@ -15,4 +15,6 @@ public interface SupplementRepository extends JpaRepository<Supplement, Long> {
     int countByReviewIdAndStatus(Long reviewId, SupplementStatus status);
 
     List<Supplement> findByReviewIdAndStatus(Long reviewId, SupplementStatus status);
+
+    long countByStatus(SupplementStatus status);
 }

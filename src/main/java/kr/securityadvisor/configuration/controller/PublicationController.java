@@ -4,6 +4,7 @@ import kr.securityadvisor.configuration.dto.PublicationResponse;
 import kr.securityadvisor.configuration.service.PublicationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,5 +20,11 @@ public class PublicationController {
     @GetMapping("/current")
     public PublicationResponse current() {
         return publicationService.getCurrent();
+    }
+
+    /** 게시본 하나(사업 건이 고정한 버전 조회용). */
+    @GetMapping("/{id}")
+    public PublicationResponse get(@PathVariable Long id) {
+        return publicationService.get(id);
     }
 }

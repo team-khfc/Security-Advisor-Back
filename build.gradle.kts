@@ -21,6 +21,8 @@ repositories {
 }
 
 val springAiVersion = "2.0.1"
+val pdfboxVersion = "3.0.5"
+val poiVersion = "5.4.1"
 val springdocVersion = "3.1.1"
 val archunitVersion = "1.4.2"
 // Lombok 은 허용 목록(@Getter·@RequiredArgsConstructor·@NoArgsConstructor(PROTECTED)·@Slf4j)만 쓴다(AGENTS.md 5장).
@@ -51,6 +53,10 @@ dependencies {
     implementation(platform("org.springframework.ai:spring-ai-bom:$springAiVersion"))
     implementation("org.springframework.ai:spring-ai-openai")
     implementation("org.springframework.ai:spring-ai-client-chat")
+
+    // F-02 업로드 문서 텍스트 추출(PDF·DOCX·TXT). HWP 는 1차 범위 제외
+    implementation("org.apache.pdfbox:pdfbox:$pdfboxVersion")
+    implementation("org.apache.poi:poi-ooxml:$poiVersion")
 
     // Lombok(컴파일 시점 전용 — 런타임 의존 없음)
     compileOnly("org.projectlombok:lombok:$lombokVersion")

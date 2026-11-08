@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.securityadvisor.assignment.dto.AssignmentResponse;
+import kr.securityadvisor.assignment.service.AssignmentService;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
@@ -13,6 +15,8 @@ import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
+import kr.securityadvisor.notification.domain.NotificationKind;
+import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.Answer;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
@@ -50,6 +54,8 @@ public class SubmissionService {
     private final ReviewFactsProvider reviewFacts;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
+    private final Notifier notifier;
+    private final AssignmentService assignmentService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
@@ -101,6 +107,15 @@ public class SubmissionService {
                 AuditAction.SUBMITTED,
                 null,
                 "3단계 최종 검토 중 → 4단계 제출됨 (제출본 " + submission.getId() + ", 개정 " + submission.getSequenceNo() + ")");
+        notifier.notify(
+                assignmentService.listForRequest(securityRequestId).stream()
+                        .filter(AssignmentResponse::active)
+                        .map(AssignmentResponse::assigneeUsername)
+                        .toList(),
+                "submission:" + submission.getId() + ":submitted",
+                NotificationKind.SUBMITTED,
+                "신청 #" + securityRequestId + " 제출본(개정 " + submission.getSequenceNo() + ") 최종 확인이 필요합니다",
+                "/api/submissions/" + submission.getId());
         return new SubmitResult(toResponse(submission), true);
     }
 

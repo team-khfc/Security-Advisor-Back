@@ -17,3 +17,6 @@ Claude outputs/
 # 로컬 도구·캐시 (VM 오프라인 빌드용)
 .tools/
 .gradle-home/
+
+# 업로드 파일(로컬 실행)
+storage/

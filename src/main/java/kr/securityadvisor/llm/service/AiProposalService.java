@@ -57,6 +57,7 @@ public class AiProposalService {
     private final LlmGateway llmGateway;
     private final InternalInfoGuard guard;
     private final AuditRecorder auditRecorder;
+    private final DocumentAnalysisService documentAnalysisService;
     private final ObjectMapper objectMapper;
 
     public AiProposalResult propose(MemberPrincipal principal, Long securityRequestId, AiProposalCommand command) {
@@ -92,8 +93,13 @@ public class AiProposalService {
         List<String> knowledgeLines = hits.values().stream()
                 .map(h -> "[" + h.tag() + "] " + h.citation() + " — " + h.body())
                 .toList();
+        List<String> summaries = documentAnalysisService.summariesOf(businessCase.getId());
+        String summaryText = summaries.isEmpty()
+                ? ""
+                : "\n\n업로드 문서 AI 요약(미확정, 참고용):\n"
+                        + String.join("\n---\n", summaries.subList(0, Math.min(3, summaries.size())));
         String user = "서류 유형: " + request.getDocType().code() + "\n\n사용자가 이미 적은 내용:\n"
-                + (written.isBlank() ? "(없음)" : written) + "\n\n제안할 항목(JSON 배열):\n"
+                + (written.isBlank() ? "(없음)" : written) + summaryText + "\n\n제안할 항목(JSON 배열):\n"
                 + objectMapper.writeValueAsString(candidates.stream()
                         .map(f -> Map.of(
                                 "fieldKey",
