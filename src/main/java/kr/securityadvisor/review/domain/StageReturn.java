@@ -44,6 +44,11 @@ public class StageReturn extends BaseTimeEntity {
     @Column(name = "target_field_keys", nullable = false)
     private String targetFieldKeys;
 
+    /** 항목 키 → 항목별 반환 사유 JSON 객체. 신청 단위 사유(reason)와 별개로 "이 항목은 왜·어떻게 고쳐야 하는지"를 담는다. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "field_reasons", nullable = false)
+    private String fieldReasons;
+
     @Column(name = "returned_by", nullable = false, length = 50)
     private String returnedBy;
 
@@ -59,6 +64,7 @@ public class StageReturn extends BaseTimeEntity {
             int toStage,
             String reason,
             String targetFieldKeysJson,
+            String fieldReasonsJson,
             String returnedBy,
             Instant returnedAt) {
         this.securityRequestId = securityRequestId;
@@ -66,6 +72,7 @@ public class StageReturn extends BaseTimeEntity {
         this.toStage = toStage;
         this.reason = reason;
         this.targetFieldKeys = targetFieldKeysJson;
+        this.fieldReasons = fieldReasonsJson;
         this.returnedBy = returnedBy;
         this.returnedAt = returnedAt;
     }
@@ -76,13 +83,21 @@ public class StageReturn extends BaseTimeEntity {
             int toStage,
             String reason,
             String targetFieldKeysJson,
+            String fieldReasonsJson,
             String returnedBy,
             Instant now) {
         if (reason == null || reason.isBlank()) {
             throw new DomainRuleViolationException("차수 반환에는 사유가 필요합니다");
         }
         return new StageReturn(
-                securityRequestId, fromStage, toStage, reason.strip(), targetFieldKeysJson, returnedBy, now);
+                securityRequestId,
+                fromStage,
+                toStage,
+                reason.strip(),
+                targetFieldKeysJson,
+                fieldReasonsJson == null ? "{}" : fieldReasonsJson,
+                returnedBy,
+                now);
     }
 
     public Long getId() {
@@ -107,6 +122,10 @@ public class StageReturn extends BaseTimeEntity {
 
     public String getTargetFieldKeys() {
         return targetFieldKeys;
+    }
+
+    public String getFieldReasons() {
+        return fieldReasons;
     }
 
     public String getReturnedBy() {

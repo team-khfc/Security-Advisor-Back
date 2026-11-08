@@ -3,6 +3,9 @@ package kr.securityadvisor.review.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Stream;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
@@ -56,9 +59,13 @@ public class StageReturnService {
         BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
 
         int fromStage = request.getStage();
-        List<String> fieldKeys = command.fieldKeys() == null
-                ? List.of()
-                : command.fieldKeys().stream().distinct().toList();
+        Map<String, String> fieldReasons = normalizeReasons(command.fieldReasons());
+        List<String> fieldKeys = Stream.concat(
+                        command.fieldKeys() == null ? Stream.empty() : command.fieldKeys().stream(),
+                        fieldReasons.keySet().stream())
+                .filter(key -> key != null && !key.isBlank())
+                .distinct()
+                .toList();
         Instant now = clock.instant();
         request.returnToStage(command.targetStage(), command.reason());
         answerService.markNeedsReview(request, fieldKeys);
@@ -72,6 +79,7 @@ public class StageReturnService {
                 command.targetStage(),
                 command.reason(),
                 json.writeKeys(fieldKeys),
+                json.writeReasons(fieldReasons),
                 principal.username(),
                 now));
         auditRecorder.record(
@@ -81,14 +89,15 @@ public class StageReturnService {
                 request.getRevision(),
                 AuditAction.STAGE_RETURNED,
                 command.reason(),
-                fromStage + "단계 → " + command.targetStage() + "단계 반환, 보완 필요 항목 " + fieldKeys);
+                fromStage + "단계 → " + command.targetStage() + "단계 반환, 보완 필요 항목 " + fieldKeys
+                        + (fieldReasons.isEmpty() ? "" : ", 항목별 사유 " + fieldReasons.size() + "건"));
         notifier.notify(
                 businessCase.getApplicantUsername(),
                 "stage-return:" + stageReturn.getId(),
                 NotificationKind.STAGE_RETURNED,
                 "신청 #" + securityRequestId + " 이(가) " + command.targetStage() + "단계로 반환되었습니다",
                 "/api/security-requests/" + securityRequestId + "/stage-returns");
-        return StageReturnResponse.from(stageReturn, fieldKeys);
+        return StageReturnResponse.from(stageReturn, fieldKeys, fieldReasons);
     }
 
     /** 신청의 차수 반환 이력(최근순). */
@@ -96,8 +105,10 @@ public class StageReturnService {
     public List<StageReturnResponse> listForRequest(MemberPrincipal principal, Long securityRequestId) {
         accessPolicy.viewableRequest(principal, securityRequestId);
         return stageReturnRepository.findBySecurityRequestIdOrderByReturnedAtDescIdDesc(securityRequestId).stream()
-                .map(stageReturn ->
-                        StageReturnResponse.from(stageReturn, json.readKeys(stageReturn.getTargetFieldKeys())))
+                .map(stageReturn -> StageReturnResponse.from(
+                        stageReturn,
+                        json.readKeys(stageReturn.getTargetFieldKeys()),
+                        json.readReasons(stageReturn.getFieldReasons())))
                 .toList();
     }
 
@@ -127,5 +138,19 @@ public class StageReturnService {
                 "신청 #" + securityRequestId + " 이(가) 종결(반려)되었습니다",
                 "/api/security-requests/" + securityRequestId);
         return SecurityRequestSummary.from(request);
+    }
+
+    /** 빈 키·빈 사유는 버리고 순서를 보존한다(키 순). */
+    private static Map<String, String> normalizeReasons(Map<String, String> reasons) {
+        if (reasons == null || reasons.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> normalized = new TreeMap<>();
+        reasons.forEach((key, value) -> {
+            if (key != null && !key.isBlank() && value != null && !value.isBlank()) {
+                normalized.put(key.strip(), value.strip());
+            }
+        });
+        return normalized;
     }
 }

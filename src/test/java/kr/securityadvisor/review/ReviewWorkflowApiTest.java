@@ -218,9 +218,10 @@ class ReviewWorkflowApiTest {
                 .isEqualTo("COMPLETED");
 
         // 차수 반환 3→1: 신청자는 403, 사유 없으면 400, 담당자+사유는 201, 지정 항목 강조, 1단계 작성 중
-        String returnBody =
-                "{\"targetStage\":1,\"reason\":\"허용 기간 재확인 필요\",\"fieldKeys\":[\"firewall.period\"],\"expectedRevision\":"
-                        + requestRevision(requestId) + "}";
+        // 항목별 사유(fieldReasons)의 키는 fieldKeys 에 없어도 지정 항목에 포함된다
+        String returnBody = "{\"targetStage\":1,\"reason\":\"허용 기간 재확인 필요\",\"fieldKeys\":[\"firewall.period\"],"
+                + "\"fieldReasons\":{\"firewall.period\":\"종료일을 사업 기간과 맞추세요\",\"firewall.purpose\":\"연동 대상 시스템을 적으세요\"},"
+                + "\"expectedRevision\":" + requestRevision(requestId) + "}";
         assertThat(mvc.post()
                         .uri("/api/security-requests/{id}/stage-returns", requestId)
                         .with(authentication(APPLICANT))
@@ -249,13 +250,26 @@ class ReviewWorkflowApiTest {
         assertThat(requestStage(requestId)).isEqualTo(1);
         assertThat(requestStatus(requestId)).isEqualTo("DRAFTING");
         assertThat(answerNeedsReview(requestId, "firewall.period")).isTrue();
-        assertThat(mvc.get()
-                        .uri("/api/security-requests/{id}/stage-returns", requestId)
-                        .with(authentication(APPLICANT)))
-                .hasStatusOk()
+        assertThat(answerNeedsReview(requestId, "firewall.purpose")).isTrue();
+        assertThat(returned)
                 .bodyJson()
-                .extractingPath("$.length()")
-                .isEqualTo(1);
+                .extractingPath("$.fieldKeys")
+                .asArray()
+                .containsExactlyInAnyOrder("firewall.period", "firewall.purpose");
+        assertThat(returned)
+                .bodyJson()
+                .extractingPath("$.fieldReasons['firewall.purpose']")
+                .isEqualTo("연동 대상 시스템을 적으세요");
+        MvcTestResult returns = mvc.get()
+                .uri("/api/security-requests/{id}/stage-returns", requestId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(returns).hasStatusOk();
+        assertThat(returns).bodyJson().extractingPath("$.length()").isEqualTo(1);
+        assertThat(returns)
+                .bodyJson()
+                .extractingPath("$[0].fieldReasons['firewall.period']")
+                .isEqualTo("종료일을 사업 기간과 맞추세요");
 
         // 종결: 사유 필수, 이후 어떤 전이도 422. 감사 이력에 전 과정이 남는다
         MvcTestResult closed = mvc.put()

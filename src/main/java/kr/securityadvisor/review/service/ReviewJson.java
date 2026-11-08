@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 public class ReviewJson {
 
     private static final TypeReference<Map<String, Boolean>> CHECKLIST = new TypeReference<>() {};
+    private static final TypeReference<Map<String, String>> REASONS = new TypeReference<>() {};
     private static final TypeReference<List<String>> KEYS = new TypeReference<>() {};
 
     private final ObjectMapper objectMapper;
@@ -31,5 +32,13 @@ public class ReviewJson {
 
     public List<String> readKeys(String json) {
         return json == null || json.isBlank() ? List.of() : objectMapper.readValue(json, KEYS);
+    }
+
+    public String writeReasons(Map<String, String> reasons) {
+        return objectMapper.writeValueAsString(reasons == null ? Map.of() : reasons);
+    }
+
+    public Map<String, String> readReasons(String json) {
+        return json == null || json.isBlank() ? Map.of() : objectMapper.readValue(json, REASONS);
     }
 }
