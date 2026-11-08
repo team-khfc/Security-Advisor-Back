@@ -138,7 +138,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | --- | --- | --- |
 | `POST /api/security-requests/{id}/inquiries` / `GET …/inquiries` | **담당자 AI 질의 대화**(F-04) 생성·내 대화 목록. 그 신청의 분야에 배정된 담당자만, 분야는 역할로 결정 | 201, 미배정·신청자 403 |
 | `POST /api/inquiries/{id}/messages` / `GET …/messages` | 질문 한 턴(질문·답변 반환) / 대화 이력. 매 턴 신청 답변·공개 지식·역할로 걸러진 기관 사실을 주입, 최근 10개 메시지 기억. 답변의 근거 없는 IP·대역은 가리고 `flagged` | 201 / 200, 남의 대화 404 |
-| `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기 422 |
+| `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·**hwpx**·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 확장자뿐 아니라 **실제 내용 서명**(PDF 헤더·zip 내부 구조·UTF-8)을 검사해 이름만 바꾼 파일을 거부. 구 HWP(바이너리)는 "HWPX 로 변환해 올려 주세요" 안내. 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기·내용 불일치 422 |
 | `POST /api/business-cases/{id}/analysis-jobs` → `GET /api/analysis-jobs/{id}` | **AI 요약**: 접수 202 + `Location`, 커밋 후 비동기 처리. 상태 `QUEUED → RUNNING → NEEDS_REVIEW`(요약은 미확정) / `FAILED`. 완료 요약은 AI 제안 컨텍스트에 포함 | 202 / 200 |
 | `POST /api/security-requests/{id}/generated-documents` | **서류 생성**(F-06): body 없으면 현재 답변으로 초안, `submissionId` 주면 제출본/확정본(신청이 CONFIRMED 이고 최신 제출본이면 확정본), `aiSupplement:true` 면 AI 보완 서술(미확정)을 덧붙임. 값마다 출처·확인 상태, 미확정은 "담당자 확인 필요" | 201 |
 | `GET /api/generated-documents/{id}` / `…/download?format=` / `GET /api/security-requests/{id}/generated-documents` | 서류 조회(섹션 + Markdown) / **다운로드** — `format` 은 `MARKDOWN`(기본)·`PDF`(A4, 한글 글꼴 임베드, 미확정 표시·합성 데이터 바닥글). 허용 형식은 게시본 `docTypes[].exportFormats`(기본 MARKDOWN·PDF)가 정한다(ADR 0007) / 버전 목록 | 200, 허용 안 된 형식 422, 미구현 형식(HWPX) 503, 모르는 형식 400 |
@@ -176,7 +176,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14) — 업무 변경은 같은 트랜잭션, 조회·다운로드·AI 호출 기록은 REQUIRES_NEW
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일) + 기한 알림 스케줄러(`DeadlineReminderService`)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
-- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)
+- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02, PDF·DOCX·HWPX·TXT 추출), LLM 구성 관리(F-10)
 - `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06) — 형식별 `DocumentExporter`(Markdown·PDF), 서류 유형별 허용 형식은 게시본 데이터(ADR 0007)
 - `policy`: 방화벽 규칙 생성·적용 기록·회수(F-15)
 - `notification`: 화면 안 알림(F-17) / `review.TodoService`: 처리할 일 배지 집계(F-17)

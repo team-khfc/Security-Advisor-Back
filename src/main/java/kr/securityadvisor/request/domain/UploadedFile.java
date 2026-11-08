@@ -17,8 +17,8 @@ import kr.securityadvisor.common.error.DomainRuleViolationException;
 @Table(name = "uploaded_files")
 public class UploadedFile extends BaseTimeEntity {
 
-    /** 1차 범위 허용 형식. HWP 는 텍스트 추출 라이브러리가 없어 제외. */
-    public static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "txt", "md");
+    /** 허용 형식. 구 HWP(바이너리)는 제외 — HWPX 로 변환해 올리도록 안내한다({@link FileContentCheck#HWP_GUIDE}). */
+    public static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "hwpx", "txt", "md");
 
     public static final long MAX_SIZE_BYTES = 20L * 1024 * 1024;
 
@@ -84,6 +84,9 @@ public class UploadedFile extends BaseTimeEntity {
             throw new DomainRuleViolationException("파일 이름이 올바르지 않습니다");
         }
         String extension = extensionOf(cleaned);
+        if ("hwp".equals(extension)) {
+            throw new DomainRuleViolationException(FileContentCheck.HWP_GUIDE);
+        }
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new DomainRuleViolationException("허용되지 않는 파일 형식입니다(" + extension + "). 허용: " + ALLOWED_EXTENSIONS);
         }

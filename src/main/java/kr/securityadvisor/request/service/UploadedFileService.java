@@ -1,5 +1,6 @@
 package kr.securityadvisor.request.service;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Clock;
@@ -12,6 +13,7 @@ import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.domain.BusinessCase;
+import kr.securityadvisor.request.domain.FileContentCheck;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.domain.UploadedFile;
 import kr.securityadvisor.request.dto.UploadedFileResponse;
@@ -52,7 +54,10 @@ public class UploadedFileService {
         }
         UploadedFile file = UploadedFile.register(
                 businessCase.getId(), originalName, contentType, size, principal.username(), clock.instant());
-        storage.save(file.getStoredName(), content);
+        // 확장자·크기(도메인) 다음에 실제 내용 서명을 검사한다 — 이름만 바꾼 파일 차단(F-02, SECURE_CODING)
+        byte[] bytes = readAll(content, size);
+        FileContentCheck.requireMatches(file.extension(), bytes);
+        storage.save(file.getStoredName(), new ByteArrayInputStream(bytes));
         file = repository.save(file);
         auditRecorder.record(
                 principal,
@@ -63,6 +68,22 @@ public class UploadedFileService {
                 null,
                 "문서 업로드 (파일 " + file.getId() + ", " + file.extension() + ", " + file.getSizeBytes() + "B)");
         return UploadedFileResponse.from(file);
+    }
+
+    private static byte[] readAll(InputStream in, long declaredSize) {
+        try {
+            byte[] bytes = in.readNBytes((int) Math.min(UploadedFile.MAX_SIZE_BYTES + 1, Integer.MAX_VALUE));
+            if (bytes.length > UploadedFile.MAX_SIZE_BYTES) {
+                throw new DomainRuleViolationException(
+                        "파일 크기는 " + (UploadedFile.MAX_SIZE_BYTES / 1024 / 1024) + "MB 이하여야 합니다");
+            }
+            if (declaredSize > 0 && bytes.length != declaredSize) {
+                throw new BadRequestException("파일 크기가 선언된 값과 다릅니다");
+            }
+            return bytes;
+        } catch (IOException e) {
+            throw new BadRequestException("파일을 읽을 수 없습니다");
+        }
     }
 
     @Transactional(readOnly = true)
