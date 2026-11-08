@@ -1923,6 +1923,12 @@ paths:
         schema:
           type: integer
           format: int64
+      - name: format
+        in: query
+        required: false
+        schema:
+          type: string
+          default: MARKDOWN
       responses:
         "200":
           description: OK
@@ -1985,6 +1991,20 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/FieldHelpResponse"
+  /api/document-export-formats:
+    get:
+      tags:
+      - generated-document-controller
+      operationId: exportFormats
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExportFormatInfo"
   /api/configurations/current:
     get:
       tags:
@@ -2830,6 +2850,15 @@ components:
         sortOrder:
           type: integer
           format: int32
+        exportFormats:
+          type: array
+          items:
+            type: string
+            enum:
+            - MARKDOWN
+            - PDF
+            - HWPX
+          uniqueItems: true
     FieldDefinition:
       type: object
       properties:
@@ -3074,17 +3103,30 @@ components:
           type: boolean
         float:
           type: boolean
-        floatingPointNumber:
+        container:
           type: boolean
-        bigDecimal:
+        number:
           type: boolean
-        integralNumber:
+        double:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        short:
+          type: boolean
+        binary:
+          type: boolean
+        long:
+          type: boolean
+        int:
+          type: boolean
+        boolean:
+          type: boolean
+        pojo:
+          type: boolean
+        string:
           type: boolean
         missingNode:
-          type: boolean
-        valueNode:
-          type: boolean
-        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -3098,28 +3140,15 @@ components:
           - OBJECT
           - POJO
           - STRING
-        container:
+        integralNumber:
           type: boolean
-        number:
+        bigDecimal:
           type: boolean
-        long:
+        bigInteger:
           type: boolean
-        boolean:
+        floatingPointNumber:
           type: boolean
-        string:
-          type: boolean
-        pojo:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        binary:
-          type: boolean
-        short:
-          type: boolean
-        int:
-          type: boolean
-        double:
+        valueNode:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4123,6 +4152,21 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/SnippetHit"
+    ExportFormatInfo:
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+          - MARKDOWN
+          - PDF
+          - HWPX
+        extension:
+          type: string
+        mediaType:
+          type: string
+        implemented:
+          type: boolean
     BusinessCaseListItem:
       type: object
       properties:

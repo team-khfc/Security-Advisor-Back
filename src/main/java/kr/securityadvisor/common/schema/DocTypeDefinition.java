@@ -17,6 +17,7 @@ import kr.securityadvisor.common.security.MemberRole;
  * @param generatesFirewallRules 4단계 확정 시 제출본 규칙 행마다 FirewallRule 을 만드는지(F-15)
  * @param reviewFields 2단계에서 협의가 필요한 분야(INFRA·SECURITY). 1차 범위는 INFRA 선행 고정
  * @param sortOrder 화면 정렬 순서
+ * @param exportFormats 이 서류를 내려받을 수 있는 출력 형식(F-06). 비우면 MARKDOWN·PDF. 기관 관리자가 설정 편집(F-08)으로 바꾼다
  */
 public record DocTypeDefinition(
         DocTypeCode code,
@@ -26,4 +27,30 @@ public record DocTypeDefinition(
         String templateKey,
         boolean generatesFirewallRules,
         Set<MemberRole> reviewFields,
-        int sortOrder) {}
+        int sortOrder,
+        Set<ExportFormat> exportFormats) {
+
+    public static final Set<ExportFormat> DEFAULT_EXPORT_FORMATS = Set.of(ExportFormat.MARKDOWN, ExportFormat.PDF);
+
+    public DocTypeDefinition {
+        exportFormats =
+                exportFormats == null || exportFormats.isEmpty() ? DEFAULT_EXPORT_FORMATS : Set.copyOf(exportFormats);
+    }
+
+    /** 출력 형식을 기본값으로 두는 생성자(테스트·기존 호출부). */
+    public DocTypeDefinition(
+            DocTypeCode code,
+            String name,
+            String description,
+            boolean active,
+            String templateKey,
+            boolean generatesFirewallRules,
+            Set<MemberRole> reviewFields,
+            int sortOrder) {
+        this(code, name, description, active, templateKey, generatesFirewallRules, reviewFields, sortOrder, null);
+    }
+
+    public boolean allowsExport(ExportFormat format) {
+        return exportFormats.contains(format);
+    }
+}

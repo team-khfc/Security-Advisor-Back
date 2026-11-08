@@ -121,7 +121,39 @@ class GeneratedDocumentApiTest {
                                         .replace("+", "%20"));
         assertThat(download.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
                 .startsWith("# 방화벽 정책 허용 신청서");
-        // F-14: 다운로드는 감사 이력에 남는다(값 없이 서류·파일명만)
+        // PDF 출력(F-06): application/pdf, %PDF 시작, 한글 글꼴 임베드. 미구현 형식 503, 모르는 형식 400
+        MvcTestResult pdf = mvc.get()
+                .uri("/api/generated-documents/{id}/download?format=pdf", documentId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(pdf).hasStatusOk();
+        assertThat(pdf).hasContentType("application/pdf");
+        byte[] pdfBytes = pdf.getResponse().getContentAsByteArray();
+        assertThat(new String(pdfBytes, 0, 5, java.nio.charset.StandardCharsets.US_ASCII))
+                .isEqualTo("%PDF-");
+        assertThat(pdfBytes.length).isGreaterThan(5_000);
+        assertThat(pdf)
+                .headers()
+                .hasValue(
+                        "Content-Disposition",
+                        "attachment; filename*=UTF-8''"
+                                + java.net.URLEncoder.encode(
+                                                "초안_" + requestId + "_v1.pdf", java.nio.charset.StandardCharsets.UTF_8)
+                                        .replace("+", "%20"));
+        assertThat(mvc.get()
+                        .uri("/api/generated-documents/{id}/download?format=HWPX", documentId)
+                        .with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY); // seed 서류 유형은 MARKDOWN·PDF 만 허용
+        assertThat(mvc.get()
+                        .uri("/api/generated-documents/{id}/download?format=docx", documentId)
+                        .with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(mvc.get().uri("/api/document-export-formats").with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.format=='HWPX')].implemented")
+                .isEqualTo(List.of(false));
+        // F-14: 다운로드는 감사 이력에 남는다(값 없이 서류·파일명·형식만) — md·pdf 2건
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/audit-events", requestId)
                         .with(authentication(APPLICANT)))
@@ -129,7 +161,7 @@ class GeneratedDocumentApiTest {
                 .bodyJson()
                 .extractingPath("$[?(@.action=='DOCUMENT_DOWNLOADED')]")
                 .asArray()
-                .hasSize(1);
+                .hasSize(2);
         assertThat(mvc.get().uri("/api/generated-documents/{id}", documentId).with(authentication(APPLICANT2)))
                 .hasStatus(HttpStatus.NOT_FOUND);
         assertThat(mvc.get()

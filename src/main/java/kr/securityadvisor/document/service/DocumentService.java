@@ -1,6 +1,5 @@
 package kr.securityadvisor.document.service;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -11,6 +10,9 @@ import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
+import kr.securityadvisor.common.error.ServiceUnavailableException;
+import kr.securityadvisor.common.schema.DocTypeDefinition;
+import kr.securityadvisor.common.schema.ExportFormat;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.common.schema.ValueSource;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -71,6 +73,7 @@ public class DocumentService {
     private final InstallationProperties installation;
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
+    private final DocumentExporters exporters;
     private final Clock clock;
 
     public GeneratedDocumentResponse generate(
@@ -163,21 +166,52 @@ public class DocumentService {
         return toResponse(requireViewable(principal, documentId));
     }
 
-    /** 다운로드용 본문·파일명. 1차 범위는 Markdown(UTF-8). */
+    /**
+     * 다운로드용 바이트·파일명. 형식은 게시본의 서류 유형 정의(exportFormats)가 허용하고 변환기 구현이 있는 것만.
+     *
+     * @throws DomainRuleViolationException 이 서류 유형에 허용되지 않은 형식(422)
+     * @throws ServiceUnavailableException 형식은 허용됐지만 변환기 구현이 없을 때(503, 예: HWPX)
+     */
     @Transactional(readOnly = true)
-    public Download download(MemberPrincipal principal, Long documentId) {
+    public Download download(MemberPrincipal principal, Long documentId, ExportFormat format) {
         GeneratedDocument d = requireViewable(principal, documentId);
-        String fileName = d.getKind().label() + "_" + d.getSecurityRequestId() + "_v" + d.getVersion() + ".md";
+        SecurityRequest request = accessPolicy.viewableRequest(principal, d.getSecurityRequestId());
+        BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
+        DocTypeDefinition docType = publicationService
+                .getFieldSchema(businessCase.getPublicationId())
+                .findDocType(request.getDocType())
+                .orElseThrow(() -> new NotFoundException("게시본에 없는 서류 유형입니다: " + request.getDocType()));
+        if (!docType.allowsExport(format)) {
+            throw new DomainRuleViolationException(
+                    docType.name() + " 은(는) " + format + " 형식을 허용하지 않습니다 (허용: " + docType.exportFormats() + ")");
+        }
+        DocumentExporter exporter = exporters
+                .find(format)
+                .orElseThrow(() -> new ServiceUnavailableException(format + " 출력은 아직 구현되지 않았습니다"));
+        String fileName =
+                d.getKind().label() + "_" + d.getSecurityRequestId() + "_v" + d.getVersion() + "." + format.extension();
+        byte[] bytes = exporter.export(d, objectMapper.readValue(d.getSections(), SECTIONS));
         auditRecorder.recordAccess(
                 principal,
                 AuditTargetType.SECURITY_REQUEST,
                 String.valueOf(d.getSecurityRequestId()),
                 AuditAction.DOCUMENT_DOWNLOADED,
-                d.getKind().label() + " v" + d.getVersion() + " 다운로드 (서류 " + d.getId() + ", " + fileName + ")");
-        return new Download(fileName, d.getRenderedMarkdown().getBytes(StandardCharsets.UTF_8));
+                d.getKind().label() + " v" + d.getVersion() + " " + format + " 다운로드 (서류 " + d.getId() + ", " + fileName
+                        + ", " + bytes.length + " bytes)");
+        return new Download(fileName, format, bytes);
     }
 
-    public record Download(String fileName, byte[] bytes) {}
+    /** 출력 형식 목록 — 구현 여부를 함께 준다(화면은 미구현 형식을 "준비 중"으로 표시). */
+    public List<ExportFormatInfo> exportFormats() {
+        return java.util.Arrays.stream(ExportFormat.values())
+                .map(f -> new ExportFormatInfo(f, f.extension(), f.mediaType(), exporters.supports(f)))
+                .toList();
+    }
+
+    public record Download(String fileName, ExportFormat format, byte[] bytes) {}
+
+    /** 출력 형식 안내. */
+    public record ExportFormatInfo(ExportFormat format, String extension, String mediaType, boolean implemented) {}
 
     private GeneratedDocument requireViewable(MemberPrincipal principal, Long documentId) {
         GeneratedDocument d = repository
