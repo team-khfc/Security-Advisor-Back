@@ -2,10 +2,12 @@ package kr.securityadvisor.review.controller;
 
 import jakarta.validation.Valid;
 import java.util.List;
+import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.review.dto.ReviewCompletionCommand;
+import kr.securityadvisor.review.dto.ReviewInboxFilter;
 import kr.securityadvisor.review.dto.ReviewInboxItem;
 import kr.securityadvisor.review.dto.ReviewResponse;
 import kr.securityadvisor.review.dto.ReviewRevisionCommand;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -30,10 +33,16 @@ public class ReviewActionController {
 
     private final ReviewService reviewService;
 
-    /** 담당자 요청함 — 내게 배정된 신청의 협의 목록. */
+    /** 담당자 요청함 — 내게 배정된 신청의 협의 목록. status·requestStatus·field·docType·keyword 로 거른다(모두 선택). */
     @GetMapping
-    public List<ReviewInboxItem> inbox(@CurrentMember MemberPrincipal member) {
-        return reviewService.inbox(member);
+    public List<ReviewInboxItem> inbox(
+            @CurrentMember MemberPrincipal member,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String requestStatus,
+            @RequestParam(required = false) ReviewField field,
+            @RequestParam(required = false) String docType,
+            @RequestParam(required = false) String keyword) {
+        return reviewService.inbox(member, ReviewInboxFilter.of(status, requestStatus, field, docType, keyword));
     }
 
     @GetMapping("/{id}")

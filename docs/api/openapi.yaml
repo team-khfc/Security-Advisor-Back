@@ -283,6 +283,50 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ReviewResponse"
+  /api/reviewer-pools/{id}/default:
+    put:
+      tags:
+      - reviewer-pool-controller
+      operationId: setDefault
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewerPoolResponse"
+  /api/reviewer-pools/{id}/activation:
+    put:
+      tags:
+      - reviewer-pool-controller
+      operationId: setActivation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewerPoolActivationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewerPoolDeactivationResult"
   /api/private-contexts/{id}:
     put:
       tags:
@@ -308,6 +352,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PrivateContextResponse"
+  /api/members/{username}/role:
+    put:
+      tags:
+      - member-controller
+      operationId: changeRole
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleChangeCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
   /api/llm-configurations/{id}:
     put:
       tags:
@@ -958,6 +1026,46 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SupplementResponse"
+  /api/reviewer-pools:
+    get:
+      tags:
+      - reviewer-pool-controller
+      operationId: list_4
+      parameters:
+      - name: field
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewerPoolResponse"
+    post:
+      tags:
+      - reviewer-pool-controller
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewerPoolRegisterCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewerPoolResponse"
   /api/private-contexts:
     get:
       tags:
@@ -990,6 +1098,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/PrivateContextResponse"
   /api/members:
+    get:
+      tags:
+      - member-controller
+      operationId: list_5
+      parameters:
+      - name: role
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MemberDetail"
     post:
       tags:
       - member-controller
@@ -1011,7 +1143,7 @@ paths:
     get:
       tags:
       - llm-configuration-controller
-      operationId: list_4
+      operationId: list_6
       responses:
         "200":
           description: OK
@@ -1143,7 +1275,7 @@ paths:
     get:
       tags:
       - business-case-controller
-      operationId: list_5
+      operationId: list_7
       parameters:
       - name: page
         in: query
@@ -1187,7 +1319,7 @@ paths:
     get:
       tags:
       - uploaded-file-controller
-      operationId: list_6
+      operationId: list_8
       parameters:
       - name: id
         in: path
@@ -1237,7 +1369,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: list_7
+      operationId: list_9
       parameters:
       - name: id
         in: path
@@ -1329,6 +1461,18 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/NotificationResponse"
+  /api/todo-summary:
+    get:
+      tags:
+      - todo-controller
+      operationId: summary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/TodoSummary"
   /api/submissions:
     get:
       tags:
@@ -1402,7 +1546,7 @@ paths:
     get:
       tags:
       - supplement-controller
-      operationId: list_8
+      operationId: list_10
       parameters:
       - name: id
         in: path
@@ -1487,6 +1631,35 @@ paths:
       tags:
       - review-action-controller
       operationId: inbox
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: requestStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: field
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+      - name: docType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
       responses:
         "200":
           description: OK
@@ -1570,7 +1743,7 @@ paths:
     get:
       tags:
       - notification-controller
-      operationId: list_9
+      operationId: list_11
       parameters:
       - name: unreadOnly
         in: query
@@ -1602,6 +1775,24 @@ paths:
                 additionalProperties:
                   type: integer
                   format: int64
+  /api/members/{username}:
+    get:
+      tags:
+      - member-controller
+      operationId: get_5
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
   /api/knowledge-snippets/search:
     get:
       tags:
@@ -1633,7 +1824,7 @@ paths:
     get:
       tags:
       - installation-controller
-      operationId: get_5
+      operationId: get_6
       responses:
         "200":
           description: OK
@@ -1647,7 +1838,7 @@ paths:
     get:
       tags:
       - insight-controller
-      operationId: summary
+      operationId: summary_1
       responses:
         "200":
           description: OK
@@ -1659,7 +1850,7 @@ paths:
     get:
       tags:
       - generated-document-controller
-      operationId: get_6
+      operationId: get_7
       parameters:
       - name: id
         in: path
@@ -1698,7 +1889,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_10
+      operationId: list_12
       parameters:
       - name: effectiveStatus
         in: query
@@ -1793,7 +1984,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: get_7
+      operationId: get_8
       parameters:
       - name: id
         in: path
@@ -2051,6 +2242,44 @@ components:
           format: int64
       required:
       - expectedRevision
+    ReviewerPoolResponse:
+      type: object
+      properties:
+        reviewerPoolId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        memberUsername:
+          type: string
+        defaultReviewer:
+          type: boolean
+        active:
+          type: boolean
+    ReviewerPoolActivationCommand:
+      type: object
+      properties:
+        active:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - reason
+    ReviewerPoolDeactivationResult:
+      type: object
+      properties:
+        pool:
+          $ref: "#/components/schemas/ReviewerPoolResponse"
+        reassignmentNeededRequestIds:
+          type: array
+          items:
+            type: integer
+            format: int64
     PrivateContextCommand:
       type: object
       properties:
@@ -2126,6 +2355,51 @@ components:
         revision:
           type: integer
           format: int64
+    RoleChangeCommand:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - reason
+      - role
+    MemberDetail:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+        department:
+          type: string
+        role:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        signupSource:
+          type: string
+          enum:
+          - SEED
+          - SELF
+        active:
+          type: boolean
+        locked:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
     LlmConfigurationCommand:
       type: object
       properties:
@@ -2692,32 +2966,11 @@ components:
           type: boolean
         container:
           type: boolean
+        binary:
+          type: boolean
+        pojo:
+          type: boolean
         number:
-          type: boolean
-        int:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        string:
-          type: boolean
-        long:
-          type: boolean
-        boolean:
-          type: boolean
-        short:
-          type: boolean
-        double:
-          type: boolean
-        missingNode:
-          type: boolean
-        integralNumber:
-          type: boolean
-        valueNode:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -2733,9 +2986,30 @@ components:
           - STRING
         floatingPointNumber:
           type: boolean
-        pojo:
+        integralNumber:
           type: boolean
-        binary:
+        bigInteger:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        valueNode:
+          type: boolean
+        missingNode:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        double:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        string:
+          type: boolean
+        boolean:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3095,6 +3369,23 @@ components:
       - expectedRevision
       - fieldKeys
       - reason
+    ReviewerPoolRegisterCommand:
+      type: object
+      properties:
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        memberUsername:
+          type: string
+          maxLength: 50
+          minLength: 0
+        defaultReviewer:
+          type: boolean
+      required:
+      - field
+      - memberUsername
     SignupRequest:
       type: object
       properties:
@@ -3341,6 +3632,37 @@ components:
         createdAt:
           type: string
           format: date-time
+    TodoSummary:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        pendingReviews:
+          type: integer
+          format: int64
+        answeredSupplements:
+          type: integer
+          format: int64
+        pendingFinalConfirmations:
+          type: integer
+          format: int64
+        openSupplements:
+          type: integer
+          format: int64
+        finalReviews:
+          type: integer
+          format: int64
+        unassignedRequests:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
     DocumentBoxItem:
       type: object
       properties:
@@ -3435,6 +3757,7 @@ components:
           - PRIVATE_CONTEXT
           - LLM_CONFIGURATION
           - CONFIGURATION
+          - REVIEWER_POOL
         targetId:
           type: string
         targetRevision:
@@ -3447,6 +3770,10 @@ components:
           - LOGIN_FAILED
           - LOGIN_LOCKED
           - MEMBER_REGISTERED
+          - MEMBER_ROLE_CHANGED
+          - REVIEWER_POOL_ADDED
+          - REVIEWER_POOL_DEACTIVATED
+          - REVIEWER_POOL_DEFAULT_CHANGED
           - BUSINESS_CASE_CREATED
           - BUSINESS_CASE_UPDATED
           - SECURITY_REQUEST_CREATED
@@ -3517,6 +3844,13 @@ components:
         reviewDueDate:
           type: string
           format: date
+        openSupplementCount:
+          type: integer
+          format: int32
+        siblingRequests:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityRequestSummary"
     FactRecord:
       type: object
       properties:

@@ -161,4 +161,21 @@ public class Member extends BaseTimeEntity {
     public void deactivate() {
         this.active = false;
     }
+
+    /**
+     * 기관 관리자가 역할을 바꾼다(불변식 32 — 역할 부여는 관리자만). 같은 역할이면 아무것도 바꾸지 않는다.
+     * 호출자(서비스)가 관리자 권한·마지막 관리자 보호를 검사한 뒤 호출한다.
+     *
+     * @return 실제로 바뀌었으면 true
+     */
+    public boolean changeRole(MemberRole newRole) {
+        if (newRole == null) {
+            throw new IllegalArgumentException("역할은 비울 수 없습니다");
+        }
+        if (this.role == newRole) {
+            return false;
+        }
+        this.role = newRole;
+        return true;
+    }
 }

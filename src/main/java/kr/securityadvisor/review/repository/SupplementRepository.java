@@ -17,4 +17,8 @@ public interface SupplementRepository extends JpaRepository<Supplement, Long> {
     List<Supplement> findByReviewIdAndStatus(Long reviewId, SupplementStatus status);
 
     long countByStatus(SupplementStatus status);
+
+    long countByRequestedByAndStatus(String requestedBy, SupplementStatus status);
+
+    long countBySecurityRequestIdInAndStatus(List<Long> securityRequestIds, SupplementStatus status);
 }

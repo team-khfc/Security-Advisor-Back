@@ -35,6 +35,7 @@ import kr.securityadvisor.request.service.RequestAccessPolicy;
 import kr.securityadvisor.review.domain.Review;
 import kr.securityadvisor.review.domain.SupplementStatus;
 import kr.securityadvisor.review.dto.ReviewCompletionCommand;
+import kr.securityadvisor.review.dto.ReviewInboxFilter;
 import kr.securityadvisor.review.dto.ReviewInboxItem;
 import kr.securityadvisor.review.dto.ReviewRequestCommand;
 import kr.securityadvisor.review.dto.ReviewRequestResult;
@@ -138,12 +139,14 @@ public class ReviewService {
                 .toList();
     }
 
-    /** 담당자 요청함: 내게 활성 배정된 신청의 협의 목록(배정 최근순). ADMIN 은 배정이 없으므로 비어 있다. */
+    /** 담당자 요청함: 내게 활성 배정된 신청의 협의 목록(배정 최근순)을 조건으로 거른다. ADMIN 은 배정이 없으므로 비어 있다. */
     @Transactional(readOnly = true)
-    public List<ReviewInboxItem> inbox(MemberPrincipal principal) {
+    public List<ReviewInboxItem> inbox(MemberPrincipal principal, ReviewInboxFilter filter) {
+        ReviewInboxFilter effective = filter == null ? ReviewInboxFilter.NONE : filter;
         return assignmentService.listMine(principal).stream()
                 .map(this::toInboxItem)
                 .flatMap(Optional::stream)
+                .filter(effective::matches)
                 .toList();
     }
 
@@ -295,6 +298,11 @@ public class ReviewService {
                     BusinessCase businessCase = businessCaseRepository
                             .findById(request.getBusinessCaseId())
                             .orElseThrow();
+                    List<SecurityRequestSummary> siblings =
+                            securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCase.getId()).stream()
+                                    .filter(sibling -> !sibling.getId().equals(request.getId()))
+                                    .map(SecurityRequestSummary::from)
+                                    .toList();
                     return new ReviewInboxItem(
                             toResponse(review),
                             SecurityRequestSummary.from(request),
@@ -307,7 +315,10 @@ public class ReviewService {
                                             && d.field() == review.getField())
                                     .map(DeadlineResponse::dueDate)
                                     .findFirst()
-                                    .orElse(null));
+                                    .orElse(null),
+                            supplementRepository.countBySecurityRequestIdAndStatus(
+                                    request.getId(), SupplementStatus.OPEN),
+                            siblings);
                 });
     }
 

@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 import kr.securityadvisor.auth.controller.MemberController;
 import kr.securityadvisor.auth.dto.MemberResponse;
+import kr.securityadvisor.auth.service.MemberAdminService;
 import kr.securityadvisor.auth.service.MemberRegistrationService;
 import kr.securityadvisor.common.config.SecurityConfig;
 import kr.securityadvisor.common.error.ConflictException;
@@ -34,6 +35,9 @@ class MemberControllerTest {
 
     @MockitoBean
     private MemberRegistrationService memberRegistrationService;
+
+    @MockitoBean
+    private MemberAdminService memberAdminService;
 
     @Test
     @DisplayName("가입 성공 시 201 과 Location 헤더, APPLICANT 역할을 반환한다")

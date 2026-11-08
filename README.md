@@ -57,6 +57,11 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `GET /api/security-requests/{id}/assignments` | 배정 이력(활성·비활성) | 200 |
 | `POST /api/security-requests/{id}/assignments` | 재배정·미배정 수동 배정(기관 관리자, 사유 필수, 담당자 목록의 활성 구성원만). 이전 배정은 비활성으로 보존 | 201, 관리자 아님 403, 규칙 위반 422 |
 | `GET /api/assignments/mine` | 내게 배정된 활성 배정(요청함 기본 보기) | 200 |
+| `GET /api/reviewer-pools?field` | 분야별 담당자 목록(기관 관리자, 비활성 포함) | 200, 관리자 아님 403 |
+| `POST /api/reviewer-pools` | 담당자 등록(`field`·`memberUsername`·`defaultReviewer`). 계정이 활성이고 분야 역할(INFRA/SECURITY)이어야 한다. 비활성으로 남아 있던 등록은 재활성화 | 201 + `Location`, 역할 불일치·중복 422 |
+| `PUT /api/reviewer-pools/{id}/default` | 기본 담당자 지정 — 이전 기본은 해제(분야당 활성 기본 1명). 멱등 | 200, 비활성 422 |
+| `PUT /api/reviewer-pools/{id}/activation` | 활성/비활성 설정(`active`·`reason`). 비활성화는 기본 지정을 풀고 **배정은 바꾸지 않으며** `reassignmentNeededRequestIds`(그 사람의 활성 배정이 남은 신청)를 돌려준다 → 관리자가 재배정 | 200 |
+| `GET /api/todo-summary` | **처리할 일 n건** 배지 — 역할별 집계(담당자: 협의 대기·답변된 보완·내 분야 최종 확인 대기 / 신청자: 미해결 보완·3단계 최종 검토 / 관리자: 미배정 신청) + `total` | 200 |
 | `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값 | 200 |
 | `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순) | 200 |
 | `GET /api/audit-events?targetType&targetId&page&size` | 기관 관리자 전체 감사 조회 | 200, 관리자 아님 403 |
@@ -71,7 +76,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 
 | 경로 | 설명 | 응답 |
 | --- | --- | --- |
-| `GET /api/reviews` | **담당자 요청함** — 내게 활성 배정된 신청의 협의(사업 건 제목·신청자·협의 기한일 포함) | 200 |
+| `GET /api/reviews?status&requestStatus&field&docType&keyword` | **담당자 요청함** — 내게 활성 배정된 신청의 협의(사업 건 제목·신청자·협의 기한일·미해결 보완 수·같은 사업 건의 다른 신청 `siblingRequests` 포함). 조건은 모두 선택이며 AND; `keyword`는 제목·신청자 아이디·신청 번호 부분 일치 | 200, 상태 이름 오류 400 |
 | `GET /api/reviews/{id}` | 협의 상세(할당 여부·체크리스트·의견) | 200 |
 | `PUT /api/reviews/{id}/answers/{fieldKey}` | **담당자 입력**(출처 STAFF_INPUT) — 예: INFRA 가 출발지·목적지·대상 서버를 할당. scope=CASE 항목은 사업 건에 저장되어 같은 사업 건의 다른 신청에도 보인다. 2단계 협의 중인 신청만 | 200, 미배정 403, 항목 없음 404, 2단계 아님 422 |
 | `PUT /api/reviews/{id}/answers/{fieldKey}/confirmation` | **담당자 확인**(출처 STAFF_CONFIRMED) — 사용자 답변·AI 추론 값이 맞다고 확인. 값은 바뀌지 않는다 | 200, 답변 없음 404 |
@@ -145,6 +150,8 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | 요청 | 설명 | 응답 |
 |---|---|---|
 | `POST /api/members` | 회원가입(익명). 아이디·비밀번호·표시 이름·부서(선택). 역할은 요청과 무관하게 APPLICANT | 201 + `Location`, 중복 409, 형식 400 |
+| `GET /api/members?role` · `GET /api/members/{username}` | 계정 목록·상세(기관 관리자). 해시·실패 횟수는 내보내지 않는다 | 200, 관리자 아님 403 |
+| `PUT /api/members/{username}/role` | **역할 부여·변경**(기관 관리자, `role`·`reason`). 멱등. 자기 자신·마지막 활성 관리자 강등은 불가(불변식 32). 역할을 잃은 담당자는 자동 배정에서 제외되고, 담당자 목록 비활성화는 `/api/reviewer-pools`에서 따로 한다 | 200, 404, 규칙 위반 422 |
 | `POST /api/auth/login` | 로그인(세션 쿠키 발급) | 200, 실패 401, 잠김 429 |
 | `POST /api/auth/logout` | 로그아웃 | 204 |
 | `GET /api/auth/me` | 현재 사용자 | 200, 미로그인·만료 401 |
@@ -155,18 +162,18 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 ## 현재 구현 범위
 
-- `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 환경변수 비밀번호로 만드는 시연 계정 5건
+- `auth`: 회원가입·세션 로그인·로그인 실패 잠금·CSRF, 역할 4종, 관리자 계정 목록·역할 부여(F-11), 환경변수 비밀번호로 만드는 시연 계정 5건
 - `request`: 사업 건·신청·답변·제출본 애그리거트와 단계×상태 전이 규칙, 신청자 API, 제출(멱등성 키·스냅샷)·문서함(F-07), 업로드 문서(F-02)
 - `configuration`: 게시본 조회 + 설정 초안 편집·게시(F-08) — 서류 유형은 데이터로 정의(docs/adr/0005)
 - `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05), 4단계 최종 확인·확정(F-07)
-- `assignment`: 분야별 담당자 목록(seed)·자동 배정·재배정(F-12)
+- `assignment`: 분야별 담당자 목록 관리(등록·기본 담당자·비활성화)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
 - `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)
 - `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06)
 - `policy`: 방화벽 규칙 생성·적용 기록·회수(F-15)
-- `notification`: 화면 안 알림(F-17)
+- `notification`: 화면 안 알림(F-17) / `review.TodoService`: 처리할 일 배지 집계(F-17)
 - `insight`: 업무 지표(F-16)
 - `installation`: 운영 기관 설정값(`GET /api/installation`)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙

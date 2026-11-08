@@ -14,4 +14,10 @@ public interface ReviewerPoolRepository extends JpaRepository<ReviewerPool, Long
     List<ReviewerPool> findByFieldAndActiveTrueOrderByIdAsc(ReviewField field);
 
     Optional<ReviewerPool> findByFieldAndMemberUsernameAndActiveTrue(ReviewField field, String memberUsername);
+
+    Optional<ReviewerPool> findByFieldAndMemberUsername(ReviewField field, String memberUsername);
+
+    List<ReviewerPool> findAllByOrderByFieldAscIdAsc();
+
+    List<ReviewerPool> findByFieldOrderByIdAsc(ReviewField field);
 }

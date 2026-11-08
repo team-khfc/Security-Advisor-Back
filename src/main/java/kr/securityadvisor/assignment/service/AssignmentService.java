@@ -15,6 +15,7 @@ import kr.securityadvisor.assignment.repository.ReviewerPoolRepository;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
+import kr.securityadvisor.auth.service.MemberDirectory;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -36,6 +37,7 @@ public class AssignmentService {
 
     private final AssignmentRepository assignmentRepository;
     private final ReviewerPoolRepository reviewerPoolRepository;
+    private final MemberDirectory memberDirectory;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
 
@@ -66,7 +68,9 @@ public class AssignmentService {
                     .or(() -> reviewerPoolRepository
                             .findByFieldAndDefaultReviewerTrueAndActiveTrue(field)
                             .map(pool -> pool.getMemberUsername()))
-                    .filter(username -> !username.equals(applicantUsername));
+                    .filter(username -> !username.equals(applicantUsername))
+                    // 담당자 목록에 남아 있어도 계정이 비활성이거나 역할이 바뀌었으면 배정하지 않는다(F-11 역할 변경 반영).
+                    .filter(username -> memberDirectory.isActiveWithRole(username, field.role()));
             if (candidate.isEmpty()) {
                 unassigned.add(field);
                 auditRecorder.record(
@@ -76,7 +80,7 @@ public class AssignmentService {
                         null,
                         AuditAction.UNASSIGNED,
                         null,
-                        field + " 분야 기본 담당자 없음 — 미배정(기관 관리자 재배정 필요)");
+                        field + " 분야에 배정 가능한 기본 담당자 없음 — 미배정(기관 관리자 재배정 필요)");
                 continue;
             }
             Assignment assignment = assignmentRepository.save(
@@ -106,6 +110,11 @@ public class AssignmentService {
                 .findByFieldAndMemberUsernameAndActiveTrue(request.field(), request.assigneeUsername())
                 .orElseThrow(() -> new DomainRuleViolationException(
                         request.assigneeUsername() + " 은(는) " + request.field() + " 분야의 활성 담당자가 아닙니다"));
+        memberDirectory.requireActiveWithRole(
+                request.assigneeUsername(), request.field().role());
+        if (request.assigneeUsername().equals(applicantUsername)) {
+            throw new DomainRuleViolationException("신청자 본인에게는 배정할 수 없습니다");
+        }
         Instant now = clock.instant();
         Optional<Assignment> previous =
                 assignmentRepository.findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, request.field());
@@ -148,6 +157,14 @@ public class AssignmentService {
                 .findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, field)
                 .map(assignment -> assignment.isAssignedTo(username))
                 .orElse(false);
+    }
+
+    /** 신청·분야에 활성 배정이 있는지(미배정 집계용). */
+    @Transactional(readOnly = true)
+    public boolean hasActiveAssignment(Long securityRequestId, ReviewField field) {
+        return assignmentRepository
+                .findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, field)
+                .isPresent();
     }
 
     /** 내게 배정된 활성 배정 목록(요청함 기본 보기). */

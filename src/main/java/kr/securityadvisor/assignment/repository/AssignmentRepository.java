@@ -16,4 +16,6 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     List<Assignment> findBySecurityRequestIdInAndFieldAndActiveTrue(List<Long> securityRequestIds, ReviewField field);
 
     List<Assignment> findByAssigneeUsernameAndActiveTrueOrderByAssignedAtDesc(String assigneeUsername);
+
+    List<Assignment> findByAssigneeUsernameAndFieldAndActiveTrue(String assigneeUsername, ReviewField field);
 }

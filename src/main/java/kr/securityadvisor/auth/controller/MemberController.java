@@ -2,24 +2,39 @@ package kr.securityadvisor.auth.controller;
 
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
+import kr.securityadvisor.auth.dto.MemberDetail;
 import kr.securityadvisor.auth.dto.MemberResponse;
+import kr.securityadvisor.auth.dto.RoleChangeCommand;
 import kr.securityadvisor.auth.dto.SignupRequest;
+import kr.securityadvisor.auth.service.MemberAdminService;
 import kr.securityadvisor.auth.service.MemberRegistrationService;
+import kr.securityadvisor.common.security.CurrentMember;
+import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.common.security.MemberRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-/** 사용자 계정 API. 회원가입은 익명 허용이며 CSRF 토큰이 필요하다. */
+/**
+ * 사용자 계정 API. 회원가입은 익명 허용이며 CSRF 토큰이 필요하다. 목록·역할 변경은 기관 관리자만(불변식 32) —
+ * 역할은 계정의 하위 자원(PUT …/{username}/role)으로 표현한다.
+ */
 @RestController
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
 public class MemberController {
 
     private final MemberRegistrationService memberRegistrationService;
+    private final MemberAdminService memberAdminService;
 
     /** 회원가입. 성공하면 201 과 {@code Location: /api/members/{username}}. 아이디 중복은 409, 형식 오류는 400. */
     @PostMapping
@@ -30,5 +45,26 @@ public class MemberController {
                 .buildAndExpand(created.username())
                 .toUri();
         return ResponseEntity.created(location).body(created);
+    }
+
+    /** 계정 목록(관리자). role 로 거를 수 있다. */
+    @GetMapping
+    public List<MemberDetail> list(
+            @CurrentMember MemberPrincipal admin, @RequestParam(required = false) MemberRole role) {
+        return memberAdminService.list(admin, role);
+    }
+
+    @GetMapping("/{username}")
+    public MemberDetail get(@CurrentMember MemberPrincipal admin, @PathVariable String username) {
+        return memberAdminService.get(admin, username);
+    }
+
+    /** 역할 부여·변경(관리자). 멱등. 자기 자신·마지막 관리자 강등은 422. */
+    @PutMapping("/{username}/role")
+    public MemberDetail changeRole(
+            @CurrentMember MemberPrincipal admin,
+            @PathVariable String username,
+            @Valid @RequestBody RoleChangeCommand command) {
+        return memberAdminService.changeRole(admin, username, command);
     }
 }
