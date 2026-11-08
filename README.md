@@ -19,6 +19,19 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 기동 시 `DemoAccountSeeder` 가 역할별 시연 계정 5건(`applicant`·`applicant2`·`security`·`infra`·`admin`, 비밀번호는 `DEMO_ACCOUNT_PASSWORD`)을 bcrypt 해시로 만든다. 비밀번호를 비우면 만들지 않는다. 마이그레이션에는 계정을 넣지 않는다.
 
+### Docker 만으로 실행 (compose)
+
+```bash
+cp .env.example .env            # 시연 비밀번호·기관명·LLM 키(선택) 채우기
+docker compose up -d --build    # db(PostgreSQL 17) + app
+# http://localhost:8080/swagger-ui.html
+docker compose --profile ollama up -d --build   # 공개 모델(Ollama) 도 함께 — 이후 docker compose exec ollama ollama pull exaone3.5:7.8b
+docker compose down -v          # 시연 데이터 초기화
+```
+
+완성본·제출용 실행은 Security-Advisor 저장소의 compose(Back + Front + DB)가 맡는다. CI(`.github/workflows/check.yml`)는 push·PR 마다 `./gradlew check` 를 돌린다.
+API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.md`).
+
 ## 사업 건·신청 API (F-01·F-03·F-05 일부)
 
 | 요청 | 설명 | 응답 |
@@ -149,7 +162,6 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - `assignment`: 분야별 담당자 목록(seed)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
-- `procedure`: 예제 기능(절차 목록 조회)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
 - `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)
 - `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06)
@@ -165,7 +177,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 규칙 문서와 의도적으로 다른 결정은 `docs/DEVIATIONS.md`, 기술 결정은 `docs/adr/` 에 있다.
 
-스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
+스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `business_cases.business_case_id`, `reviews.review_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
 ### ERD — 현재 (마이그레이션 14건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안)
 

@@ -1,0 +1,3637 @@
+openapi: 3.1.0
+info:
+  title: SecurityAdvisor(보안길잡이) API
+  description: 공공기관 보안 서류(방화벽신청서·보안성검토 신청서) 작성·협의·제출·확정 API. 세션 쿠키 인증 + CSRF(XSRF-TOKEN
+    쿠키 ↔ X-XSRF-TOKEN 헤더). 오류는 ProblemDetail.
+  version: "0.1"
+servers:
+- url: http://localhost
+  description: Generated server url
+paths:
+  /api/submissions/{id}/confirmation:
+    put:
+      tags:
+      - final-confirmation-controller
+      operationId: confirm
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SecurityRequestSummary"
+  /api/security-requests/{id}/withdrawal:
+    put:
+      tags:
+      - security-request-controller
+      operationId: withdraw
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SecurityRequestResponse"
+  /api/security-requests/{id}/closure:
+    put:
+      tags:
+      - stage-return-controller
+      operationId: close
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClosureCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SecurityRequestSummary"
+  /api/security-requests/{id}/answers/{fieldKey}:
+    put:
+      tags:
+      - security-request-controller
+      operationId: answer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/security-requests/{id}/answers/{fieldKey}/staff-check:
+    put:
+      tags:
+      - security-request-controller
+      operationId: requestStaffCheck
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerActionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/security-requests/{id}/answers/{fieldKey}/confirmation:
+    put:
+      tags:
+      - security-request-controller
+      operationId: confirm_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerActionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/reviews/{id}/completion:
+    put:
+      tags:
+      - review-action-controller
+      operationId: complete
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCompletionCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+  /api/reviews/{id}/answers/{fieldKey}:
+    put:
+      tags:
+      - review-action-controller
+      operationId: inputAnswer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffAnswerCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/reviews/{id}/answers/{fieldKey}/confirmation:
+    put:
+      tags:
+      - review-action-controller
+      operationId: confirmAnswer
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRevisionCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/reviews/{id}/allocation-completion:
+    put:
+      tags:
+      - review-action-controller
+      operationId: completeAllocation
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRevisionCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+  /api/private-contexts/{id}:
+    put:
+      tags:
+      - knowledge-controller
+      operationId: updatePrivateContext
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateContextCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PrivateContextResponse"
+  /api/llm-configurations/{id}:
+    put:
+      tags:
+      - llm-configuration-controller
+      operationId: update
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigurationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConfigurationResponse"
+  /api/knowledge-snippets/{id}:
+    put:
+      tags:
+      - knowledge-controller
+      operationId: updateSnippet
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeSnippetCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeSnippetResponse"
+  /api/firewall-rules/{id}/revocation:
+    put:
+      tags:
+      - firewall-rule-controller
+      operationId: revoke
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleRevocationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/firewall-rules/{id}/application:
+    put:
+      tags:
+      - firewall-rule-controller
+      operationId: recordApplication
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleApplicationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/configurations/{id}:
+    put:
+      tags:
+      - configuration-controller
+      operationId: saveDraft
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigurationDraftCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConfigurationResponse"
+  /api/business-cases/{id}:
+    get:
+      tags:
+      - business-case-controller
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BusinessCaseResponse"
+    put:
+      tags:
+      - business-case-controller
+      operationId: update_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBusinessCaseRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BusinessCaseResponse"
+  /api/business-cases/{id}/answers/{fieldKey}:
+    put:
+      tags:
+      - business-case-controller
+      operationId: answer_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/business-cases/{id}/answers/{fieldKey}/staff-check:
+    put:
+      tags:
+      - business-case-controller
+      operationId: requestStaffCheck_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerActionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/business-cases/{id}/answers/{fieldKey}/confirmation:
+    put:
+      tags:
+      - business-case-controller
+      operationId: confirm_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerActionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnswerResponse"
+  /api/supplements/{id}/answers:
+    post:
+      tags:
+      - supplement-controller
+      operationId: answer_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplementAnswerCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplementResponse"
+  /api/submissions/{id}/final-confirmations:
+    get:
+      tags:
+      - final-confirmation-controller
+      operationId: list
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FinalConfirmationResponse"
+    post:
+      tags:
+      - final-confirmation-controller
+      operationId: confirmFinal
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalConfirmationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FinalConfirmationResponse"
+  /api/security-requests/{id}/submissions:
+    get:
+      tags:
+      - submission-controller
+      operationId: listForRequest
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubmissionSummary"
+    post:
+      tags:
+      - submission-controller
+      operationId: submit
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubmissionResponse"
+  /api/security-requests/{id}/stage-returns:
+    get:
+      tags:
+      - stage-return-controller
+      operationId: list_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StageReturnResponse"
+    post:
+      tags:
+      - stage-return-controller
+      operationId: returnToStage
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StageReturnCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/StageReturnResponse"
+  /api/security-requests/{id}/reviews:
+    get:
+      tags:
+      - review-controller
+      operationId: list_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewResponse"
+    post:
+      tags:
+      - review-controller
+      operationId: requestReview
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewRequestCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewRequestResult"
+  /api/security-requests/{id}/inquiries:
+    get:
+      tags:
+      - inquiry-controller
+      operationId: listMine
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InquiryResponse"
+    post:
+      tags:
+      - inquiry-controller
+      operationId: open
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InquiryCommand"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InquiryResponse"
+  /api/security-requests/{id}/generated-documents:
+    get:
+      tags:
+      - generated-document-controller
+      operationId: list_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeneratedDocumentResponse"
+    post:
+      tags:
+      - generated-document-controller
+      operationId: generate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDocumentCommand"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GeneratedDocumentResponse"
+  /api/security-requests/{id}/assignments:
+    get:
+      tags:
+      - security-request-controller
+      operationId: assignments
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssignmentResponse"
+    post:
+      tags:
+      - security-request-controller
+      operationId: reassign
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReassignRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AssignmentResponse"
+  /api/security-requests/{id}/ai-proposals:
+    post:
+      tags:
+      - ai-proposal-controller
+      operationId: propose
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiProposalCommand"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AiProposalResult"
+  /api/reviews/{id}/supplements:
+    post:
+      tags:
+      - supplement-controller
+      operationId: request
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplementRequestCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplementResponse"
+  /api/private-contexts:
+    get:
+      tags:
+      - knowledge-controller
+      operationId: listPrivateContexts
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrivateContextResponse"
+    post:
+      tags:
+      - knowledge-controller
+      operationId: createPrivateContext
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateContextCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PrivateContextResponse"
+  /api/members:
+    post:
+      tags:
+      - member-controller
+      operationId: signUp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+  /api/llm-configurations:
+    get:
+      tags:
+      - llm-configuration-controller
+      operationId: list_4
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LlmConfigurationResponse"
+    post:
+      tags:
+      - llm-configuration-controller
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigurationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConfigurationResponse"
+  /api/knowledge-snippets:
+    get:
+      tags:
+      - knowledge-controller
+      operationId: listSnippets
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KnowledgeSnippetResponse"
+    post:
+      tags:
+      - knowledge-controller
+      operationId: createSnippet
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeSnippetCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeSnippetResponse"
+  /api/inquiries/{id}/messages:
+    get:
+      tags:
+      - inquiry-controller
+      operationId: messages
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InquiryMessageResponse"
+    post:
+      tags:
+      - inquiry-controller
+      operationId: ask
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InquiryMessageCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InquiryTurnResult"
+  /api/configurations/{id}/publications:
+    post:
+      tags:
+      - configuration-controller
+      operationId: publish
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PublicationResponse"
+  /api/business-cases:
+    get:
+      tags:
+      - business-case-controller
+      operationId: list_5
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseBusinessCaseListItem"
+    post:
+      tags:
+      - business-case-controller
+      operationId: create_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBusinessCaseRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BusinessCaseResponse"
+  /api/business-cases/{id}/uploaded-files:
+    get:
+      tags:
+      - uploaded-file-controller
+      operationId: list_6
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UploadedFileResponse"
+    post:
+      tags:
+      - uploaded-file-controller
+      operationId: upload
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UploadedFileResponse"
+  /api/business-cases/{id}/analysis-jobs:
+    get:
+      tags:
+      - analysis-job-controller
+      operationId: list_7
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnalysisJobResponse"
+    post:
+      tags:
+      - analysis-job-controller
+      operationId: request_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisJobCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnalysisJobResponse"
+  /api/auth/logout:
+    post:
+      tags:
+      - auth-controller
+      operationId: logout
+      responses:
+        "204":
+          description: No Content
+  /api/auth/login:
+    post:
+      tags:
+      - auth-controller
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+  /api/notifications/{id}:
+    patch:
+      tags:
+      - notification-controller
+      operationId: markRead
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationReadCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+  /api/submissions:
+    get:
+      tags:
+      - submission-controller
+      operationId: documentBox
+      parameters:
+      - name: docType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: latestOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DocumentBoxItem"
+  /api/submissions/{id}:
+    get:
+      tags:
+      - submission-controller
+      operationId: get_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SubmissionResponse"
+  /api/security-requests/{id}:
+    get:
+      tags:
+      - security-request-controller
+      operationId: get_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SecurityRequestResponse"
+  /api/security-requests/{id}/supplements:
+    get:
+      tags:
+      - supplement-controller
+      operationId: list_8
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupplementResponse"
+  /api/security-requests/{id}/firewall-rules:
+    get:
+      tags:
+      - firewall-rule-controller
+      operationId: listForRequest_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/security-requests/{id}/deadlines:
+    get:
+      tags:
+      - security-request-controller
+      operationId: deadlines
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeadlineResponse"
+  /api/security-requests/{id}/audit-events:
+    get:
+      tags:
+      - security-request-controller
+      operationId: auditTrail
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEventResponse"
+  /api/reviews:
+    get:
+      tags:
+      - review-action-controller
+      operationId: inbox
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReviewInboxItem"
+  /api/reviews/{id}:
+    get:
+      tags:
+      - review-action-controller
+      operationId: get_3
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReviewResponse"
+  /api/publications/{id}:
+    get:
+      tags:
+      - publication-controller
+      operationId: get_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PublicationResponse"
+  /api/publications/current:
+    get:
+      tags:
+      - publication-controller
+      operationId: current
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PublicationResponse"
+  /api/private-contexts/suggestions:
+    get:
+      tags:
+      - knowledge-controller
+      operationId: suggest
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FactRecord"
+  /api/notifications:
+    get:
+      tags:
+      - notification-controller
+      operationId: list_9
+      parameters:
+      - name: unreadOnly
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationResponse"
+  /api/notifications/unread-count:
+    get:
+      tags:
+      - notification-controller
+      operationId: unreadCount
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  format: int64
+  /api/knowledge-snippets/search:
+    get:
+      tags:
+      - knowledge-controller
+      operationId: search
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 5
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SnippetHit"
+  /api/installation:
+    get:
+      tags:
+      - installation-controller
+      operationId: get_5
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/insights/summary:
+    get:
+      tags:
+      - insight-controller
+      operationId: summary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InsightSummary"
+  /api/generated-documents/{id}:
+    get:
+      tags:
+      - generated-document-controller
+      operationId: get_6
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GeneratedDocumentResponse"
+  /api/generated-documents/{id}/download:
+    get:
+      tags:
+      - generated-document-controller
+      operationId: download
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: byte
+  /api/firewall-rules:
+    get:
+      tags:
+      - firewall-rule-controller
+      operationId: list_10
+      parameters:
+      - name: effectiveStatus
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/configurations/current:
+    get:
+      tags:
+      - configuration-controller
+      operationId: current_1
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConfigurationResponse"
+  /api/auth/me:
+    get:
+      tags:
+      - auth-controller
+      operationId: me
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+  /api/audit-events:
+    get:
+      tags:
+      - audit-event-controller
+      operationId: search_1
+      parameters:
+      - name: targetType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: targetId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseAuditEventResponse"
+  /api/assignments/mine:
+    get:
+      tags:
+      - assignment-controller
+      operationId: mine
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AssignmentResponse"
+  /api/analysis-jobs/{id}:
+    get:
+      tags:
+      - analysis-job-controller
+      operationId: get_7
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnalysisJobResponse"
+components:
+  schemas:
+    ConfirmationCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    SecurityRequestSummary:
+      type: object
+      properties:
+        securityRequestId:
+          type: integer
+          format: int64
+        docType:
+          type: string
+        stage:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - DRAFTING
+          - IN_REVIEW
+          - SUPPLEMENT_REQUESTED
+          - FINAL_REVIEW
+          - SUBMITTED
+          - CONFIRMED
+          - CLOSED
+          - WITHDRAWN
+        statusLabel:
+          type: string
+        revision:
+          type: integer
+          format: int64
+    WithdrawRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - reason
+    AnswerResponse:
+      type: object
+      properties:
+        answerId:
+          type: integer
+          format: int64
+        fieldKey:
+          type: string
+        scope:
+          type: string
+          enum:
+          - CASE
+          - REQUEST
+        value:
+          type: string
+        valueSource:
+          type: string
+          enum:
+          - USER_ANSWER
+          - AI_INFERRED
+          - STAFF_INPUT
+          - STAFF_CONFIRMED
+        evidence:
+          type: string
+        confirmed:
+          type: boolean
+        confirmedBy:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+        needsReview:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+    SecurityRequestResponse:
+      type: object
+      properties:
+        securityRequestId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        docType:
+          type: string
+        stage:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - DRAFTING
+          - IN_REVIEW
+          - SUPPLEMENT_REQUESTED
+          - FINAL_REVIEW
+          - SUBMITTED
+          - CONFIRMED
+          - CLOSED
+          - WITHDRAWN
+        statusLabel:
+          type: string
+        revision:
+          type: integer
+          format: int64
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerResponse"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ClosureCommand:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - reason
+    AnswerUpdateRequest:
+      type: object
+      properties:
+        value:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - value
+    AnswerActionRequest:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    ReviewCompletionCommand:
+      type: object
+      properties:
+        opinion:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        checklist:
+          type: object
+          additionalProperties:
+            type: boolean
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - checklist
+      - expectedRevision
+      - opinion
+    ReviewResponse:
+      type: object
+      properties:
+        reviewId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        status:
+          type: string
+          enum:
+          - WAITING
+          - ALLOCATED
+          - IN_PROGRESS
+          - SUPPLEMENT_REQUESTED
+          - COMPLETED
+          - RECHECK
+        statusLabel:
+          type: string
+        allocated:
+          type: boolean
+        allocatedBy:
+          type: string
+        allocatedAt:
+          type: string
+          format: date-time
+        checklist:
+          type: object
+          additionalProperties:
+            type: boolean
+        opinion:
+          type: string
+        completedBy:
+          type: string
+        completedAt:
+          type: string
+          format: date-time
+        revision:
+          type: integer
+          format: int64
+    StaffAnswerCommand:
+      type: object
+      properties:
+        value:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - value
+    ReviewRevisionCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    PrivateContextCommand:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - SERVER
+          - NETWORK_ZONE
+          - ASSET
+          - NOTE
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        aliases:
+          type: array
+          items:
+            type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        visibleRoles:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        active:
+          type: boolean
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - attributes
+      - kind
+      - name
+      - visibleRoles
+    PrivateContextResponse:
+      type: object
+      properties:
+        privateContextId:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - SERVER
+          - NETWORK_ZONE
+          - ASSET
+          - NOTE
+        name:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        visibleRoles:
+          type: array
+          items:
+            type: string
+        note:
+          type: string
+        active:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+    LlmConfigurationCommand:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 0
+        provider:
+          type: string
+          enum:
+          - OPENAI_COMPATIBLE
+        baseUrl:
+          type: string
+          maxLength: 300
+          minLength: 0
+        model:
+          type: string
+          maxLength: 100
+          minLength: 0
+        apiKeyEnv:
+          type: string
+          maxLength: 100
+          minLength: 0
+        purposes:
+          type: array
+          items:
+            type: string
+            enum:
+            - INTERVIEW
+            - SUMMARY
+            - DOCUMENT
+            - INQUIRY
+          minItems: 1
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+          format: int32
+        timeoutSeconds:
+          type: integer
+          format: int32
+        priority:
+          type: integer
+          format: int32
+        active:
+          type: boolean
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - apiKeyEnv
+      - baseUrl
+      - model
+      - name
+      - provider
+      - purposes
+    LlmConfigurationResponse:
+      type: object
+      properties:
+        llmConfigurationId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        provider:
+          type: string
+          enum:
+          - OPENAI_COMPATIBLE
+        baseUrl:
+          type: string
+        model:
+          type: string
+        apiKeyEnv:
+          type: string
+        keyConfigured:
+          type: boolean
+        purposes:
+          type: array
+          items:
+            type: string
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+          format: int32
+        timeoutSeconds:
+          type: integer
+          format: int32
+        priority:
+          type: integer
+          format: int32
+        active:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+    KnowledgeSnippetCommand:
+      type: object
+      properties:
+        sourceTitle:
+          type: string
+          maxLength: 200
+          minLength: 0
+        sourceVersion:
+          type: string
+          maxLength: 50
+          minLength: 0
+        sourceLocator:
+          type: string
+          maxLength: 200
+          minLength: 0
+        fieldKeys:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        docTypes:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        active:
+          type: boolean
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - body
+      - fieldKeys
+      - sourceLocator
+      - sourceTitle
+      - sourceVersion
+    KnowledgeSnippetResponse:
+      type: object
+      properties:
+        knowledgeSnippetId:
+          type: integer
+          format: int64
+        sourceTitle:
+          type: string
+        sourceVersion:
+          type: string
+        sourceLocator:
+          type: string
+        citation:
+          type: string
+        fieldKeys:
+          type: array
+          items:
+            type: string
+        docTypes:
+          type: array
+          items:
+            type: string
+        body:
+          type: string
+        active:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
+    RuleRevocationCommand:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - reason
+    FirewallRuleResponse:
+      type: object
+      properties:
+        firewallRuleId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        submissionId:
+          type: integer
+          format: int64
+        ruleNo:
+          type: integer
+          format: int32
+        source:
+          type: string
+        destination:
+          type: string
+        protocol:
+          type: string
+        port:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reviewDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum:
+          - PENDING_APPLY
+          - APPLIED
+          - NOT_APPLICABLE
+          - REVOKED
+        statusLabel:
+          type: string
+        effectiveStatus:
+          type: string
+        effectiveStatusLabel:
+          type: string
+        appliedBy:
+          type: string
+        appliedAt:
+          type: string
+          format: date-time
+        applicationNote:
+          type: string
+        reason:
+          type: string
+        revision:
+          type: integer
+          format: int64
+    RuleApplicationCommand:
+      type: object
+      properties:
+        result:
+          type: string
+          enum:
+          - APPLIED
+          - NOT_APPLICABLE
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - result
+    ConfigurationDraftCommand:
+      type: object
+      properties:
+        draft:
+          $ref: "#/components/schemas/FieldSchema"
+        note:
+          type: string
+          maxLength: 500
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - draft
+      - expectedRevision
+    DeadlinePolicy:
+      type: object
+      properties:
+        reviewBusinessDays:
+          type: integer
+          format: int32
+        supplementBusinessDays:
+          type: integer
+          format: int32
+        finalConfirmationBusinessDays:
+          type: integer
+          format: int32
+        imminentBusinessDays:
+          type: integer
+          format: int32
+        holidays:
+          type: array
+          items:
+            type: string
+            format: date
+          uniqueItems: true
+    DocTypeDefinition:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        active:
+          type: boolean
+        templateKey:
+          type: string
+        generatesFirewallRules:
+          type: boolean
+        reviewFields:
+          type: array
+          items:
+            type: string
+            enum:
+            - APPLICANT
+            - SECURITY
+            - INFRA
+            - ADMIN
+          uniqueItems: true
+        sortOrder:
+          type: integer
+          format: int32
+    FieldDefinition:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        scope:
+          type: string
+          enum:
+          - CASE
+          - REQUEST
+        docTypes:
+          type: array
+          items:
+            type: string
+          uniqueItems: true
+        type:
+          type: string
+        required:
+          type: boolean
+        askRole:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        hint:
+          type: string
+        staffField:
+          type: boolean
+    FieldSchema:
+      type: object
+      properties:
+        deadlinePolicy:
+          $ref: "#/components/schemas/DeadlinePolicy"
+        docTypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocTypeDefinition"
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldDefinition"
+    ConfigurationResponse:
+      type: object
+      properties:
+        configurationId:
+          type: integer
+          format: int64
+        draft:
+          $ref: "#/components/schemas/FieldSchema"
+        basedOnVersion:
+          type: integer
+          format: int32
+        currentPublishedVersion:
+          type: integer
+          format: int32
+        note:
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        revision:
+          type: integer
+          format: int64
+    UpdateBusinessCaseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 0
+        summary:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        department:
+          type: string
+          maxLength: 100
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - title
+    BusinessCaseResponse:
+      type: object
+      properties:
+        businessCaseId:
+          type: integer
+          format: int64
+        applicantUsername:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        department:
+          type: string
+        publicationId:
+          type: integer
+          format: int64
+        revision:
+          type: integer
+          format: int64
+        progressSummary:
+          type: string
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityRequestSummary"
+        caseAnswers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerResponse"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SupplementAnswerCommand:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    SupplementResponse:
+      type: object
+      properties:
+        supplementId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        reviewId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        fieldKeys:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+        status:
+          type: string
+          enum:
+          - OPEN
+          - ANSWERED
+          - RESOLVED
+        statusLabel:
+          type: string
+        requestedBy:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        answerNote:
+          type: string
+        answeredAt:
+          type: string
+          format: date-time
+        resolvedBy:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        revision:
+          type: integer
+          format: int64
+    FinalConfirmationCommand:
+      type: object
+      properties:
+        opinion:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    FinalConfirmationResponse:
+      type: object
+      properties:
+        finalConfirmationId:
+          type: integer
+          format: int64
+        submissionId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        opinion:
+          type: string
+        confirmedBy:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+    SubmitCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    JsonNode:
+      type: object
+      properties:
+        empty:
+          type: boolean
+        array:
+          type: boolean
+        "null":
+          type: boolean
+        object:
+          type: boolean
+        float:
+          type: boolean
+        container:
+          type: boolean
+        number:
+          type: boolean
+        int:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        string:
+          type: boolean
+        long:
+          type: boolean
+        boolean:
+          type: boolean
+        short:
+          type: boolean
+        double:
+          type: boolean
+        missingNode:
+          type: boolean
+        integralNumber:
+          type: boolean
+        valueNode:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        bigInteger:
+          type: boolean
+        nodeType:
+          type: string
+          enum:
+          - ARRAY
+          - BINARY
+          - BOOLEAN
+          - MISSING
+          - "NULL"
+          - NUMBER
+          - OBJECT
+          - POJO
+          - STRING
+        floatingPointNumber:
+          type: boolean
+        pojo:
+          type: boolean
+        binary:
+          type: boolean
+        embeddedValue:
+          type: boolean
+    SubmissionResponse:
+      type: object
+      properties:
+        submissionId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        publicationId:
+          type: integer
+          format: int64
+        sequenceNo:
+          type: integer
+          format: int32
+        latest:
+          type: boolean
+        submittedBy:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        snapshot:
+          $ref: "#/components/schemas/JsonNode"
+    StageReturnCommand:
+      type: object
+      properties:
+        targetStage:
+          type: integer
+          format: int32
+          maximum: 3
+          minimum: 1
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        fieldKeys:
+          type: array
+          items:
+            type: string
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - reason
+      - targetStage
+    StageReturnResponse:
+      type: object
+      properties:
+        stageReturnId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        fromStage:
+          type: integer
+          format: int32
+        toStage:
+          type: integer
+          format: int32
+        reason:
+          type: string
+        fieldKeys:
+          type: array
+          items:
+            type: string
+        returnedBy:
+          type: string
+        returnedAt:
+          type: string
+          format: date-time
+    ReviewRequestCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    AssignmentResponse:
+      type: object
+      properties:
+        assignmentId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        assigneeUsername:
+          type: string
+        active:
+          type: boolean
+        reason:
+          type: string
+        assignedBy:
+          type: string
+        assignedAt:
+          type: string
+          format: date-time
+        deactivatedAt:
+          type: string
+          format: date-time
+    AssignmentSummary:
+      type: object
+      properties:
+        assigned:
+          type: array
+          items:
+            $ref: "#/components/schemas/AssignmentResponse"
+        unassigned:
+          type: array
+          items:
+            type: string
+            enum:
+            - INFRA
+            - SECURITY
+    DeadlineResponse:
+      type: object
+      properties:
+        deadlineId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        kind:
+          type: string
+          enum:
+          - REVIEW
+          - SUPPLEMENT_RESPONSE
+          - FINAL_CONFIRMATION
+        startedAt:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date
+        policyVersion:
+          type: integer
+          format: int32
+        active:
+          type: boolean
+        endedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - ON_TRACK
+          - IMMINENT
+          - OVERDUE
+          - ENDED
+        statusLabel:
+          type: string
+    ReviewRequestResult:
+      type: object
+      properties:
+        request:
+          $ref: "#/components/schemas/SecurityRequestSummary"
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReviewResponse"
+        assignments:
+          $ref: "#/components/schemas/AssignmentSummary"
+        deadlines:
+          type: array
+          items:
+            $ref: "#/components/schemas/DeadlineResponse"
+    InquiryCommand:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 0
+    InquiryResponse:
+      type: object
+      properties:
+        inquiryId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        staffUsername:
+          type: string
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    GenerateDocumentCommand:
+      type: object
+      properties:
+        submissionId:
+          type: integer
+          format: int64
+        aiSupplement:
+          type: boolean
+    DocumentSection:
+      type: object
+      properties:
+        title:
+          type: string
+        values:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentValue"
+    DocumentValue:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+        label:
+          type: string
+        scope:
+          type: string
+        value:
+          type: string
+        valueSource:
+          type: string
+        confirmed:
+          type: boolean
+        needsReview:
+          type: boolean
+        display:
+          type: string
+        status:
+          type: string
+    GeneratedDocumentResponse:
+      type: object
+      properties:
+        generatedDocumentId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        submissionId:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - CONFIRMED
+        kindLabel:
+          type: string
+        version:
+          type: integer
+          format: int32
+        title:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSection"
+        markdown:
+          type: string
+        aiSupplement:
+          type: string
+        modelReference:
+          type: string
+        unconfirmedCount:
+          type: integer
+          format: int32
+        generatedBy:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+    ReassignRequest:
+      type: object
+      properties:
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        assigneeUsername:
+          type: string
+          maxLength: 50
+          minLength: 0
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - assigneeUsername
+      - field
+      - reason
+    AiProposalCommand:
+      type: object
+      properties:
+        fieldKeys:
+          type: array
+          items:
+            type: string
+    AiProposalResult:
+      type: object
+      properties:
+        modelReference:
+          type: string
+        proposed:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnswerResponse"
+        skipped:
+          type: array
+          items:
+            $ref: "#/components/schemas/Skipped"
+    Skipped:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+        reason:
+          type: string
+    SupplementRequestCommand:
+      type: object
+      properties:
+        fieldKeys:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+      - fieldKeys
+      - reason
+    SignupRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          minLength: 4
+          pattern: "^[a-z0-9][a-z0-9._-]*$"
+        password:
+          type: string
+          maxLength: 72
+          minLength: 8
+          pattern: "^(?=.*[A-Za-z])(?=.*\\d).*$"
+        displayName:
+          type: string
+          maxLength: 100
+          minLength: 0
+        department:
+          type: string
+          maxLength: 100
+          minLength: 0
+      required:
+      - displayName
+      - password
+      - username
+    MemberResponse:
+      type: object
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+        role:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+    InquiryMessageCommand:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 4000
+          minLength: 0
+      required:
+      - text
+    Evidence:
+      type: object
+      properties:
+        tag:
+          type: string
+        label:
+          type: string
+    InquiryMessageResponse:
+      type: object
+      properties:
+        inquiryMessageId:
+          type: integer
+          format: int64
+        inquiryId:
+          type: integer
+          format: int64
+        role:
+          type: string
+          enum:
+          - USER
+          - ASSISTANT
+        text:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/Evidence"
+        modelReference:
+          type: string
+        flagged:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    InquiryTurnResult:
+      type: object
+      properties:
+        question:
+          $ref: "#/components/schemas/InquiryMessageResponse"
+        answer:
+          $ref: "#/components/schemas/InquiryMessageResponse"
+    PublishCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    PublicationResponse:
+      type: object
+      properties:
+        publicationId:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        publishedAt:
+          type: string
+          format: date-time
+        fieldSchema:
+          $ref: "#/components/schemas/FieldSchema"
+    CreateBusinessCaseRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          minLength: 0
+        summary:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        department:
+          type: string
+          maxLength: 100
+          minLength: 0
+        docTypes:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          uniqueItems: true
+      required:
+      - docTypes
+      - title
+    UploadedFileResponse:
+      type: object
+      properties:
+        uploadedFileId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        originalName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+    AnalysisJobCommand:
+      type: object
+      properties:
+        uploadedFileId:
+          type: integer
+          format: int64
+      required:
+      - uploadedFileId
+    AnalysisJobResponse:
+      type: object
+      properties:
+        analysisJobId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        uploadedFileId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - QUEUED
+          - RUNNING
+          - NEEDS_REVIEW
+          - FAILED
+        statusLabel:
+          type: string
+        summary:
+          type: string
+        modelReference:
+          type: string
+        errorMessage:
+          type: string
+        requestedBy:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - password
+      - username
+    NotificationReadCommand:
+      type: object
+      properties:
+        read:
+          type: boolean
+      required:
+      - read
+    NotificationResponse:
+      type: object
+      properties:
+        notificationId:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - ASSIGNED
+          - SUPPLEMENT_REQUESTED
+          - SUPPLEMENT_ANSWERED
+          - STAGE_RETURNED
+          - SUBMITTED
+          - FINAL_CONFIRMED
+          - REQUEST_CONFIRMED
+          - REQUEST_CLOSED
+          - REVIEW_RECHECK
+        title:
+          type: string
+        link:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    DocumentBoxItem:
+      type: object
+      properties:
+        submissionId:
+          type: integer
+          format: int64
+        sequenceNo:
+          type: integer
+          format: int32
+        latest:
+          type: boolean
+        securityRequestId:
+          type: integer
+          format: int64
+        docType:
+          type: string
+        stage:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - DRAFTING
+          - IN_REVIEW
+          - SUPPLEMENT_REQUESTED
+          - FINAL_REVIEW
+          - SUBMITTED
+          - CONFIRMED
+          - CLOSED
+          - WITHDRAWN
+        statusLabel:
+          type: string
+        businessCaseId:
+          type: integer
+          format: int64
+        caseTitle:
+          type: string
+        applicantUsername:
+          type: string
+        submittedBy:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+    SubmissionSummary:
+      type: object
+      properties:
+        submissionId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        sequenceNo:
+          type: integer
+          format: int32
+        latest:
+          type: boolean
+        submittedBy:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+    AuditEventResponse:
+      type: object
+      properties:
+        auditEventId:
+          type: integer
+          format: int64
+        occurredAt:
+          type: string
+          format: date-time
+        actorUsername:
+          type: string
+        actorRole:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        targetType:
+          type: string
+          enum:
+          - MEMBER
+          - BUSINESS_CASE
+          - SECURITY_REQUEST
+          - ANSWER
+          - ASSIGNMENT
+          - DEADLINE
+          - KNOWLEDGE_SNIPPET
+          - PRIVATE_CONTEXT
+          - LLM_CONFIGURATION
+          - CONFIGURATION
+        targetId:
+          type: string
+        targetRevision:
+          type: integer
+          format: int64
+        action:
+          type: string
+          enum:
+          - LOGIN_SUCCEEDED
+          - LOGIN_FAILED
+          - LOGIN_LOCKED
+          - MEMBER_REGISTERED
+          - BUSINESS_CASE_CREATED
+          - BUSINESS_CASE_UPDATED
+          - SECURITY_REQUEST_CREATED
+          - ANSWER_UPDATED
+          - ANSWER_CONFIRMED
+          - STAFF_CHECK_REQUESTED
+          - REVIEW_REQUESTED
+          - ASSIGNED
+          - UNASSIGNED
+          - REASSIGNED
+          - DEADLINE_STARTED
+          - DEADLINE_ENDED
+          - REQUEST_WITHDRAWN
+          - ANSWER_STAFF_INPUT
+          - ANSWER_STAFF_CONFIRMED
+          - ALLOCATION_COMPLETED
+          - REVIEW_COMPLETED
+          - REVIEW_RECHECK
+          - STAGE_ADVANCED
+          - SUPPLEMENT_REQUESTED
+          - SUPPLEMENT_ANSWERED
+          - STAGE_RETURNED
+          - REQUEST_CLOSED
+          - SUBMITTED
+          - FINAL_CONFIRMED
+          - REQUEST_CONFIRMED
+          - KNOWLEDGE_SNIPPET_CREATED
+          - KNOWLEDGE_SNIPPET_UPDATED
+          - PRIVATE_CONTEXT_CREATED
+          - PRIVATE_CONTEXT_UPDATED
+          - LLM_CONFIGURATION_CREATED
+          - LLM_CONFIGURATION_UPDATED
+          - ANSWER_AI_PROPOSED
+          - AI_PROPOSAL_REJECTED
+          - INQUIRY_OPENED
+          - INQUIRY_ASKED
+          - DOCUMENT_GENERATED
+          - FIREWALL_RULES_CREATED
+          - FIREWALL_RULE_APPLIED
+          - FIREWALL_RULE_NOT_APPLICABLE
+          - FIREWALL_RULE_REVOKED
+          - FILE_UPLOADED
+          - ANALYSIS_REQUESTED
+          - ANALYSIS_FINISHED
+          - ANALYSIS_FAILED
+          - CONFIGURATION_DRAFT_SAVED
+          - CONFIGURATION_PUBLISHED
+        reason:
+          type: string
+        summary:
+          type: string
+        requestId:
+          type: string
+    ReviewInboxItem:
+      type: object
+      properties:
+        review:
+          $ref: "#/components/schemas/ReviewResponse"
+        request:
+          $ref: "#/components/schemas/SecurityRequestSummary"
+        businessCaseId:
+          type: integer
+          format: int64
+        caseTitle:
+          type: string
+        applicantUsername:
+          type: string
+        reviewDueDate:
+          type: string
+          format: date
+    FactRecord:
+      type: object
+      properties:
+        privateContextId:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - SERVER
+          - NETWORK_ZONE
+          - ASSET
+          - NOTE
+        name:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+    SnippetHit:
+      type: object
+      properties:
+        snippetId:
+          type: integer
+          format: int64
+        citation:
+          type: string
+        body:
+          type: string
+        fieldKeys:
+          type: array
+          items:
+            type: string
+    InsightSummary:
+      type: object
+      properties:
+        requestsByStage:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        requestsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        activeDeadlines:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        supplements:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        firewallRules:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        averageReviewDays:
+          type: number
+          format: double
+        completedReviewCount:
+          type: integer
+          format: int64
+    BusinessCaseListItem:
+      type: object
+      properties:
+        businessCaseId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        department:
+          type: string
+        progressSummary:
+          type: string
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityRequestSummary"
+        createdAt:
+          type: string
+          format: date-time
+    PageResponseBusinessCaseListItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/BusinessCaseListItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    PageResponseAuditEventResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEventResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64

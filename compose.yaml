@@ -1,0 +1,59 @@
+# 보안길잡이 백엔드 단독 구동(개발·검증용). 완성본 배포는 Security-Advisor 저장소의 compose.yaml 이 Back·Front 를 함께 띄운다.
+#
+#   cp .env.example .env   # 값 채우기(시연 비밀번호·기관명·LLM 키)
+#   docker compose up -d --build
+#   http://localhost:8080/swagger-ui.html
+#
+# Docker 만 있으면 된다(JDK·Gradle 은 컨테이너 안에서 빌드). DB 데이터는 볼륨 pgdata, 업로드 파일은 볼륨 storage 에 남는다.
+# 공개 모델(Ollama)로 AI 를 돌리려면:  docker compose --profile ollama up -d --build  후  docker compose exec ollama ollama pull exaone3.5:7.8b
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-boan}
+      POSTGRES_USER: ${POSTGRES_USER:-boan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-boan}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-boan} -d ${POSTGRES_DB:-boan}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # 컨테이너 안에서는 DB 호스트가 서비스 이름(db)이다. .env 의 DB_URL 보다 우선한다.
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-boan}
+      DB_USERNAME: ${POSTGRES_USER:-boan}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-boan}
+      STORAGE_DIR: /data/storage
+      LLM_ALLOWED_HOSTS: ${LLM_ALLOWED_HOSTS:-api.openai.com,openrouter.ai,ollama,localhost,host.docker.internal}
+    volumes:
+      - storage:/data/storage
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  storage:
+  ollama:

@@ -90,6 +90,8 @@ project.findProperty("buildDirOverride")?.toString()?.takeIf { it.isNotBlank() }
 }
 
 tasks.withType<Test> {
+    // OpenAPI 계약 파일 추출(OpenApiExportTest): gradlew test --tests "*OpenApiExportTest*" -PexportOpenApi=true
+    systemProperty("openapi.export", project.findProperty("exportOpenApi")?.toString() ?: "false")
     useJUnitPlatform {
         // Docker 가 없는 환경(오프라인 VM 등)에서 단위 테스트만 돌릴 때: gradlew test -PexcludeTags=docker
         val excluded = project.findProperty("excludeTags")?.toString()
