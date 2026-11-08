@@ -112,8 +112,10 @@ public class AiProposalService {
                                 f.hint() == null ? "" : f.hint()))
                         .toList());
 
-        LlmResult result =
-                llmGateway.complete(LlmPurpose.INTERVIEW, LlmPrompt.of(SYSTEM, knowledgeLines, List.of(), user));
+        LlmResult result = llmGateway.complete(
+                LlmPurpose.INTERVIEW,
+                LlmPrompt.of(SYSTEM, knowledgeLines, List.of(), user),
+                LlmCallContext.of(principal, AuditTargetType.SECURITY_REQUEST, securityRequestId));
         List<AnswerResponse> proposed = new ArrayList<>();
         Set<String> candidateKeys =
                 candidates.stream().map(FieldDefinition::key).collect(Collectors.toSet());

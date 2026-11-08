@@ -8,8 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import kr.securityadvisor.common.error.ServiceUnavailableException;
 import kr.securityadvisor.llm.domain.LlmConfiguration;
 import kr.securityadvisor.llm.domain.LlmPurpose;
+import kr.securityadvisor.llm.service.LlmBackend;
 import kr.securityadvisor.llm.service.LlmConfigurationSelector;
-import kr.securityadvisor.llm.service.LlmGateway;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConditionalOnProperty(prefix = "securityadvisor.llm", name = "mode", havingValue = "live", matchIfMissing = true)
 @RequiredArgsConstructor
-public class SpringAiLlmGateway implements LlmGateway {
+public class SpringAiLlmGateway implements LlmBackend {
 
     private final LlmConfigurationSelector selector;
     private final Map<String, ChatClient> clients = new ConcurrentHashMap<>();
@@ -49,7 +49,7 @@ public class SpringAiLlmGateway implements LlmGateway {
             if (text == null || text.isBlank()) {
                 throw new ServiceUnavailableException("모델이 빈 응답을 반환했습니다: " + configuration.reference());
             }
-            return new LlmResult(text, configuration.reference());
+            return new LlmResult(text, configuration.reference(), configuration.getId());
         } catch (ServiceUnavailableException e) {
             throw e;
         } catch (RuntimeException e) {

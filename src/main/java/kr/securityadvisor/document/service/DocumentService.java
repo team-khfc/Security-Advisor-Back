@@ -25,6 +25,7 @@ import kr.securityadvisor.installation.InstallationProperties;
 import kr.securityadvisor.knowledge.service.PrivateContextLookup;
 import kr.securityadvisor.llm.domain.LlmPurpose;
 import kr.securityadvisor.llm.service.InternalInfoGuard;
+import kr.securityadvisor.llm.service.LlmCallContext;
 import kr.securityadvisor.llm.service.LlmGateway;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
@@ -104,7 +105,9 @@ public class DocumentService {
         String modelReference = null;
         if (command != null && Boolean.TRUE.equals(command.aiSupplement())) {
             LlmResult result = llmGateway.complete(
-                    LlmPurpose.DOCUMENT, LlmPrompt.of(SYSTEM, List.of(), List.of(), valuesText(sections)));
+                    LlmPurpose.DOCUMENT,
+                    LlmPrompt.of(SYSTEM, List.of(), List.of(), valuesText(sections)),
+                    LlmCallContext.of(principal, AuditTargetType.SECURITY_REQUEST, securityRequestId));
             aiSupplement = result.text();
             for (String token : guard.findUnbacked(aiSupplement, knownValues(principal, sources))) {
                 aiSupplement = aiSupplement.replace(token, "[근거 없는 내부 정보 — 담당자 확인 필요]");
@@ -165,6 +168,12 @@ public class DocumentService {
     public Download download(MemberPrincipal principal, Long documentId) {
         GeneratedDocument d = requireViewable(principal, documentId);
         String fileName = d.getKind().label() + "_" + d.getSecurityRequestId() + "_v" + d.getVersion() + ".md";
+        auditRecorder.recordAccess(
+                principal,
+                AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(d.getSecurityRequestId()),
+                AuditAction.DOCUMENT_DOWNLOADED,
+                d.getKind().label() + " v" + d.getVersion() + " 다운로드 (서류 " + d.getId() + ", " + fileName + ")");
         return new Download(fileName, d.getRenderedMarkdown().getBytes(StandardCharsets.UTF_8));
     }
 

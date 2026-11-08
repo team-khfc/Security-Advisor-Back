@@ -3,6 +3,9 @@ package kr.securityadvisor.knowledge.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import kr.securityadvisor.audit.domain.AuditAction;
+import kr.securityadvisor.audit.domain.AuditTargetType;
+import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.common.json.JsonCodec;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
@@ -23,6 +26,7 @@ public class PrivateContextLookup {
 
     private final PrivateContextRepository repository;
     private final JsonCodec json;
+    private final AuditRecorder auditRecorder;
 
     /** 텍스트(질문·답변 값)에 이름이나 별칭이 포함된 활성 행 중 호출자 역할에 보이는 것. */
     public List<FactRecord> matchIn(MemberPrincipal principal, List<String> texts) {
@@ -50,13 +54,21 @@ public class PrivateContextLookup {
             return List.of();
         }
         String q = query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
-        return visibleTo(principal).stream()
+        List<FactRecord> facts = visibleTo(principal).stream()
                 .filter(context -> q.isEmpty()
                         || context.getName().toLowerCase(Locale.ROOT).contains(q)
                         || json.readStrings(context.getAliases()).stream()
                                 .anyMatch(a -> a.toLowerCase(Locale.ROOT).contains(q)))
                 .map(this::toFact)
                 .toList();
+        // 검색어·값은 남기지 않고 건수만(F-14, 불변식 25)
+        auditRecorder.recordAccess(
+                principal,
+                AuditTargetType.PRIVATE_CONTEXT,
+                "*",
+                AuditAction.PRIVATE_CONTEXT_VIEWED,
+                "비공개 컨텍스트 검색 " + facts.size() + "건" + (q.isEmpty() ? "" : " (검색어 " + q.length() + "자)"));
+        return facts;
     }
 
     /** 모델 출력 검증용: 호출자에게 보이는 모든 사실 값(IP·대역 등). */

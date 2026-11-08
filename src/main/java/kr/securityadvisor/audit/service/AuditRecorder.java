@@ -37,6 +37,16 @@ public class AuditRecorder {
         record(actor.username(), actor.role(), targetType, targetId, targetRevision, action, reason, summary);
     }
 
+    /**
+     * 조회·다운로드처럼 업무 상태를 바꾸지 않는 행위의 기록(F-14 "비공개 컨텍스트 조회·제출본 다운로드"). 읽기 전용 트랜잭션 안에서도
+     * 남도록 별도 트랜잭션(REQUIRES_NEW)으로 저장한다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordAccess(
+            MemberPrincipal actor, AuditTargetType targetType, String targetId, AuditAction action, String summary) {
+        record(actor.username(), actor.role(), targetType, targetId, null, action, null, summary);
+    }
+
     /** 행위자 정보를 직접 넘기는 기록(로그인 전 단계·시스템 행위). actor 는 null 일 수 있다. */
     @Transactional(propagation = Propagation.REQUIRED)
     public void record(

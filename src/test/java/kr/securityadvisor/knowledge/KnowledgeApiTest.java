@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
+import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import kr.securityadvisor.TestcontainersConfiguration;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -21,6 +22,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** F-09 1차: seed 스니펫 전문검색, 비공개 컨텍스트의 역할별 가시성, 관리자 등록 규칙. */
 @Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
@@ -72,7 +74,7 @@ class KnowledgeApiTest {
 
     @Test
     @DisplayName("비공개 컨텍스트는 신청자에게 비어 있고 담당자에게는 보인다. APPLICANT 에게 보이는 행은 등록할 수 없다")
-    void privateContextVisibility() {
+    void privateContextVisibility() throws Exception {
         assertThat(mvc.get().uri("/api/private-contexts/suggestions?q=업무서버").with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
@@ -86,6 +88,16 @@ class KnowledgeApiTest {
                 .isEqualTo(List.of("합성 업무서버 01"));
         assertThat(mvc.get().uri("/api/private-contexts").with(authentication(INFRA)))
                 .hasStatus(HttpStatus.FORBIDDEN);
+        // F-14: 비공개 컨텍스트 조회·검색은 값 없이 건수만 감사 이력에 남는다
+        MvcTestResult viewed = mvc.get()
+                .uri("/api/audit-events?targetType=PRIVATE_CONTEXT&targetId=*&size=50")
+                .with(authentication(ADMIN))
+                .exchange();
+        assertThat(viewed).hasStatusOk();
+        List<String> viewSummaries = JsonPath.read(
+                viewed.getResponse().getContentAsString(), "$.content[?(@.action=='PRIVATE_CONTEXT_VIEWED')].summary");
+        assertThat(viewSummaries).isNotEmpty();
+        assertThat(String.join(" ", viewSummaries)).doesNotContain("10.0.").doesNotContain("합성 업무서버");
 
         String body = "{\"kind\":\"SERVER\",\"name\":\"합성 서버 X\",\"aliases\":[],\"attributes\":{\"ip\":\"10.9.9.9\"},"
                 + "\"visibleRoles\":[\"APPLICANT\"]}";

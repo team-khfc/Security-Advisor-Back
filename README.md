@@ -65,7 +65,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값 | 200 |
 | `GET /api/deadline-reminder-schedule` / `PUT …` `{"cron","enabled"}` | **기한 알림 스케줄**(기관 관리자): Spring 6필드 cron(Asia/Seoul)과 사용 여부. DB(`reminder_schedules`)에 저장되고 **저장 즉시 반영(재시작 불필요)**, 응답에 다음 실행 시각. 기본 매일 08:10 | 200, cron 형식 오류 422 |
 | `POST /api/deadline-reminder-runs` | **기한 알림 수동 실행**(기관 관리자, `asOf` 선택). 위 스케줄로 자동 실행되는 것과 같은 일을 한다: 활성 기한 중 **1영업일 전**(DEADLINE_IMMINENT)·**경과**(DEADLINE_OVERDUE) 알림을 담당자(협의·최종 확정)·신청자(보완 응답)에게 보낸다. 기한·종류당 한 번만, 업무 상태는 바꾸지 않는다 | 201(검사·임박·경과 건수), 관리자 아님 403 |
-| `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순) | 200 |
+| `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순). 상태 전이·답변·배정·보완·반환·제출·확정 외에 **AI 호출**(LLM_CALLED/LLM_CALL_FAILED: 구성·용도·소요 시간·응답 길이, 원문 없음)과 **서류 다운로드**(DOCUMENT_DOWNLOADED)도 남는다. 비공개 컨텍스트 조회·검색은 PRIVATE_CONTEXT_VIEWED 로 건수만 기록(관리자 전체 조회에서 확인) | 200 |
 | `GET /api/audit-events?targetType&targetId&page&size` | 기관 관리자 전체 감사 조회 | 200, 관리자 아님 403 |
 
 - 모든 응답에 `X-Request-Id` 헤더가 붙고, 오류 ProblemDetail 과 감사 이력의 `requestId` 가 같은 값이다.
@@ -112,7 +112,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 
 ## AI·지식 API (F-03 AI 제안 · F-09 지식 기반 · F-10 LLM 구성)
 
-AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구현(`llm.adapter`)이다. 모델·엔드포인트는 DB(`llm_configurations`)로 관리하고 키는 환경변수 이름만 저장한다. `LLM_MODE=fake` 면 네트워크 없이 고정 응답으로 동작한다(테스트·오프라인 시연). 지식 검색은 벡터가 아니라 **항목 키 태깅 + Postgres 전문검색**이다(ADR 0006).
+AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구현(`llm.adapter`, `LlmBackend` 구현)이다. `LlmGateway` 구현(`AuditingLlmGateway`)이 모든 호출을 감싸 감사 이력(구성·용도·대상·성공/실패·소요 시간)을 별도 트랜잭션으로 남긴다. 모델·엔드포인트는 DB(`llm_configurations`)로 관리하고 키는 환경변수 이름만 저장한다. `LLM_MODE=fake` 면 네트워크 없이 고정 응답으로 동작한다(테스트·오프라인 시연). 지식 검색은 벡터가 아니라 **항목 키 태깅 + Postgres 전문검색**이다(ADR 0006).
 
 | 경로 | 설명 | 응답 |
 | --- | --- | --- |
@@ -170,7 +170,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - `configuration`: 게시본 조회 + 설정 초안 편집·게시(F-08) — 서류 유형은 데이터로 정의(docs/adr/0005)
 - `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05), 4단계 최종 확인·확정(F-07)
 - `assignment`: 분야별 담당자 목록 관리(등록·기본 담당자·비활성화)·자동 배정·재배정(F-12)
-- `audit`: 추가 전용 감사 이력 기록·조회(F-14)
+- `audit`: 추가 전용 감사 이력 기록·조회(F-14) — 업무 변경은 같은 트랜잭션, 조회·다운로드·AI 호출 기록은 REQUIRES_NEW
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일) + 기한 알림 스케줄러(`DeadlineReminderService`)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
 - `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)

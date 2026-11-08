@@ -122,6 +122,14 @@ class AiProposalApiTest {
                 .exchange();
         List<String> actions = JsonPath.read(trail.getResponse().getContentAsString(), "$[*].action");
         assertThat(actions).contains("ANSWER_AI_PROPOSED");
+        // F-14: AI 호출마다 구성·용도·소요 시간이 남고 프롬프트·응답 원문은 남지 않는다
+        assertThat(actions).contains("LLM_CALLED");
+        List<String> llmSummaries =
+                JsonPath.read(trail.getResponse().getContentAsString(), "$[?(@.action=='LLM_CALLED')].summary");
+        assertThat(llmSummaries.get(0))
+                .contains("INTERVIEW")
+                .contains("fake/offline")
+                .contains("소요 ");
     }
 
     private static Authentication auth(String username, String displayName, MemberRole role) {

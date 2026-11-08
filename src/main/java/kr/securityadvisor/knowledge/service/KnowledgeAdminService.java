@@ -91,9 +91,17 @@ public class KnowledgeAdminService {
     @Transactional(readOnly = true)
     public List<PrivateContextResponse> listPrivateContexts(MemberPrincipal principal) {
         principal.requireAnyRole(MemberRole.ADMIN);
-        return privateContextRepository.findAllByOrderByIdAsc().stream()
+        List<PrivateContextResponse> contexts = privateContextRepository.findAllByOrderByIdAsc().stream()
                 .map(this::toResponse)
                 .toList();
+        // 비공개 컨텍스트 조회는 값 없이 건수만 감사 이력에 남긴다(F-14, 불변식 25)
+        auditRecorder.recordAccess(
+                principal,
+                AuditTargetType.PRIVATE_CONTEXT,
+                "*",
+                AuditAction.PRIVATE_CONTEXT_VIEWED,
+                "비공개 컨텍스트 목록 조회 " + contexts.size() + "건");
+        return contexts;
     }
 
     public PrivateContextResponse createPrivateContext(MemberPrincipal principal, PrivateContextCommand command) {

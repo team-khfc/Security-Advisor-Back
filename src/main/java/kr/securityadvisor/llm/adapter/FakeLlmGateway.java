@@ -5,7 +5,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.securityadvisor.llm.domain.LlmPurpose;
-import kr.securityadvisor.llm.service.LlmGateway;
+import kr.securityadvisor.llm.service.LlmBackend;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -17,7 +17,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConditionalOnProperty(prefix = "securityadvisor.llm", name = "mode", havingValue = "fake")
-public class FakeLlmGateway implements LlmGateway {
+public class FakeLlmGateway implements LlmBackend {
 
     static final String REFERENCE = "fake/offline";
 

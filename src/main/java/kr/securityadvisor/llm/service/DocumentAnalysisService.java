@@ -101,7 +101,8 @@ public class DocumentAnalysisService {
             }
             LlmResult result = llmGateway.complete(
                     LlmPurpose.SUMMARY,
-                    LlmPrompt.of(SYSTEM, List.of(), List.of(), "문서 파일명: " + file.getOriginalName() + "\n\n" + text));
+                    LlmPrompt.of(SYSTEM, List.of(), List.of(), "문서 파일명: " + file.getOriginalName() + "\n\n" + text),
+                    new LlmCallContext(null, AuditTargetType.BUSINESS_CASE, String.valueOf(job.getBusinessCaseId())));
             job.finish(result.text(), result.modelReference(), clock.instant());
             record(job, AuditAction.ANALYSIS_FINISHED, result.modelReference());
         } catch (Exception e) {

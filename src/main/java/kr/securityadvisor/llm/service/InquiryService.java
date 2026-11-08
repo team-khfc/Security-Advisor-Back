@@ -140,7 +140,10 @@ public class InquiryService {
                         .map(m -> new LlmPrompt.LlmMessage(m.getRole().name(), m.getText()))
                         .toList(),
                 command.text());
-        LlmResult result = llmGateway.complete(LlmPurpose.INQUIRY, prompt);
+        LlmResult result = llmGateway.complete(
+                LlmPurpose.INQUIRY,
+                prompt,
+                LlmCallContext.of(principal, AuditTargetType.SECURITY_REQUEST, request.getId()));
 
         Parsed parsed = parse(result.text());
         Map<String, String> labels = new LinkedHashMap<>();

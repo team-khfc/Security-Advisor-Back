@@ -121,6 +121,15 @@ class GeneratedDocumentApiTest {
                                         .replace("+", "%20"));
         assertThat(download.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
                 .startsWith("# 방화벽 정책 허용 신청서");
+        // F-14: 다운로드는 감사 이력에 남는다(값 없이 서류·파일명만)
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/audit-events", requestId)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.action=='DOCUMENT_DOWNLOADED')]")
+                .asArray()
+                .hasSize(1);
         assertThat(mvc.get().uri("/api/generated-documents/{id}", documentId).with(authentication(APPLICANT2)))
                 .hasStatus(HttpStatus.NOT_FOUND);
         assertThat(mvc.get()
