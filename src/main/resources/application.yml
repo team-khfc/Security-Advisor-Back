@@ -44,6 +44,11 @@ securityadvisor:
     # 로그인 실패 제한: 연속 N회 실패 시 잠금, 잠금 시간 (SECURE_CODING.md 2절)
     max-failed-logins: ${LOGIN_MAX_FAILURES:5}
     lock-duration: ${LOGIN_LOCK_DURATION:15m}
+  llm:
+    # live: llm_configurations 의 활성 구성으로 실제 모델 호출 / fake: 네트워크 없이 고정 응답(테스트·오프라인 시연)
+    mode: ${LLM_MODE:live}
+    # 등록 가능한 엔드포인트 호스트 허용 목록(SSRF 방지, F-10). 쉼표 구분
+    allowed-hosts: ${LLM_ALLOWED_HOSTS:api.openai.com,ollama,localhost,host.docker.internal}
 
 management:
   endpoints:

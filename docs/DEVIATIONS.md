@@ -16,6 +16,8 @@
 | 11 | **제출 전 검사의 협의 사실은 포트(`request.service.ReviewFactsProvider`)로 받음** — 구현은 review 컨텍스트(`ReviewFactsAdapter`) | AGENTS 5장 "컨텍스트 간 ID + 공개 서비스" (의존 역전 언급 없음) | AGENTS 5장에 "하위 컨텍스트가 상위 사실을 필요로 하면 포트 인터페이스 허용" 명시 | request → review 순환 의존을 피하면서 제출 판단(`SecurityRequest.submit`)을 request 도메인에 두기 위함 |
 | 12 | **문서함(`GET /api/submissions`)은 1차 범위에서 메모리 필터·전체 목록** — page/size 없음 | AGENTS 5장 목록 API 규칙(page·size·sort) | 제출본 수가 늘면 JPQL 필터·페이징으로 교체(BACKLOG) | 시연 규모(수십 건) 기준의 단순화. 응답 형식은 배열 |
 | 13 | **불변식 7(답변 변경 → 완료된 협의 재검토)의 적용 범위를 2단계 신청으로 한정** — 3단계 최종 검토의 보충 답변은 협의 상태를 바꾸지 않는다 | FUNCTIONAL_SPEC 불변식 7 "중요 답변 변경 시 완료된 Review 는 재검토" (단계 범위 미지정) | FUNCTIONAL_SPEC 불변식 7 에 "2단계에서" 명시 또는 3단계 보충 규칙 추가 | 3단계는 명세상 사용자가 내용을 보충하는 단계인데, 보충할 때마다 협의가 되돌아가면 제출 조건(협의 완료)을 영원히 못 채운다(3단계에서는 담당자가 협의 완료를 다시 할 수 없음). 3단계 변경분은 4단계 최종 확인에서 담당자가 스냅샷으로 검증하고, 부족하면 4→3 반환이 재검토 표시를 만든다 |
+| 14 | **공개자료 RAG 에 pgvector 를 쓰지 않음** — 큐레이션 스니펫 + Postgres 전문검색(ADR 0006) | FUNCTIONAL_SPEC F-09 "PGVector 색인", 8-1 knowledge_sources 제안; INSTRUCTIONS 스택의 pgvector | FUNCTIONAL_SPEC F-09·8-1, PROJECT_CONTEXT 확정 결정, 스택 표기 | 2026-11-08 팀장 결정. 1차 코퍼스 규모에서 벡터 파이프라인은 비용만 더함. 테이블명도 knowledge_sources 대신 knowledge_snippets(문장 단위) |
+| 15 | **LLM 공급자 구현을 OpenAI 호환 API 하나로 통일** — Ollama 도 /v1 호환 엔드포인트로 호출. Spring AI starter(자동 구성) 대신 모델 모듈을 직접 써서 DB 구성으로 런타임 생성 | AGENTS 1장 Spring AI 사용 방식(starter 전제 여부 미지정), F-10 "공급자 2종" | AGENTS 1장에 "자동 구성 미사용, OpenAI 호환 단일 구현" 명시 | 공급자별 코드 없이 baseUrl 교체로 2종 이상 구동 입증. 실제 호출 검증은 수동(실제 키 필요) |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

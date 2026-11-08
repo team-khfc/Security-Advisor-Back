@@ -86,6 +86,15 @@ class ArchitectureTest {
                     + "다른 컨텍스트의 엔티티 대신 requestId 같은 식별자 필드를 둘 것");
 
     @ArchTest
+    static final ArchRule onlyLlmAdapterUsesSpringAi = noClasses()
+            .that()
+            .resideOutsideOfPackage("kr.securityadvisor.llm.adapter..")
+            .should()
+            .dependOnClassesThat()
+            .resideInAPackage("org.springframework.ai..")
+            .because("Spring AI 는 공통 LLM 어댑터(llm.adapter) 뒤에서만 쓴다(지침). 업무 코드는 LlmGateway 인터페이스만 본다");
+
+    @ArchTest
     static final ArchRule featuresHaveNoCycles = slices().matching("kr.securityadvisor.(*)..")
             .should()
             .beFreeOfCycles()

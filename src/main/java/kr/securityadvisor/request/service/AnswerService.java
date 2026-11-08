@@ -1,6 +1,7 @@
 package kr.securityadvisor.request.service;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -212,6 +213,68 @@ public class AnswerService {
         answer.confirmByStaff(staff.username(), clock.instant());
         audit(staff, answer, AuditAction.ANSWER_STAFF_CONFIRMED, "담당자 확인");
         return AnswerResponse.from(answer);
+    }
+
+    /**
+     * AI 제안(F-03): 출처 AI_INFERRED·미확정으로 저장한다. 확인된 값은 덮어쓰지 않는다(원칙 1 — 호출자가 사전에 거른다).
+     * 신청자 항목(askRole=APPLICANT)에만 쓴다 — 담당자 항목은 llm 컨텍스트가 제안 대상에서 제외한다(원칙 3).
+     *
+     * @param evidenceReference 근거 참조(출처 표기 + 조각 ID). 프롬프트·응답 원문이 아니다
+     */
+    public AnswerResponse proposeByAi(
+            MemberPrincipal principal,
+            SecurityRequest securityRequest,
+            String fieldKey,
+            String value,
+            String evidenceReference,
+            String modelReference) {
+        BusinessCase businessCase = accessPolicy.ownedCase(principal, securityRequest.getBusinessCaseId());
+        requireRequestEditable(securityRequest);
+        FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
+        if (field.isStaffField()) {
+            throw new DomainRuleViolationException("담당자 항목에는 AI 제안을 넣을 수 없습니다: " + fieldKey);
+        }
+        Answer answer = findForField(businessCase, securityRequest, field)
+                .map(existing -> {
+                    existing.proposeByAi(value, evidenceReference);
+                    return existing;
+                })
+                .orElseGet(() -> answerRepository.save(
+                        field.scope() == AnswerScope.CASE
+                                ? Answer.aiInferred(
+                                        AnswerScope.CASE,
+                                        businessCase.getId(),
+                                        null,
+                                        field.key(),
+                                        value,
+                                        evidenceReference)
+                                : Answer.aiInferred(
+                                        AnswerScope.REQUEST,
+                                        businessCase.getId(),
+                                        securityRequest.getId(),
+                                        field.key(),
+                                        value,
+                                        evidenceReference)));
+        audit(
+                principal,
+                answer,
+                AuditAction.ANSWER_AI_PROPOSED,
+                "AI 제안 " + modelReference + " 근거 " + evidenceReference);
+        return AnswerResponse.from(answer);
+    }
+
+    /** 사업 건 공통 답변 + 이 신청의 서류별 답변(AI 제안의 컨텍스트). */
+    @Transactional(readOnly = true)
+    public List<AnswerResponse> allAnswers(SecurityRequest securityRequest) {
+        BusinessCase businessCase = businessCaseOf(securityRequest);
+        List<AnswerResponse> all = new ArrayList<>(
+                answerRepository
+                        .findByBusinessCaseIdAndScopeOrderByFieldKeyAsc(businessCase.getId(), AnswerScope.CASE)
+                        .stream()
+                        .map(AnswerResponse::from)
+                        .toList());
+        all.addAll(requestAnswers(securityRequest.getId()));
+        return all;
     }
 
     /** 보완 요청·차수 반환으로 지정된 항목을 재검토 표시한다(값·출처·확인은 보존, 불변식 11). 없는 항목은 자리를 만든다. */

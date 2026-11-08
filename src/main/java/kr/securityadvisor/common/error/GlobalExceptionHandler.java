@@ -75,6 +75,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "충돌이 발생했습니다", e.getMessage());
     }
 
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ProblemDetail handleLlmUnavailable(ServiceUnavailableException e) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "AI 모델을 사용할 수 없습니다", e.getMessage());
+    }
+
     @ExceptionHandler(DomainRuleViolationException.class)
     public ProblemDetail handleDomainRule(DomainRuleViolationException e) {
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, "업무 규칙에 어긋납니다", e.getMessage());

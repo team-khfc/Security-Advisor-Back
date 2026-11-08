@@ -28,6 +28,7 @@ gradlew test --tests "kr.securityadvisor.auth.AuthControllerTest"
 
 ## 현재 상태 (2026-11-08)
 
-- 커밋 `da9ad74` 까지: F-01·F-03(사람 입력)·F-04·F-05·F-11·F-12·F-13·F-14 구현, 로컬 `gradlew check` 103건 통과.
-- 작업 트리(미커밋): **F-07 제출·최종 확인·확정·문서함** — `request.SubmissionService/SubmissionController`, `review.FinalConfirmation*`, `ReviewFactsProvider` 포트, 마이그레이션 `V202611081000__create_final_confirmations.sql`, 테스트 `SubmissionApiTest`(docker)·`FinalConfirmationTest`. VM 에서 컴파일·단위 테스트 통과, Docker 테스트는 PC 실행 필요.
-- 남은 기능: llm 컨텍스트(어댑터+Spring AI, F-02·F-03 AI 제안·F-06·F-09·F-10), F-15 방화벽 규칙(확정 시 생성·적용 기록), F-16 지표, F-17 알림, F-08 설정 편집 API, 제출 준비물(GET /api/installation, OpenAPI 파일, compose.yaml, 규칙 문서 복사, ADR 0001~0004).
+- 커밋 `10d6c21` 까지: F-01·F-03(사람 입력)·F-04·F-05·F-07·F-11·F-12·F-13·F-14, 로컬 `gradlew check` 106건 통과.
+- 작업 트리(미커밋): **llm·knowledge 컨텍스트 1단계** — Spring AI 2.0.1 의존성(`spring-ai-openai`·`spring-ai-client-chat`, starter 미사용), `LlmGateway` + `SpringAiLlmGateway`(live) / `FakeLlmGateway`(fake), `llm_configurations`(F-10 관리 API), `knowledge_snippets`(FTS)·`private_contexts`(F-09), F-03 `POST …/ai-proposals`, `InternalInfoGuard`, ArchUnit "Spring AI 는 llm.adapter 만". ADR 0006, DEVIATIONS #14·#15.
+- **첫 빌드는 PC 에서**: Spring AI 의존성이 VM 캐시에 없다. `SpringAiLlmGateway` 의 Spring AI 2.0 API 호출(`OpenAiChatOptions.builder().baseUrl/apiKey/model/temperature/maxTokens/timeout`, `OpenAiChatModel.builder().options()`, `ChatClient.builder(model)`)은 문서 기준으로 작성했고 컴파일 미검증.
+- 남은 기능: 담당자 AI 질의(대화 메모리, F-04), F-02 업로드·요약, F-06 서류 초안, F-15 방화벽 규칙, F-16 지표, F-17 알림, F-08 설정 편집, 제출 준비물(GET /api/installation, OpenAPI 파일, compose.yaml, 규칙 문서 복사, ADR 0001~0004).

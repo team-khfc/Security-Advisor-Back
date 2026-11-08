@@ -7,5 +7,8 @@ public enum AuditTargetType {
     SECURITY_REQUEST,
     ANSWER,
     ASSIGNMENT,
-    DEADLINE
+    DEADLINE,
+    KNOWLEDGE_SNIPPET,
+    PRIVATE_CONTEXT,
+    LLM_CONFIGURATION
 }

@@ -90,6 +90,25 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 - 서류 확정 ≠ 방화벽 적용. 방화벽 규칙 생성(불변식 26)·적용 기록은 policy 컨텍스트(F-15)에서 추가한다 — 미구현.
 - 3단계 AI 최종 초안(F-06·F-07 의 AI 보완)과 서류 렌더링·다운로드(document 컨텍스트)는 미구현. 문서함은 제출본(스냅샷) 단위로만 동작한다.
 
+## AI·지식 API (F-03 AI 제안 · F-09 지식 기반 · F-10 LLM 구성)
+
+AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구현(`llm.adapter`)이다. 모델·엔드포인트는 DB(`llm_configurations`)로 관리하고 키는 환경변수 이름만 저장한다. `LLM_MODE=fake` 면 네트워크 없이 고정 응답으로 동작한다(테스트·오프라인 시연). 지식 검색은 벡터가 아니라 **항목 키 태깅 + Postgres 전문검색**이다(ADR 0006).
+
+| 경로 | 설명 | 응답 |
+| --- | --- | --- |
+| `POST /api/security-requests/{id}/ai-proposals` | **AI 제안**(신청자 본인, 미제출 신청). 값이 없거나 미확정 AI 값인 신청자 항목에 대해 사용자가 적은 내용 + 공개 지식 조각을 근거로 제안 → `AI_INFERRED`·미확정 저장. 근거 없는 제안·IP 류 토큰은 버린다(`skipped` 에 이유). 담당자 항목(askRole≠APPLICANT)은 대상이 아님. body `{"fieldKeys":[…]}` 는 선택 | 200(proposed·skipped·modelReference), 모델 불가 503, 제출 후 422 |
+| `PUT …/answers/{fieldKey}/confirmation` | (기존) 사용자가 AI 제안을 확인해야 제출 검사를 통과한다 | 200 |
+| `GET /api/knowledge-snippets` / `GET …/search?q=` | 공개 지식 목록 / 전문검색(출처·위치 포함) | 200 |
+| `POST /api/knowledge-snippets`, `PUT …/{id}` | 스니펫 등록·수정(관리자). 적용 항목 키 1개 이상 | 201 / 200 |
+| `GET /api/private-contexts/suggestions?q=` | 담당자 입력 자동완성 — 호출자 역할에 보이는 비공개 컨텍스트만(신청자는 항상 빈 목록) | 200 |
+| `GET/POST/PUT /api/private-contexts` | 비공개 컨텍스트 관리(관리자). `visibleRoles` 에 APPLICANT 불가. 값은 합성 데이터만 | 200/201, 규칙 위반 422 |
+| `GET/POST/PUT /api/llm-configurations` | LLM 구성 관리(관리자). 호스트 허용 목록(`LLM_ALLOWED_HOSTS`) 밖은 등록 불가, 응답에 키 값 없음(`keyConfigured` 만) | 200/201, 422 |
+
+- 프롬프트는 [기관 사실](서버가 역할로 걸러 넣은 `private_contexts` 행, 신청자용에는 없음)과 [공개 지식](스니펫, `S<id>` 로 인용) 블록으로 분리된다(원칙 3). 모델 출력의 IP·대역이 사실 블록에 없으면 `InternalInfoGuard` 가 거른다.
+- 감사 이력에는 프롬프트·응답 원문을 넣지 않고 모델 참조·항목 키·조각 ID 만 남긴다(불변식 25).
+- seed: 합성 스니펫 6건, 합성 비공개 컨텍스트 4건, LLM 구성 2건(`openai-default`: `OPENAI_API_KEY`, `ollama-exaone`: Ollama 의 OpenAI 호환 `/v1`). 실제 모델 호출은 키를 넣고 수동 검증한다 — 자동 테스트는 fake 모드만.
+- 미구현: F-02 업로드·요약, F-06 서류 초안, 담당자 AI 질의(대화 메모리), F-08 설정 편집.
+
 ## 인증 API (F-11)
 
 | 요청 | 설명 | 응답 |
@@ -113,6 +132,8 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
 - `procedure`: 예제 기능(절차 목록 조회)
+- `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
+- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), LLM 구성 관리(F-10)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
 
 시연 계정·비밀번호는 합성 데이터이며 운영 값이 아니다. 비밀값은 환경변수로만 받는다.
@@ -123,7 +144,7 @@ cp .env.example .env         # 시연 계정 비밀번호(DEMO_ACCOUNT_PASSWORD)
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `procedures.procedure_id`, `business_cases.business_case_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 6건: members · publications · 사업 건/신청/답변/제출본 · 협의/배정/기한/감사 · 보완/차수 반환 · 최종 확인)
+### ERD — 현재 (마이그레이션 8건: … · 최종 확인 · 지식(스니펫·비공개 컨텍스트) · LLM 구성)
 
 ```mermaid
 erDiagram
@@ -235,6 +256,37 @@ erDiagram
         text        opinion
         varchar(50) confirmed_by
         timestamptz confirmed_at
+    }
+    knowledge_snippets {
+        bigint       knowledge_snippet_id PK
+        varchar(200) source_title
+        varchar(50)  source_version
+        varchar(200) source_locator "근거 표시"
+        jsonb        field_keys "적용 항목 키(1차 필터)"
+        jsonb        doc_types
+        text         body
+        tsvector     search_vector "GENERATED, GIN"
+        boolean      active
+    }
+    private_contexts {
+        bigint       private_context_id PK
+        varchar(30)  kind "SERVER | NETWORK_ZONE | ASSET | NOTE"
+        varchar(200) name
+        jsonb        aliases
+        jsonb        attributes "합성 값만"
+        jsonb        visible_roles "APPLICANT 금지"
+        boolean      active
+    }
+    llm_configurations {
+        bigint       llm_configuration_id PK
+        varchar(100) name UK
+        varchar(30)  provider "OPENAI_COMPATIBLE"
+        varchar(300) base_url "허용 목록 호스트"
+        varchar(100) model
+        varchar(100) api_key_env "환경변수 이름만"
+        jsonb        purposes
+        integer      priority
+        boolean      active
     }
     stage_returns {
         bigint      stage_return_id PK
@@ -399,4 +451,4 @@ erDiagram
 
 ### 예정 테이블
 
-FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`(이상 생성됨)·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
+FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`knowledge_snippets`(knowledge_sources 대신)·`private_contexts`·`llm_configurations`(이상 생성됨)·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.

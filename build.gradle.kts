@@ -20,6 +20,7 @@ repositories {
     mavenCentral()
 }
 
+val springAiVersion = "2.0.1"
 val springdocVersion = "3.1.1"
 val archunitVersion = "1.4.2"
 // Lombok 은 허용 목록(@Getter·@RequiredArgsConstructor·@NoArgsConstructor(PROTECTED)·@Slf4j)만 쓴다(AGENTS.md 5장).
@@ -43,6 +44,13 @@ dependencies {
 
     // API 문서(Swagger UI): http://localhost:8080/swagger-ui.html
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+
+    // AI 계층 — Spring AI 2.0 (지침). 자동 구성 starter 대신 모델 모듈만 쓰고, ChatModel 은 DB 설정(llm_configurations)으로
+    // 런타임에 만든다. OpenAI 호환 API 하나로 상용(OpenAI)·공개 모델(Ollama /v1, vLLM 등)을 baseUrl 교체로 구동한다.
+    // 업무 코드는 kr.securityadvisor.llm.adapter 밖에서 org.springframework.ai 를 import 하지 않는다(ArchUnit).
+    implementation(platform("org.springframework.ai:spring-ai-bom:$springAiVersion"))
+    implementation("org.springframework.ai:spring-ai-openai")
+    implementation("org.springframework.ai:spring-ai-client-chat")
 
     // Lombok(컴파일 시점 전용 — 런타임 의존 없음)
     compileOnly("org.projectlombok:lombok:$lombokVersion")
