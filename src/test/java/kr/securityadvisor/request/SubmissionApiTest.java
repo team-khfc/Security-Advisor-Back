@@ -220,12 +220,64 @@ class SubmissionApiTest {
         assertThat(appliedResult).hasStatusOk();
         assertThat(appliedResult).bodyJson().extractingPath("$.status").isEqualTo("APPLIED");
         assertThat(appliedResult).bodyJson().extractingPath("$.effectiveStatus").isEqualTo("APPLIED");
+
+        // F-15 연장: 규칙은 그대로, 값을 미리 채운 새 방화벽 신청이 같은 사업 건에 1단계로 생긴다. 남의 규칙은 404, 중복 연장 422
+        assertThat(mvc.post()
+                        .uri("/api/firewall-rules/{id}/renewal-requests", ruleId)
+                        .with(authentication(APPLICANT2))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPeriod\":\"2027-12-01~2028-11-30\"}"))
+                .hasStatus(HttpStatus.NOT_FOUND);
+        MvcTestResult renewal = mvc.post()
+                .uri("/api/firewall-rules/{id}/renewal-requests", ruleId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPeriod\":\"2027-12-01~2028-11-30\",\"note\":\"서비스 1년 연장(합성)\"}")
+                .exchange();
+        assertThat(renewal).hasStatus(HttpStatus.CREATED);
+        assertThat(renewal).bodyJson().extractingPath("$.rule.status").isEqualTo("APPLIED");
+        assertThat(renewal).bodyJson().extractingPath("$.rule.endDate").isEqualTo("2027-11-30");
+        assertThat(renewal).bodyJson().extractingPath("$.request.stage").isEqualTo(1);
+        assertThat(renewal).bodyJson().extractingPath("$.request.docType").isEqualTo("FIREWALL");
+        assertThat(renewal)
+                .bodyJson()
+                .extractingPath("$.prefilledFieldKeys")
+                .asArray()
+                .contains("firewall.period", "firewall.protocol", "firewall.port", "firewall.purpose");
+        Long renewalRequestId = ((Number)
+                        JsonPath.read(renewal.getResponse().getContentAsString(), "$.request.securityRequestId"))
+                .longValue();
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}", renewalRequestId)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.answers[?(@.fieldKey=='firewall.period')].value")
+                .isEqualTo(List.of("2027-12-01~2028-11-30"));
+        assertThat(mvc.post()
+                        .uri("/api/firewall-rules/{id}/renewal-requests", ruleId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"newPeriod\":\"2027-12-01~2028-11-30\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        long ruleRevision = ((Number) JsonPath.read(
+                        mvc.get()
+                                .uri("/api/security-requests/{id}/firewall-rules", requestId)
+                                .with(authentication(INFRA))
+                                .exchange()
+                                .getResponse()
+                                .getContentAsString(),
+                        "$[0].revision"))
+                .longValue();
         assertThat(mvc.put()
                         .uri("/api/firewall-rules/{id}/revocation", ruleId)
                         .with(authentication(INFRA))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"서비스 종료(합성)\",\"expectedRevision\":1}"))
+                        .content("{\"reason\":\"서비스 종료(합성)\",\"expectedRevision\":" + ruleRevision + "}"))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.status")

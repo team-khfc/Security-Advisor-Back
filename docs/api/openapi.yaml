@@ -376,6 +376,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberDetail"
+  /api/members/{username}/contact:
+    put:
+      tags:
+      - member-controller
+      operationId: changeContact
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContactChangeCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
   /api/llm-configurations/{id}:
     put:
       tags:
@@ -1275,6 +1299,49 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/InquiryTurnResult"
+  /api/firewall-rules/{id}/renewal-requests:
+    post:
+      tags:
+      - firewall-rule-controller
+      operationId: requestRenewal
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleRenewalCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/RuleRenewalResult"
+  /api/doc-type-suggestions:
+    post:
+      tags:
+      - doc-type-suggestion-controller
+      operationId: suggest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocTypeSuggestionCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DocTypeSuggestionResult"
   /api/deadline-reminder-runs:
     post:
       tags:
@@ -1411,6 +1478,31 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/UploadedFileResponse"
+  /api/business-cases/{id}/security-requests:
+    post:
+      tags:
+      - business-case-controller
+      operationId: addRequest
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddSecurityRequestCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SecurityRequestSummary"
   /api/business-cases/{id}/analysis-jobs:
     get:
       tags:
@@ -1769,7 +1861,7 @@ paths:
     get:
       tags:
       - knowledge-controller
-      operationId: suggest
+      operationId: suggest_1
       parameters:
       - name: q
         in: query
@@ -1821,6 +1913,20 @@ paths:
                 additionalProperties:
                   type: integer
                   format: int64
+  /api/notification-channels:
+    get:
+      tags:
+      - notification-channel-controller
+      operationId: channels
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChannelStatus"
   /api/members/{username}:
     get:
       tags:
@@ -2481,6 +2587,8 @@ components:
           type: string
         department:
           type: string
+        email:
+          type: string
         role:
           type: string
           enum:
@@ -2500,6 +2608,14 @@ components:
         createdAt:
           type: string
           format: date-time
+    ContactChangeCommand:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 200
+          minLength: 0
     LlmConfigurationCommand:
       type: object
       properties:
@@ -2731,6 +2847,9 @@ components:
           type: string
         reason:
           type: string
+        renewalRequestId:
+          type: integer
+          format: int64
         revision:
           type: integer
           format: int64
@@ -3119,36 +3238,36 @@ components:
           - OBJECT
           - POJO
           - STRING
-        bigDecimal:
-          type: boolean
-        integralNumber:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        valueNode:
-          type: boolean
-        bigInteger:
-          type: boolean
-        missingNode:
+        binary:
           type: boolean
         textual:
           type: boolean
           deprecated: true
+        string:
+          type: boolean
         long:
           type: boolean
-        pojo:
-          type: boolean
-        binary:
-          type: boolean
-        boolean:
-          type: boolean
-        short:
-          type: boolean
-        string:
+        int:
           type: boolean
         double:
           type: boolean
-        int:
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        boolean:
+          type: boolean
+        missingNode:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
+        integralNumber:
+          type: boolean
+        valueNode:
+          type: boolean
+        bigInteger:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3326,6 +3445,11 @@ components:
           - ENDED
         statusLabel:
           type: string
+        paused:
+          type: boolean
+        remainingBusinessDays:
+          type: integer
+          format: int32
     ReviewRequestResult:
       type: object
       properties:
@@ -3622,6 +3746,77 @@ components:
           $ref: "#/components/schemas/InquiryMessageResponse"
         answer:
           $ref: "#/components/schemas/InquiryMessageResponse"
+    RuleRenewalCommand:
+      type: object
+      properties:
+        newPeriod:
+          type: string
+          maxLength: 30
+          minLength: 0
+        note:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - newPeriod
+    RuleRenewalResult:
+      type: object
+      properties:
+        rule:
+          $ref: "#/components/schemas/FirewallRuleResponse"
+        request:
+          $ref: "#/components/schemas/SecurityRequestSummary"
+        prefilledFieldKeys:
+          type: array
+          items:
+            type: string
+    DocTypeSuggestionCommand:
+      type: object
+      properties:
+        summary:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        businessCaseId:
+          type: integer
+          format: int64
+    DocTypeOption:
+      type: object
+      properties:
+        docType:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+    DocTypeSuggestionResult:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Suggestion"
+        notSuggested:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocTypeOption"
+        modelReference:
+          type: string
+        note:
+          type: string
+    Suggestion:
+      type: object
+      properties:
+        docType:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        reason:
+          type: string
+        confidence:
+          type: string
     DeadlineReminderRunCommand:
       type: object
       properties:
@@ -3710,6 +3905,16 @@ components:
         uploadedAt:
           type: string
           format: date-time
+    AddSecurityRequestCommand:
+      type: object
+      properties:
+        docType:
+          type: string
+        renewsFirewallRuleId:
+          type: integer
+          format: int64
+      required:
+      - docType
     AnalysisJobCommand:
       type: object
       properties:
@@ -3944,6 +4149,7 @@ components:
           - LOGIN_LOCKED
           - MEMBER_REGISTERED
           - MEMBER_ROLE_CHANGED
+          - MEMBER_CONTACT_CHANGED
           - REMINDER_SCHEDULE_CHANGED
           - LLM_CALLED
           - LLM_CALL_FAILED
@@ -3993,6 +4199,7 @@ components:
           - FIREWALL_RULE_APPLIED
           - FIREWALL_RULE_NOT_APPLICABLE
           - FIREWALL_RULE_REVOKED
+          - FIREWALL_RULE_RENEWAL_REQUESTED
           - FILE_UPLOADED
           - ANALYSIS_REQUESTED
           - ANALYSIS_FINISHED
@@ -4048,6 +4255,13 @@ components:
           type: object
           additionalProperties:
             type: string
+    ChannelStatus:
+      type: object
+      properties:
+        name:
+          type: string
+        enabled:
+          type: boolean
     SnippetHit:
       type: object
       properties:

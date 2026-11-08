@@ -34,7 +34,7 @@ class FileContentCheckTest {
     }
 
     @Test
-    @DisplayName("이름만 .pdf 인 실행 파일·zip 아닌 docx·NUL 이 든 txt 는 422, OLE(구 HWP) 서명은 HWPX 변환 안내")
+    @DisplayName("이름만 .pdf 인 실행 파일·zip 아닌 docx·NUL 이 든 txt 는 422, .hwp 는 OLE 서명이 있어야 통과")
     void rejects() {
         byte[] exe = {0x4D, 0x5A, (byte) 0x90, 0x00, 0x03};
         assertThatThrownBy(() -> FileContentCheck.requireMatches("pdf", exe))
@@ -53,11 +53,14 @@ class FileContentCheckTest {
         byte[] ole = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1, 0, 0};
         assertThatThrownBy(() -> FileContentCheck.requireMatches("pdf", ole))
                 .isInstanceOf(DomainRuleViolationException.class)
-                .hasMessageContaining("HWPX");
-        assertThatThrownBy(() -> UploadedFile.register(
-                        1L, "계획서.hwp", "application/x-hwp", 10, "applicant", java.time.Instant.EPOCH))
+                .hasMessageContaining("PDF 서명");
+        assertThatCode(() -> FileContentCheck.requireMatches("hwp", ole)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> FileContentCheck.requireMatches("hwp", "%PDF-1.7".getBytes(StandardCharsets.US_ASCII)))
                 .isInstanceOf(DomainRuleViolationException.class)
-                .hasMessageContaining("HWPX");
+                .hasMessageContaining("HWP 5.0");
+        assertThatCode(() -> UploadedFile.register(
+                        1L, "계획서.hwp", "application/x-hwp", 10, "applicant", java.time.Instant.EPOCH))
+                .doesNotThrowAnyException();
     }
 
     static byte[] zip(Map<String, String> entries) {

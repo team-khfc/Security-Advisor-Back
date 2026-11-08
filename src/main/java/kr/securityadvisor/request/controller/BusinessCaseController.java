@@ -5,18 +5,21 @@ import java.net.URI;
 import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.request.dto.AddSecurityRequestCommand;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
 import kr.securityadvisor.request.dto.BusinessCaseListItem;
 import kr.securityadvisor.request.dto.BusinessCaseResponse;
 import kr.securityadvisor.request.dto.CreateBusinessCaseRequest;
+import kr.securityadvisor.request.dto.SecurityRequestSummary;
 import kr.securityadvisor.request.dto.UpdateBusinessCaseRequest;
 import kr.securityadvisor.request.service.AnswerService;
 import kr.securityadvisor.request.service.BusinessCaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -71,6 +75,16 @@ public class BusinessCaseController {
     }
 
     /** 사업 개요 수정(revision 검사). */
+    /** 기존 사업 건에 서류 추가(F-01 P2). 공통 답변·문서를 공유하는 새 신청이 1단계로 생긴다. */
+    @PostMapping("/{id}/security-requests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public SecurityRequestSummary addRequest(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody AddSecurityRequestCommand command) {
+        return businessCaseService.addRequest(member, id, command);
+    }
+
     @PutMapping("/{id}")
     public BusinessCaseResponse update(
             @CurrentMember MemberPrincipal member,

@@ -132,6 +132,34 @@ class AiProposalApiTest {
                 .contains("소요 ");
     }
 
+    @Test
+    @DisplayName("AI 서류 유형 제안: 활성 유형 중 근거·확신도와 함께 제안(제안만), 개요·사업 건 둘 다 없으면 400")
+    void docTypeSuggestions() throws Exception {
+        MvcTestResult suggested = mvc.post()
+                .uri("/api/doc-type-suggestions")
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"summary\":\"외부 공개 API 와 연동하는 민원 포털을 새로 만든다(합성)\"}")
+                .exchange();
+        assertThat(suggested).hasStatusOk();
+        List<String> codes = JsonPath.read(suggested.getResponse().getContentAsString(), "$.suggestions[*].docType");
+        assertThat(codes).contains("FIREWALL", "SECURITY_REVIEW");
+        assertThat(suggested)
+                .bodyJson()
+                .extractingPath("$.suggestions[?(@.docType=='FIREWALL')].confidence")
+                .isEqualTo(List.of("HIGH"));
+        assertThat(suggested).bodyJson().extractingPath("$.modelReference").isEqualTo("fake/offline");
+        assertThat(suggested).bodyJson().extractingPath("$.note").asString().contains("제안");
+        assertThat(mvc.post()
+                        .uri("/api/doc-type-suggestions")
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+    }
+
     private static Authentication auth(String username, String displayName, MemberRole role) {
         MemberPrincipal principal = new MemberPrincipal(username, displayName, role);
         return new UsernamePasswordAuthenticationToken(

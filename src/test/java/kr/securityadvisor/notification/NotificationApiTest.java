@@ -136,6 +136,24 @@ class NotificationApiTest {
                 .hasSize(1);
     }
 
+    @Test
+    @DisplayName("외부 알림 채널 상태: 설정이 없으면 메일·웹훅 모두 꺼짐(화면 안 알림만), 관리자만 조회")
+    void externalChannelsDisabledByDefault() {
+        assertThat(mvc.get().uri("/api/notification-channels").with(authentication(INFRA)))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.get().uri("/api/notification-channels").with(authentication(ADMIN)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.enabled==true)]")
+                .asArray()
+                .isEmpty();
+        assertThat(mvc.get().uri("/api/notification-channels").with(authentication(ADMIN)))
+                .bodyJson()
+                .extractingPath("$[*].name")
+                .asArray()
+                .containsExactlyInAnyOrder("EMAIL", "WEBHOOK");
+    }
+
     private static Authentication auth(String username, String displayName, MemberRole role) {
         MemberPrincipal principal = new MemberPrincipal(username, displayName, role);
         return new UsernamePasswordAuthenticationToken(

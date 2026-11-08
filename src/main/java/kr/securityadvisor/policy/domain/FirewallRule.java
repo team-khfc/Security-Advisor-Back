@@ -78,6 +78,10 @@ public class FirewallRule extends BaseTimeEntity {
     @Column(nullable = false)
     private long revision;
 
+    /** 이 규칙을 연장하려고 만든 신청(F-15). 규칙 값 자체는 바뀌지 않는다. */
+    @Column(name = "renewal_request_id")
+    private Long renewalRequestId;
+
     protected FirewallRule() {}
 
     private FirewallRule(
@@ -184,6 +188,28 @@ public class FirewallRule extends BaseTimeEntity {
         this.reason = reason.strip();
         this.appliedBy = infraUsername;
         this.appliedAt = now;
+    }
+
+    /** 연장 가능한지: 적용 완료(만료 예정·만료 포함) 규칙만, 진행 중인 연장 신청이 없을 때만. */
+    public void requireRenewable(boolean previousRenewalStillOpen) {
+        if (status != FirewallRuleStatus.APPLIED) {
+            throw new DomainRuleViolationException("적용 완료된 규칙만 연장할 수 있습니다(현재 " + status.label() + ")");
+        }
+        if (renewalRequestId != null && previousRenewalStillOpen) {
+            throw new DomainRuleViolationException("진행 중인 연장 신청(" + renewalRequestId + ")이 이미 있습니다");
+        }
+    }
+
+    /** 연장 신청을 연결한다({@link #requireRenewable} 뒤에). 규칙 값은 바뀌지 않는다. */
+    public void linkRenewal(Long requestId) {
+        if (requestId == null) {
+            throw new IllegalArgumentException("연장 신청 ID 가 필요합니다");
+        }
+        this.renewalRequestId = requestId;
+    }
+
+    public Long getRenewalRequestId() {
+        return renewalRequestId;
     }
 
     private static void requireActor(String username) {

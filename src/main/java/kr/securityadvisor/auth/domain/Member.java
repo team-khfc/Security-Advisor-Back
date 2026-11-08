@@ -35,6 +35,10 @@ public class Member extends BaseTimeEntity {
     @Column(length = 100)
     private String department;
 
+    /** 메일 알림 수신 주소(선택). 비어 있으면 화면 안 알림만 받는다. */
+    @Column(length = 200)
+    private String email;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private MemberRole role;
@@ -100,6 +104,15 @@ public class Member extends BaseTimeEntity {
 
     public String getDepartment() {
         return department;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    /** 연락처 변경(본인 또는 기관 관리자). 빈 값이면 해제. 형식 검증은 DTO 가 한다. */
+    public void changeEmail(String email) {
+        this.email = email == null || email.isBlank() ? null : email.strip();
     }
 
     public MemberRole getRole() {

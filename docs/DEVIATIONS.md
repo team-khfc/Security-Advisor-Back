@@ -23,6 +23,7 @@
 | 18 | **서류 출력 형식은 Markdown·PDF**(형식별 변환기 플러그인, 서류 유형별 허용 형식은 게시본 데이터 — ADR 0007). HWPX 는 형식 값만 있고 변환기 없음, API 전달·메일 발송 채널 없음 | FUNCTIONAL_SPEC F-06 "미리보기·다운로드(형식·용량 표시)" | PROJECT_CONTEXT 범위 | 2026-11-08 PDF 추가로 갱신. HWPX·전달 채널은 후속 |
 | 19 | **상시 방화벽 규칙의 재검토일 = 시작일 + 12개월 고정**, 만료 예고 30일 고정 | FUNCTIONAL_SPEC 8-1 configurations "규칙 만료 예고 일수·재검토 주기"(게시본 정책) | 게시본 deadlinePolicy 에 두 값 추가 | 1차 범위 상수. 게시본 정책으로 옮길 때 `RulePeriod`·`FirewallRuleService` 두 곳만 바꾸면 된다 |
 | 20 | **INFRA 선행·확정 권한은 "서류가 요구하는 분야" 기준** — `reviewFields` 가 SECURITY 만이면 INFRA 할당·INFRA 최종 확인 없이 협의 완료·확정 가능, INFRA 만이면 INFRA 담당자가 확정(후행 분야 = 확정자) | FUNCTIONAL_SPEC 불변식 9·3, F-07 "배정된 SECURITY 담당자가 확정" | 불변식 9·F-07 에 "요구 분야 기준" 문구 추가 | ADR 0005(서류 유형은 데이터)를 끝까지 지키기 위한 해석. INFRA·SECURITY 둘 다 요구하는 seed 서류는 종전과 같다(SecurityOnlyDocTypeApiTest) |
+| 21 | **사업 건·서류 유형당 신청 1건 제약은 진행 중 신청에만**(부분 유일 인덱스) — 확정·종결·철회 뒤에는 같은 유형을 다시 신청 가능 | FUNCTIONAL_SPEC 8-1 `UNIQUE(business_case_id, doc_type)` | 8-1 에 "종료 상태 제외" 주석 | F-01 서류 추가·F-15 규칙 연장(확정된 방화벽 신청 뒤 새 방화벽 신청)을 위해 2026-11-08 완화(V202611082700) |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

@@ -38,11 +38,9 @@ public final class FileContentCheck {
         if (content == null || content.length == 0) {
             throw new DomainRuleViolationException("파일 내용이 비어 있습니다");
         }
-        if (startsWith(content, OLE)) {
-            throw new DomainRuleViolationException(HWP_GUIDE);
-        }
         switch (extension) {
             case "pdf" -> require(startsWith(content, PDF), extension, "PDF 서명(%PDF-)이 없습니다");
+            case "hwp" -> require(startsWith(content, OLE), extension, "HWP 5.0(OLE 복합문서) 서명이 없습니다");
             case "docx" -> {
                 Set<String> entries = zipEntries(content, extension);
                 require(

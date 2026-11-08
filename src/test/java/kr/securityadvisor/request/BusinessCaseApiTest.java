@@ -168,6 +168,58 @@ class BusinessCaseApiTest {
     }
 
     @Test
+    @DisplayName("기존 사업 건에 서류 추가: 1단계 신청이 생기고 공통 답변을 공유, 같은 유형 중복·게시본에 없는 유형은 422, 남의 사업 건은 404")
+    void addRequestToExistingCase() throws Exception {
+        MvcTestResult created = mvc.post()
+                .uri("/api/business-cases")
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                        "{\"title\":\"서류 추가 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .exchange();
+        Long caseId =
+                ((Number) JsonPath.read(created.getResponse().getContentAsString(), "$.businessCaseId")).longValue();
+
+        MvcTestResult added = mvc.post()
+                .uri("/api/business-cases/{id}/security-requests", caseId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"docType\":\"SECURITY_REVIEW\"}")
+                .exchange();
+        assertThat(added).hasStatus(HttpStatus.CREATED);
+        assertThat(added).bodyJson().extractingPath("$.docType").isEqualTo("SECURITY_REVIEW");
+        assertThat(added).bodyJson().extractingPath("$.stage").isEqualTo(1);
+        assertThat(mvc.get().uri("/api/business-cases/{id}", caseId).with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.requests.length()")
+                .isEqualTo(2);
+        assertThat(mvc.post()
+                        .uri("/api/business-cases/{id}/security-requests", caseId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"docType\":\"SECURITY_REVIEW\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(mvc.post()
+                        .uri("/api/business-cases/{id}/security-requests", caseId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"docType\":\"NO_SUCH_TYPE\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(mvc.post()
+                        .uri("/api/business-cases/{id}/security-requests", caseId)
+                        .with(authentication(OTHER_APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"docType\":\"FIREWALL\"}"))
+                .hasStatus(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("게시본에 없는 서류 유형 코드는 422, 형식이 틀린 코드는 400")
     void unknownDocType() {
         assertThat(mvc.post()

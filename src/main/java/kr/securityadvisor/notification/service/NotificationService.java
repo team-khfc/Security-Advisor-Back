@@ -24,6 +24,7 @@ public class NotificationService implements Notifier {
 
     private final NotificationRepository repository;
     private final TransactionTemplate transactionTemplate;
+    private final ExternalNotificationDispatcher dispatcher;
     private final Clock clock;
 
     @Override
@@ -41,11 +42,15 @@ public class NotificationService implements Notifier {
                 TransactionTemplate separate = new TransactionTemplate(transactionTemplate.getTransactionManager());
                 separate.setPropagationBehavior(
                         org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                separate.executeWithoutResult(status -> {
-                    if (!repository.existsByRecipientUsernameAndEventKey(recipient, eventKey)) {
-                        repository.save(Notification.of(recipient, eventKey, kind, title, link));
+                Notification created = separate.execute(status -> {
+                    if (repository.existsByRecipientUsernameAndEventKey(recipient, eventKey)) {
+                        return null;
                     }
+                    return repository.save(Notification.of(recipient, eventKey, kind, title, link));
                 });
+                if (created != null) {
+                    dispatcher.dispatch(created); // 메일·메신저는 비동기, 실패해도 화면 알림은 남는다
+                }
             } catch (RuntimeException e) {
                 log.warn(
                         "알림 생성 실패 recipient={} eventKey={} ({})",

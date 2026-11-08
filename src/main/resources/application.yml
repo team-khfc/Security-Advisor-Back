@@ -53,6 +53,19 @@ securityadvisor:
     # 로그인 실패 제한: 연속 N회 실패 시 잠금, 잠금 시간 (SECURE_CODING.md 2절)
     max-failed-logins: ${LOGIN_MAX_FAILURES:5}
     lock-duration: ${LOGIN_LOCK_DURATION:15m}
+  notification:
+    # 외부 알림 채널(F-17 P3). 값이 비어 있으면 그 채널은 꺼지고 화면 안 알림만 남는다. 비밀값은 환경변수로만.
+    webhook:
+      url: ${NOTIFY_WEBHOOK_URL:}
+      timeout-seconds: 5
+    smtp:
+      host: ${SMTP_HOST:}
+      port: ${SMTP_PORT:25}
+      starttls: ${SMTP_STARTTLS:false}
+      username: ${SMTP_USERNAME:}
+      password: ${SMTP_PASSWORD:}
+      from: ${SMTP_FROM:}
+      timeout-seconds: 10
   storage:
     # 업로드 파일 저장 폴더(서버 생성 파일명 UUID). Docker 에서는 볼륨으로 마운트
     dir: ${STORAGE_DIR:./storage}

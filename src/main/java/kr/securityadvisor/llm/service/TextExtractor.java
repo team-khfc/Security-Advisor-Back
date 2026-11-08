@@ -25,7 +25,7 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-/** 업로드 문서 텍스트 추출(PDF·DOCX·HWPX·TXT/MD). 길이는 모델 입력 한도에 맞춰 자른다. HWPX 는 OWPML 본문(section*.xml)의 문단 텍스트를 순서대로 모은다. */
+/** 업로드 문서 텍스트 추출(PDF·DOCX·HWPX·HWP·TXT/MD). 길이는 모델 입력 한도에 맞춰 자른다. HWPX 는 OWPML 본문(section*.xml)의 문단 텍스트를 순서대로 모은다. */
 @Component
 public class TextExtractor {
 
@@ -45,6 +45,7 @@ public class TextExtractor {
                 }
             }
             case "hwpx" -> hwpx(in.readAllBytes());
+            case "hwp" -> HwpTextExtractor.extract(in);
             case "txt", "md" -> new String(in.readAllBytes(), StandardCharsets.UTF_8);
             default -> throw new IOException("텍스트를 추출할 수 없는 형식입니다: " + extension);
         };

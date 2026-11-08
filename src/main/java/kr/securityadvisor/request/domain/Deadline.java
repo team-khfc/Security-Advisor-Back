@@ -56,6 +56,13 @@ public class Deadline extends BaseTimeEntity {
     @Column(name = "ended_at")
     private Instant endedAt;
 
+    /** 보완 대기로 정지된 기한인지(정지 = 종료 + 남은 영업일 보관, 재개 시 소비되어 false). */
+    @Column(nullable = false)
+    private boolean paused;
+
+    @Column(name = "remaining_business_days")
+    private Integer remainingBusinessDays;
+
     /** JPA 전용 기본 생성자. */
     protected Deadline() {}
 
@@ -139,6 +146,36 @@ public class Deadline extends BaseTimeEntity {
         return calendar.businessDaysBetween(today, dueDate) <= imminentBusinessDays
                 ? DeadlineStatus.IMMINENT
                 : DeadlineStatus.ON_TRACK;
+    }
+
+    /**
+     * 보완 대기 정지(F-13): 지금 남은 영업일을 보관하고 종료한다. 기한일은 바꾸지 않는다. 이미 지난 기한은 남은 일수 0 으로 보관한다.
+     *
+     * @return 남은 영업일
+     */
+    public int pause(Instant now, LocalDate today, BusinessCalendar calendar) {
+        int remaining = today.isAfter(dueDate) ? 0 : Math.max(0, calendar.businessDaysBetween(today, dueDate));
+        end(now);
+        this.paused = true;
+        this.remainingBusinessDays = remaining;
+        return remaining;
+    }
+
+    /** 재개하면서 보관한 남은 영업일을 소비한다(두 번 재개되지 않게). */
+    public int consumePause() {
+        if (!paused || remainingBusinessDays == null) {
+            throw new DomainRuleViolationException("정지된 기한이 아닙니다");
+        }
+        this.paused = false;
+        return remainingBusinessDays;
+    }
+
+    public boolean isPaused() {
+        return paused;
+    }
+
+    public Integer getRemainingBusinessDays() {
+        return remainingBusinessDays;
     }
 
     /** 단계가 끝나거나 재산정될 때 종료한다. 기한일은 바꾸지 않는다. */

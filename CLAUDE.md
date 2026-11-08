@@ -31,6 +31,6 @@ gradlew test --tests "kr.securityadvisor.auth.AuthControllerTest"
 
 ## 현재 상태 (2026-11-08, 커밋 e18e57d)
 
-- 기능 F-01~F-17 의 1차 범위(P1·P2) 전부 구현, 테스트 131건 통과. 제출 준비물 중 완료: `compose.yaml`, CI, ADR 0001~0007, OpenAPI 계약.
+- 기능 F-01~F-17 의 1차 범위(P1·P2) 전부 + P3 일부(서류 추가·AI 유형 제안·규칙 연장·기한 정지·메일/웹훅 채널·HWP 추출) 구현. 제출 준비물 중 완료: `compose.yaml`, CI, ADR 0001~0007, OpenAPI 계약.
 - 남은 것(범위 밖·후속): `docs/ARCHITECTURE.md` 6장 목록. 제출 준비물: 규칙 문서 사본 복사, 배포 저장소 Security-Advisor(Back+Front compose·구동안내서).
 - 빌드 환경: PC(Windows, Docker Desktop)에서 `check` 를 돌리고 `build/gradle-console.log`(UTF-16LE)·`build/test-results` 로 결과를 읽는 방식으로 협업했다.

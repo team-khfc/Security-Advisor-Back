@@ -28,6 +28,7 @@ public record FirewallRuleResponse(
         Instant appliedAt,
         String applicationNote,
         String reason,
+        Long renewalRequestId,
         long revision) {
 
     public static FirewallRuleResponse from(FirewallRule r, LocalDate today, int expiryNoticeDays) {
@@ -62,6 +63,7 @@ public record FirewallRuleResponse(
                 r.getAppliedAt(),
                 r.getApplicationNote(),
                 r.getReason(),
+                r.getRenewalRequestId(),
                 r.getRevision());
     }
 }

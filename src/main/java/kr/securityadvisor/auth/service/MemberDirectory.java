@@ -45,6 +45,15 @@ public class MemberDirectory {
                 .toList();
     }
 
+    /** 활성 계정의 메일 알림 주소(없으면 비어 있음). */
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> emailOf(String username) {
+        return memberRepository
+                .findById(username)
+                .filter(member -> member.isActive() && member.getEmail() != null)
+                .map(member -> member.getEmail());
+    }
+
     /** 활성 계정이고 역할이 맞으면 true(자동 배정이 담당자 목록의 사람을 다시 확인할 때). */
     @Transactional(readOnly = true)
     public boolean isActiveWithRole(String username, MemberRole role) {

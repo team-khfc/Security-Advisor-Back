@@ -3,6 +3,7 @@ package kr.securityadvisor.auth.controller;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import kr.securityadvisor.auth.dto.ContactChangeCommand;
 import kr.securityadvisor.auth.dto.MemberDetail;
 import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.RoleChangeCommand;
@@ -57,6 +58,15 @@ public class MemberController {
     @GetMapping("/{username}")
     public MemberDetail get(@CurrentMember MemberPrincipal admin, @PathVariable String username) {
         return memberAdminService.get(admin, username);
+    }
+
+    /** 연락처(메일 알림 주소) 변경 — 본인 또는 관리자. */
+    @PutMapping("/{username}/contact")
+    public MemberDetail changeContact(
+            @CurrentMember MemberPrincipal actor,
+            @PathVariable String username,
+            @Valid @RequestBody ContactChangeCommand command) {
+        return memberAdminService.changeContact(actor, username, command);
     }
 
     /** 역할 부여·변경(관리자). 멱등. 자기 자신·마지막 관리자 강등은 422. */

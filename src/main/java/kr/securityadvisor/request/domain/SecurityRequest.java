@@ -57,6 +57,10 @@ public class SecurityRequest extends BaseAuditEntity {
     @Column(nullable = false)
     private long revision;
 
+    /** 연장 신청이면 원 방화벽 규칙 ID(F-15). 아니면 null. */
+    @Column(name = "renews_firewall_rule_id")
+    private Long renewsFirewallRuleId;
+
     /** JPA 전용 기본 생성자. */
     protected SecurityRequest() {}
 
@@ -70,6 +74,17 @@ public class SecurityRequest extends BaseAuditEntity {
     /** 사업 건 생성 시 선택한 서류 유형마다 하나씩 만든다. 1단계 작성 중으로 시작한다. */
     public static SecurityRequest create(Long businessCaseId, DocTypeCode docType) {
         return new SecurityRequest(businessCaseId, docType);
+    }
+
+    /** 방화벽 규칙 연장 신청: 원 규칙을 참조하는 새 신청(값은 호출자가 미리 채운다). */
+    public static SecurityRequest createRenewal(Long businessCaseId, DocTypeCode docType, Long firewallRuleId) {
+        SecurityRequest request = new SecurityRequest(businessCaseId, docType);
+        request.renewsFirewallRuleId = firewallRuleId;
+        return request;
+    }
+
+    public Long getRenewsFirewallRuleId() {
+        return renewsFirewallRuleId;
     }
 
     public Long getId() {

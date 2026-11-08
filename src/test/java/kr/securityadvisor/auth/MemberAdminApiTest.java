@@ -77,6 +77,32 @@ class MemberAdminApiTest {
                         .content("{\"role\":\"SECURITY\"}"))
                 .hasStatus(HttpStatus.BAD_REQUEST);
 
+        // 연락처(메일 알림 주소): 본인 변경 200, 형식 오류 400, 남의 것은 관리자만
+        assertThat(mvc.put()
+                        .uri("/api/members/{u}/contact", "role.target1")
+                        .with(authentication(SECURITY))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"synthetic@demo.invalid\"}"))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.put()
+                        .uri("/api/members/{u}/contact", "role.target1")
+                        .with(authentication(ADMIN))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"not-an-email\"}"))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(mvc.put()
+                        .uri("/api/members/{u}/contact", "role.target1")
+                        .with(authentication(ADMIN))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"synthetic@demo.invalid\"}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.email")
+                .isEqualTo("synthetic@demo.invalid");
+
         // 두 번째 관리자를 만들면 그 사람을 다시 강등할 수 있다(마지막 관리자가 아니므로)
         assertThat(changeRole(ADMIN, "role.target1", "ADMIN")).hasStatusOk();
         assertThat(changeRole(ADMIN, "role.target1", "APPLICANT"))

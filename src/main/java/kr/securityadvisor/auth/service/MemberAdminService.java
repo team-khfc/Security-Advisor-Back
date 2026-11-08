@@ -6,6 +6,7 @@ import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.domain.Member;
+import kr.securityadvisor.auth.dto.ContactChangeCommand;
 import kr.securityadvisor.auth.dto.MemberDetail;
 import kr.securityadvisor.auth.dto.RoleChangeCommand;
 import kr.securityadvisor.auth.repository.MemberRepository;
@@ -78,6 +79,26 @@ public class MemberAdminService {
                     command.reason(),
                     "역할 변경 " + before + " → " + command.role());
         }
+        return MemberDetail.from(member, clock.instant());
+    }
+
+    /** 연락처 변경 — 본인 또는 기관 관리자. 값은 감사 요약에 넣지 않는다(개인정보). */
+    @Transactional
+    public MemberDetail changeContact(MemberPrincipal actor, String username, ContactChangeCommand command) {
+        if (!actor.username().equals(username)) {
+            actor.requireAnyRole(MemberRole.ADMIN);
+        }
+        Member member = requireMember(username);
+        boolean had = member.getEmail() != null;
+        member.changeEmail(command.email());
+        auditRecorder.record(
+                actor,
+                AuditTargetType.MEMBER,
+                username,
+                null,
+                AuditAction.MEMBER_CONTACT_CHANGED,
+                null,
+                "메일 알림 주소 " + (member.getEmail() == null ? "해제" : (had ? "변경" : "등록")));
         return MemberDetail.from(member, clock.instant());
     }
 

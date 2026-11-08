@@ -3,7 +3,9 @@ package kr.securityadvisor.request.service;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
@@ -263,6 +265,47 @@ public class AnswerService {
                 AuditAction.ANSWER_AI_PROPOSED,
                 "AI 제안 " + modelReference + " 근거 " + evidenceReference);
         return AnswerResponse.from(answer);
+    }
+
+    /**
+     * 다른 신청의 서류별(REQUEST) 답변을 새 신청에 사용자 답변으로 미리 채운다(연장 신청 등). overrides 의 키는 그 값으로 덮어쓴다.
+     * 값이 없는 답변은 건너뛰고, 새 신청의 게시본에 없는 항목도 건너뛴다. 출처는 USER_ANSWER(신청자가 낸 신청이므로) 이며 미확인 상태다.
+     *
+     * @return 채운 항목 키
+     */
+    public List<String> prefillRequestAnswers(
+            MemberPrincipal principal, SecurityRequest from, SecurityRequest to, Map<String, String> overrides) {
+        BusinessCase businessCase = businessCaseOf(to);
+        FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
+        Map<String, String> values = new LinkedHashMap<>();
+        for (Answer answer : answerRepository.findBySecurityRequestIdOrderByFieldKeyAsc(from.getId())) {
+            if (answer.hasValue()) {
+                values.put(answer.getFieldKey(), answer.getValue());
+            }
+        }
+        values.putAll(overrides);
+        List<String> filled = new ArrayList<>();
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            FieldDefinition field = schema.find(entry.getKey()).orElse(null);
+            if (field == null
+                    || field.scope() != AnswerScope.REQUEST
+                    || !field.appliesTo(to.getDocType())
+                    || entry.getValue() == null
+                    || entry.getValue().isBlank()) {
+                continue;
+            }
+            Answer answer = answerRepository
+                    .findBySecurityRequestIdAndFieldKey(to.getId(), entry.getKey())
+                    .map(existing -> {
+                        existing.updateByUser(entry.getValue());
+                        return existing;
+                    })
+                    .orElseGet(() -> answerRepository.save(Answer.userAnswer(
+                            AnswerScope.REQUEST, businessCase.getId(), to.getId(), entry.getKey(), entry.getValue())));
+            audit(principal, answer, AuditAction.ANSWER_UPDATED, "연장 신청 미리 채움(신청 " + from.getId() + " 기준)");
+            filled.add(entry.getKey());
+        }
+        return filled;
     }
 
     /** 사업 건 공통 답변 + 이 신청의 서류별 답변(AI 제안의 컨텍스트). */

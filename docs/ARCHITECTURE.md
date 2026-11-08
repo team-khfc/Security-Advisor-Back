@@ -32,7 +32,7 @@ API 표·ERD 는 `README.md`, API 계약은 `docs/api/openapi.yaml`(생성물).
 | `llm` | LLM 구성, 공통 게이트웨이(감사 래퍼 + Spring AI/fake 백엔드), AI 제안, 담당자 질의, 문서 요약 작업 | llm_configurations, inquiries, inquiry_messages, analysis_jobs | document |
 | `document` | 서류 렌더링(섹션·Markdown)·출력 형식 변환(Markdown·PDF) | generated_documents | — |
 | `policy` | 방화벽 규칙 생성·적용 기록·회수·만료 계산 | firewall_rules | insight |
-| `notification` | 화면 안 알림(`Notifier` 인터페이스) | notifications | request, review |
+| `notification` | 화면 안 알림(`Notifier` 인터페이스) + 외부 채널(`NotificationChannel`: SMTP·웹훅, 비동기·실패 무시) | notifications | request, review |
 | `insight` | 업무 지표(조회 시 계산) | — | — |
 
 의존 방향(패키지 import 기준, 2026-11-08):
@@ -102,6 +102,7 @@ notification ← request, review     installation ← document
 | 새 출력 형식(HWPX 등) | `ExportFormat` 값 + `DocumentExporter` 구현 1개(자동 등록). ADR 0007 |
 | 새 LLM 공급자 | OpenAI 호환이면 DB 구성 행만(`POST /api/llm-configurations`). 비호환 API 면 `LlmBackend` 구현 추가 |
 | 새 감사 행위·알림 종류 | `AuditAction`/`NotificationKind` 값 추가 + 호출 |
+| 새 외부 알림 채널(카카오워크 API 등) | `NotificationChannel` 구현 1개(자동 등록, `enabled()` 로 설정 유무 표현) |
 | 기한 알림 시각 | `PUT /api/deadline-reminder-schedule`(DB, 재시작 불필요) |
 | 확정 시 새로운 행위(예: 대장 기록) | `DocTypeDefinition` 에 행위 플래그 추가 + `RequestConfirmedEvent` 리스너 |
 | 절차 단계·순서 변경 | 코드(상태 기계) — P3. 워크플로 정의 데이터화는 미착수 |
@@ -116,5 +117,9 @@ notification ← request, review     installation ← document
 
 ## 6. 아직 없는 것(의도된 범위 밖)
 
-양식(템플릿) 편집과 템플릿 기반 출력, HWPX 출력 변환기, API 전달·메일 발송 채널, 구 HWP(바이너리) 파싱, AI 서류 유형 제안, 기존 사업 건에 서류 추가,
-규칙 연장, 보완 대기 중 담당자 기한 정지, 절차 단계·순서의 데이터화. 화면에 "구현됨"으로 보이지 않게 한다(지침).
+양식(템플릿) 편집과 템플릿 기반 출력, HWPX 출력 변환기, 서류 API 전달 채널, 암호·배포용 HWP 복호화, SSO, 절차 단계·순서의 데이터화.
+화면에 "구현됨"으로 보이지 않게 한다(지침).
+
+2026-11-08 추가로 들어간 것(P2·P3 일부): 기존 사업 건에 서류 추가, AI 서류 유형 제안(`llm.DocTypeSuggestionService`), 방화벽 규칙 연장
+(`policy.FirewallRuleRenewalService` — 규칙 참조 새 신청), 보완 대기 중 협의 기한 정지·재개(`Deadline.pause/consumePause`),
+외부 알림 채널(`notification.channel` — `NotificationChannel` 구현: SMTP 최소 클라이언트·웹훅, 환경변수 없으면 꺼짐), HWP 5.0 텍스트 추출(`llm.HwpTextExtractor`, POIFS).

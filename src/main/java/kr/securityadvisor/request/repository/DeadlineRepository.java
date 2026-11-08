@@ -1,6 +1,7 @@
 package kr.securityadvisor.request.repository;
 
 import java.util.List;
+import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.request.domain.Deadline;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,4 +14,7 @@ public interface DeadlineRepository extends JpaRepository<Deadline, Long> {
     List<Deadline> findBySecurityRequestIdAndKindAndActiveTrue(Long securityRequestId, DeadlineKind kind);
 
     List<Deadline> findByActiveTrue();
+
+    List<Deadline> findBySecurityRequestIdAndKindAndFieldAndPausedTrueOrderByEndedAtDescIdDesc(
+            Long securityRequestId, DeadlineKind kind, ReviewField field);
 }

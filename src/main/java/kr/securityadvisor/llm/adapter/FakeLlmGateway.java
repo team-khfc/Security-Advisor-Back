@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.securityadvisor.llm.domain.LlmPurpose;
+import kr.securityadvisor.llm.service.DocTypeSuggestionService;
 import kr.securityadvisor.llm.service.LlmBackend;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
@@ -23,15 +24,40 @@ public class FakeLlmGateway implements LlmBackend {
 
     private static final Pattern FIELD_KEY = Pattern.compile("\"([a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*)\"");
     private static final Pattern SNIPPET_TAG = Pattern.compile("\\[(S\\d+)]");
+    private static final Pattern DOC_TYPE_CODE = Pattern.compile("\\{\"code\":\"([A-Z][A-Z0-9_]*)\"");
 
     @Override
     public LlmResult complete(LlmPurpose purpose, LlmPrompt prompt) {
         return switch (purpose) {
-            case INTERVIEW -> new LlmResult(proposals(prompt), REFERENCE);
+            case INTERVIEW ->
+                new LlmResult(
+                        prompt.system().contains(DocTypeSuggestionService.MARKER)
+                                ? docTypeSuggestions(prompt)
+                                : proposals(prompt),
+                        REFERENCE);
             case SUMMARY -> new LlmResult("합성 요약: 입력 문서의 핵심을 요약한 것으로 가정한 고정 응답입니다.", REFERENCE);
             case DOCUMENT -> new LlmResult("합성 초안: 확정된 값으로 채운 서류 초안으로 가정한 고정 응답입니다.", REFERENCE);
             case INQUIRY -> new LlmResult(inquiry(prompt), REFERENCE);
         };
+    }
+
+    /** 목록의 모든 코드를 "합성 근거"와 함께 제안한다(첫 번째는 HIGH, 나머지 MEDIUM). */
+    private static String docTypeSuggestions(LlmPrompt prompt) {
+        Matcher m = DOC_TYPE_CODE.matcher(prompt.user());
+        StringBuilder sb = new StringBuilder("{\"suggestions\":[");
+        boolean first = true;
+        while (m.find()) {
+            if (!first) {
+                sb.append(',');
+            }
+            sb.append("{\"docType\":\"")
+                    .append(m.group(1))
+                    .append("\",\"reason\":\"합성 근거: 개요에 외부 연동·신규 서비스가 언급됨\",\"confidence\":\"")
+                    .append(first ? "HIGH" : "MEDIUM")
+                    .append("\"}");
+            first = false;
+        }
+        return sb.append("]}").toString();
     }
 
     private static String proposals(LlmPrompt prompt) {

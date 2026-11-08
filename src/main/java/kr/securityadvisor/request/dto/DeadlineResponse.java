@@ -19,7 +19,9 @@ public record DeadlineResponse(
         boolean active,
         Instant endedAt,
         DeadlineStatus status,
-        String statusLabel) {
+        String statusLabel,
+        boolean paused,
+        Integer remainingBusinessDays) {
 
     public static DeadlineResponse from(Deadline deadline, DeadlineStatus status) {
         return new DeadlineResponse(
@@ -33,6 +35,8 @@ public record DeadlineResponse(
                 deadline.isActive(),
                 deadline.getEndedAt(),
                 status,
-                status.label());
+                status.label(),
+                deadline.isPaused(),
+                deadline.getRemainingBusinessDays());
     }
 }

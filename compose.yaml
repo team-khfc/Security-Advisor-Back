@@ -38,6 +38,13 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-boan}
       STORAGE_DIR: /data/storage
       LLM_ALLOWED_HOSTS: ${LLM_ALLOWED_HOSTS:-api.openai.com,openrouter.ai,ollama,localhost,host.docker.internal}
+      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
       - storage:/data/storage
     ports:

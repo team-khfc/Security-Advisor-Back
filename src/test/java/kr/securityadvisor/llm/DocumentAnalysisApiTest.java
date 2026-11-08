@@ -80,7 +80,7 @@ class DocumentAnalysisApiTest {
                         .with(authentication(APPLICANT))
                         .with(csrf()))
                 .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
-        // 이름만 .pdf 인 실행 파일(내용 서명 불일치) 422, 구 HWP 는 HWPX 변환 안내 422
+        // 이름만 .pdf 인 실행 파일(내용 서명 불일치) 422, 내용이 OLE 가 아닌 .hwp 도 422
         assertThat(mvc.post()
                         .uri("/api/business-cases/{id}/uploaded-files", caseId)
                         .multipart()
@@ -97,7 +97,7 @@ class DocumentAnalysisApiTest {
                 .with(csrf())
                 .exchange();
         assertThat(hwp).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
-        assertThat(hwp.getResponse().getContentAsString(StandardCharsets.UTF_8)).contains("HWPX");
+        assertThat(hwp.getResponse().getContentAsString(StandardCharsets.UTF_8)).contains("HWP 5.0");
         MvcTestResult uploaded = mvc.post()
                 .uri("/api/business-cases/{id}/uploaded-files", caseId)
                 .multipart()

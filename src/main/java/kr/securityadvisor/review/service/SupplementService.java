@@ -73,6 +73,8 @@ public class SupplementService {
                 principal.username(),
                 now));
         deadlineService.restartSupplementDeadline(principal, request, businessCase.getPublicationId());
+        // 신청자 답변을 기다리는 동안 이 분야 담당자의 협의 기한은 멈춘다(F-13)
+        deadlineService.pauseReviewDeadline(principal, request, review.getField(), businessCase.getPublicationId());
         auditRecorder.record(
                 principal,
                 AuditTargetType.SECURITY_REQUEST,
@@ -106,6 +108,10 @@ public class SupplementService {
         Review review = reviewRepository.findById(supplement.getReviewId()).orElseThrow();
         if (supplementRepository.countByReviewIdAndStatus(review.getId(), SupplementStatus.OPEN) == 0) {
             review.onSupplementAnswered();
+            // 담당자 검토 재개 → 정지해 둔 협의 기한을 남은 영업일로 다시 만든다(F-13)
+            BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
+            deadlineService.resumeReviewDeadline(
+                    principal, request, review.getField(), businessCase.getPublicationId());
         }
         if (supplementRepository.countBySecurityRequestIdAndStatus(request.getId(), SupplementStatus.OPEN) == 0) {
             request.answerSupplement();

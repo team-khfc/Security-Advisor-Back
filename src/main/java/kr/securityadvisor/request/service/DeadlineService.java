@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
@@ -78,6 +79,61 @@ public class DeadlineService {
                 LocalDate.ofInstant(now, KOREA),
                 context.policy().supplementBusinessDays(),
                 context);
+    }
+
+    /**
+     * 보완 요청으로 신청자 답변을 기다리는 동안 그 분야의 협의 기한을 정지한다(F-13 P3). 정지 = 종료 + 남은 영업일 보관.
+     * 활성 협의 기한이 없으면 아무것도 하지 않는다.
+     */
+    public void pauseReviewDeadline(
+            MemberPrincipal actor, SecurityRequest request, ReviewField field, Long publicationId) {
+        PublicationContext context = contextOf(publicationId);
+        Instant now = clock.instant();
+        LocalDate today = LocalDate.ofInstant(now, KOREA);
+        for (Deadline deadline :
+                deadlineRepository.findBySecurityRequestIdAndKindAndActiveTrue(request.getId(), DeadlineKind.REVIEW)) {
+            if (deadline.getField() != field) {
+                continue;
+            }
+            int remaining = deadline.pause(now, today, context.calendar());
+            auditRecorder.record(
+                    actor,
+                    AuditTargetType.SECURITY_REQUEST,
+                    String.valueOf(request.getId()),
+                    null,
+                    AuditAction.DEADLINE_ENDED,
+                    "보완 대기 정지",
+                    "REVIEW/" + field + " 기한 정지 — 남은 영업일 " + remaining + " (기한 " + deadline.getId() + ")");
+        }
+        deadlineRepository.flush();
+    }
+
+    /**
+     * 보완 답변으로 담당자 검토가 재개되면 정지해 둔 협의 기한을 남은 영업일만큼으로 다시 만든다. 정지된 기한이 없으면 아무것도 하지 않는다.
+     */
+    public Optional<DeadlineResponse> resumeReviewDeadline(
+            MemberPrincipal actor, SecurityRequest request, ReviewField field, Long publicationId) {
+        List<Deadline> paused =
+                deadlineRepository.findBySecurityRequestIdAndKindAndFieldAndPausedTrueOrderByEndedAtDescIdDesc(
+                        request.getId(), DeadlineKind.REVIEW, field);
+        if (paused.isEmpty()) {
+            return Optional.empty();
+        }
+        boolean alreadyActive =
+                deadlineRepository
+                        .findBySecurityRequestIdAndKindAndActiveTrue(request.getId(), DeadlineKind.REVIEW)
+                        .stream()
+                        .anyMatch(d -> d.getField() == field);
+        int remaining = paused.get(0).consumePause();
+        paused.stream().skip(1).forEach(Deadline::consumePause); // 오래된 정지 기록은 소비만 하고 버린다
+        if (alreadyActive) {
+            return Optional.empty();
+        }
+        PublicationContext context = contextOf(publicationId);
+        Instant now = clock.instant();
+        deadlineRepository.flush();
+        return Optional.of(start(
+                actor, request, field, DeadlineKind.REVIEW, now, LocalDate.ofInstant(now, KOREA), remaining, context));
     }
 
     /** 제출: 최종 확정 기한을 만든다. */

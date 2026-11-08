@@ -150,6 +150,26 @@ class ReviewWorkflowApiTest {
                 .extractingPath("$[?(@.kind=='SUPPLEMENT_RESPONSE' && @.active==true)]")
                 .asArray()
                 .hasSize(1);
+        // 보완 대기 중 SECURITY 협의 기한은 정지(종료 + 남은 영업일 보관), INFRA 기한은 그대로(F-13)
+        MvcTestResult pausedDeadlines = mvc.get()
+                .uri("/api/security-requests/{id}/deadlines", requestId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(pausedDeadlines)
+                .bodyJson()
+                .extractingPath("$[?(@.kind=='REVIEW' && @.field=='SECURITY' && @.active==true)]")
+                .asArray()
+                .isEmpty();
+        assertThat(pausedDeadlines)
+                .bodyJson()
+                .extractingPath("$[?(@.kind=='REVIEW' && @.field=='SECURITY' && @.paused==true)].remainingBusinessDays")
+                .asArray()
+                .hasSize(1);
+        assertThat(pausedDeadlines)
+                .bodyJson()
+                .extractingPath("$[?(@.kind=='REVIEW' && @.field=='INFRA' && @.active==true)]")
+                .asArray()
+                .hasSize(1);
         // 보완 중에는 SECURITY 완료 불가
         assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
 
@@ -173,6 +193,15 @@ class ReviewWorkflowApiTest {
         assertThat(answered).hasStatus(HttpStatus.CREATED);
         assertThat(answered).bodyJson().extractingPath("$.status").isEqualTo("ANSWERED");
         assertThat(requestStatus(requestId)).isEqualTo("IN_REVIEW");
+        // 답변 후 SECURITY 협의 기한이 남은 영업일로 재개된다
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/deadlines", requestId)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.kind=='REVIEW' && @.field=='SECURITY' && @.active==true)]")
+                .asArray()
+                .hasSize(1);
 
         // INFRA 완료(체크리스트 누락은 422) → 2단계에서 사용자가 답변을 바꾸면 완료된 INFRA 협의는 재검토(RECHECK)로(불변식 7)
         assertThat(complete(INFRA, infraReviewId, "{\"source\":true}")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);

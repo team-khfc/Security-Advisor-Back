@@ -15,6 +15,7 @@ import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.request.domain.Answer;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
+import kr.securityadvisor.request.dto.AddSecurityRequestCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.BusinessCaseListItem;
 import kr.securityadvisor.request.dto.BusinessCaseResponse;
@@ -98,6 +99,45 @@ public class BusinessCaseService {
                     securityRequest.getDocType() + " 신청 생성 — 사업 건 " + caseId + ", 1단계 작성 중");
         }
         return toResponse(businessCase, requests);
+    }
+
+    /**
+     * 기존 사업 건에 서류(신청)를 추가한다(F-01 P2). 공통 답변·업로드 문서는 그대로 공유되고, 게시본은 사업 건 생성 시점 것을 따른다(불변식 8).
+     * 같은 사업 건의 다른 신청이 이미 2단계면 자동 배정 시 같은 담당자를 우선한다(배정 규칙).
+     *
+     * @throws DomainRuleViolationException 게시본에 없거나 비활성인 유형, 같은 유형의 진행 중 신청 존재(422)
+     */
+    @Transactional
+    public SecurityRequestSummary addRequest(
+            MemberPrincipal principal, Long businessCaseId, AddSecurityRequestCommand command) {
+        BusinessCase businessCase = accessPolicy.ownedCase(principal, businessCaseId);
+        FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
+        boolean active = schema.findDocType(command.docType())
+                .map(definition -> definition.active())
+                .orElse(false);
+        if (!active) {
+            throw new DomainRuleViolationException("이 사업 건의 게시본에서 고를 수 없는 서류 유형입니다: " + command.docType());
+        }
+        boolean duplicate = securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCaseId).stream()
+                .anyMatch(r -> r.getDocType().equals(command.docType()) && !r.isTerminal());
+        if (duplicate) {
+            throw new DomainRuleViolationException("같은 유형의 진행 중인 신청이 이미 있습니다: " + command.docType());
+        }
+        SecurityRequest created =
+                securityRequestRepository.save(SecurityRequest.create(businessCaseId, command.docType()));
+        prefillRequestPlaceholders(created, schema);
+        auditRecorder.record(
+                principal,
+                AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(created.getId()),
+                created.getRevision(),
+                AuditAction.SECURITY_REQUEST_CREATED,
+                null,
+                created.getDocType() + " 신청 추가 — 사업 건 " + businessCaseId + ", 1단계 작성 중"
+                        + (command.renewsFirewallRuleId() == null
+                                ? ""
+                                : " (규칙 " + command.renewsFirewallRuleId() + " 연장)"));
+        return SecurityRequestSummary.from(created);
     }
 
     /** 사업 건 상세(공통 답변·하위 신청 요약 포함). */

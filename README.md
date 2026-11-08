@@ -41,6 +41,8 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `GET /api/publications/current` | 현재 게시본 — 서류 유형 목록(`docTypes`)과 질문 항목(`fields`). 서류 유형은 코드가 아니라 이 데이터가 정한다(ADR 0005) | 200 |
 | `POST /api/business-cases` | 사업 건 + 선택한 서류 유형별 신청 생성. `docTypes` 는 현재 게시본 `docTypes` 의 활성 코드(문자열). 사업명·개요·부서는 공통 답변으로, 담당자 항목은 "담당자 확인 필요"로 미리 생성 | 201 + `Location`, 유형 없음 400, 게시본에 없는 유형 422 |
 | `GET /api/business-cases?page&size` | 내 사업 건 목록(진행 요약은 하위 신청에서 계산) | 200 |
+| `POST /api/business-cases/{id}/security-requests` `{docType}` | **기존 사업 건에 서류 추가**(F-01 P2): 공통 답변·문서를 공유하는 새 신청이 1단계로 생긴다(게시본은 사업 건 생성 시점 것). 같은 유형의 진행 중 신청이 있으면 422 | 201 |
+| `POST /api/doc-type-suggestions` `{summary?, businessCaseId?}` | **AI 서류 유형 제안**(F-01): 개요·문서 AI 요약을 근거로 게시본의 활성 유형 중 필요한 것을 근거·확신도와 함께 제안(제안만, 선택은 사용자). 목록에 없는 유형은 버림 | 200, 둘 다 없음 400, 모델 실패 503 |
 | `GET /api/business-cases/{id}` | 사업 건 상세 + 공통 답변 + 신청 요약 | 200, 남의 것 404 |
 | `PUT /api/business-cases/{id}` | 사업 개요 수정(`expectedRevision`) | 200, 불일치 409 |
 | `PUT /api/business-cases/{id}/answers/{fieldKey}` | 공통 항목 사용자 답변(처음이면 `expectedRevision` 생략) | 200, 스키마에 없는 항목 404, 범위 불일치 422 |
@@ -64,7 +66,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `PUT /api/reviewer-pools/{id}/default` | 기본 담당자 지정 — 이전 기본은 해제(분야당 활성 기본 1명). 멱등 | 200, 비활성 422 |
 | `PUT /api/reviewer-pools/{id}/activation` | 활성/비활성 설정(`active`·`reason`). 비활성화는 기본 지정을 풀고 **배정은 바꾸지 않으며** `reassignmentNeededRequestIds`(그 사람의 활성 배정이 남은 신청)를 돌려준다 → 관리자가 재배정 | 200 |
 | `GET /api/todo-summary` | **처리할 일 n건** 배지 — 역할별 집계(담당자: 협의 대기·답변된 보완·내 분야 최종 확인 대기 / 신청자: 미해결 보완·3단계 최종 검토 / 관리자: 미배정 신청) + `total` | 200 |
-| `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값 | 200 |
+| `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값. **보완 대기 중 담당자 협의 기한은 정지**(`paused:true`, `remainingBusinessDays` 보관)되고 답변 시 남은 영업일로 새 기한이 생긴다(F-13 P3) | 200 |
 | `GET /api/deadline-reminder-schedule` / `PUT …` `{"cron","enabled"}` | **기한 알림 스케줄**(기관 관리자): Spring 6필드 cron(Asia/Seoul)과 사용 여부. DB(`reminder_schedules`)에 저장되고 **저장 즉시 반영(재시작 불필요)**, 응답에 다음 실행 시각. 기본 매일 08:10 | 200, cron 형식 오류 422 |
 | `POST /api/deadline-reminder-runs` | **기한 알림 수동 실행**(기관 관리자, `asOf` 선택). 위 스케줄로 자동 실행되는 것과 같은 일을 한다: 활성 기한 중 **1영업일 전**(DEADLINE_IMMINENT)·**경과**(DEADLINE_OVERDUE) 알림을 담당자(협의·최종 확정)·신청자(보완 응답)에게 보낸다. 기한·종류당 한 번만, 업무 상태는 바꾸지 않는다 | 201(검사·임박·경과 건수), 관리자 아님 403 |
 | `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순). 상태 전이·답변·배정·보완·반환·제출·확정 외에 **AI 호출**(LLM_CALLED/LLM_CALL_FAILED: 구성·용도·소요 시간·응답 길이, 원문 없음)과 **서류 다운로드**(DOCUMENT_DOWNLOADED)도 남는다. 비공개 컨텍스트 조회·검색은 PRIVATE_CONTEXT_VIEWED 로 건수만 기록(관리자 전체 조회에서 확인) | 200 |
@@ -138,14 +140,16 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | --- | --- | --- |
 | `POST /api/security-requests/{id}/inquiries` / `GET …/inquiries` | **담당자 AI 질의 대화**(F-04) 생성·내 대화 목록. 그 신청의 분야에 배정된 담당자만, 분야는 역할로 결정 | 201, 미배정·신청자 403 |
 | `POST /api/inquiries/{id}/messages` / `GET …/messages` | 질문 한 턴(질문·답변 반환) / 대화 이력. 매 턴 신청 답변·공개 지식·역할로 걸러진 기관 사실을 주입, 최근 10개 메시지 기억. 답변의 근거 없는 IP·대역은 가리고 `flagged` | 201 / 200, 남의 대화 404 |
-| `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·**hwpx**·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 확장자뿐 아니라 **실제 내용 서명**(PDF 헤더·zip 내부 구조·UTF-8)을 검사해 이름만 바꾼 파일을 거부. 구 HWP(바이너리)는 "HWPX 로 변환해 올려 주세요" 안내. 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기·내용 불일치 422 |
+| `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·hwpx·**hwp**·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 확장자뿐 아니라 **실제 내용 서명**(PDF 헤더·zip 내부 구조·OLE·UTF-8)을 검사해 이름만 바꾼 파일을 거부. HWP 5.0 은 본문 텍스트만 추출(표·서식 없음)하며 암호·배포용 HWP 는 분석 실패 메시지로 "HWPX 로 변환해 올려 주세요" 안내. 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기·내용 불일치 422 |
 | `POST /api/business-cases/{id}/analysis-jobs` → `GET /api/analysis-jobs/{id}` | **AI 요약**: 접수 202 + `Location`, 커밋 후 비동기 처리. 상태 `QUEUED → RUNNING → NEEDS_REVIEW`(요약은 미확정) / `FAILED`. 완료 요약은 AI 제안 컨텍스트에 포함 | 202 / 200 |
 | `POST /api/security-requests/{id}/generated-documents` | **서류 생성**(F-06): body 없으면 현재 답변으로 초안, `submissionId` 주면 제출본/확정본(신청이 CONFIRMED 이고 최신 제출본이면 확정본), `aiSupplement:true` 면 AI 보완 서술(미확정)을 덧붙임. 값마다 출처·확인 상태, 미확정은 "담당자 확인 필요" | 201 |
 | `GET /api/generated-documents/{id}` / `…/download?format=` / `GET /api/security-requests/{id}/generated-documents` | 서류 조회(섹션 + Markdown) / **다운로드** — `format` 은 `MARKDOWN`(기본)·`PDF`(A4, 한글 글꼴 임베드, 미확정 표시·합성 데이터 바닥글). 허용 형식은 게시본 `docTypes[].exportFormats`(기본 MARKDOWN·PDF)가 정한다(ADR 0007) / 버전 목록 | 200, 허용 안 된 형식 422, 미구현 형식(HWPX) 503, 모르는 형식 400 |
 | `GET /api/document-export-formats` | 출력 형식 목록과 구현 여부(`implemented`). 새 형식은 `DocumentExporter` 구현 하나로 추가 | 200 |
 | `GET /api/installation` | 운영 기관 표시 정보(`INSTITUTION_NAME`·`INSTITUTION_CODE`), 인증 없음 | 200 |
 | `GET /api/security-requests/{id}/firewall-rules` / `GET /api/firewall-rules?effectiveStatus=` | **방화벽 규칙**(F-15): FIREWALL 서류 확정 시 제출본에서 자동 생성(포트가 쉼표로 여럿이면 규칙도 여럿, 상시 규칙은 재검토일 = 시작일+12개월). `effectiveStatus` 는 오늘 기준 계산(APPLIED 의 종료일 30일 내 EXPIRING, 지나면 EXPIRED) | 200 |
+| `POST /api/firewall-rules/{id}/renewal-requests` `{newPeriod, note?}` | **규칙 연장**(F-15 P3, 신청자): 규칙은 그대로 두고 규칙 값·원 신청 답변을 미리 채운 새 방화벽 신청을 같은 사업 건에 만든다(응답 `prefilledFieldKeys`). 적용 완료 규칙만, 진행 중 연장 있으면 422. 옛 규칙 회수는 INFRA 가 기록 | 201 |
 | `PUT /api/firewall-rules/{id}/application` / `…/revocation` | INFRA 가 사람으로서 적용 완료·적용 불가(사유 필수)·회수(사유 필수)를 기록. 시스템 자동 적용 없음 | 200, INFRA 아님 403, 상태 위반 422 |
+| `GET /api/notification-channels` | **외부 알림 채널 상태**(관리자): EMAIL(SMTP 릴레이, 계정별 수신 주소)·WEBHOOK(메신저 incoming webhook). 환경변수(`SMTP_*`, `NOTIFY_WEBHOOK_URL`)가 비어 있으면 꺼짐. 화면 안 알림 저장 뒤 비동기 전달, 실패해도 업무·화면 알림 영향 없음, 본문에 값 없음 | 200 |
 | `GET /api/notifications?unreadOnly=` / `GET …/unread-count` / `PATCH /api/notifications/{id}` `{"read":true}` | **알림**(F-17): 배정·보완 요청/답변·반환·제출·확정·종결·재검토 이벤트 + 기한 1영업일 전/경과(DEADLINE_IMMINENT/OVERDUE) + 미배정→관리자(UNASSIGNED) + 제출 뒤 공통 정보 변경→담당자(COMMON_INFO_CHANGED, 제출본은 불변). 별도 트랜잭션으로 저장돼 실패해도 업무는 실패하지 않음. 수신자 본인만 | 200 |
 | `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 서류 유형별·단계별·상태별 신청 수, 단계별 평균 소요 영업일(감사 이력의 첫 전이 시각 기준), 활성 기한 상태·기한 경과 건수, 보완 상태·신청당 보완 횟수, 차수 반환률, 1회 통과율(보완·반환 없이 확정), AI 제안 확인율(AI 값이 수정 없이 확인된 비율, 감사 이력 기준), 규칙 상태. 조회 시 계산·저장 없음, 개인 순위 없음, 비율은 분모 0이면 null | 200 |
 | `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 초안(현재 게시본에서 시작) 조회·저장(데이터 계약 검증: 코드·키 유일, REQUEST 항목 적용 서류, 참조) → 게시하면 새 게시본 버전. 기존 사업 건은 생성 시점 버전 유지 | 200 / 201, 검증 실패 422 |
@@ -157,6 +161,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 |---|---|---|
 | `POST /api/members` | 회원가입(익명). 아이디·비밀번호·표시 이름·부서(선택). 역할은 요청과 무관하게 APPLICANT | 201 + `Location`, 중복 409, 형식 400 |
 | `GET /api/members?role` · `GET /api/members/{username}` | 계정 목록·상세(기관 관리자). 해시·실패 횟수는 내보내지 않는다 | 200, 관리자 아님 403 |
+| `PUT /api/members/{username}/contact` `{email}` | 메일 알림 수신 주소(본인 또는 관리자). 비우면 해제. 시연에서는 실존 주소 금지 | 200, 형식 400 |
 | `PUT /api/members/{username}/role` | **역할 부여·변경**(기관 관리자, `role`·`reason`). 멱등. 자기 자신·마지막 활성 관리자 강등은 불가(불변식 32). 역할을 잃은 담당자는 자동 배정에서 제외되고, 담당자 목록 비활성화는 `/api/reviewer-pools`에서 따로 한다 | 200, 404, 규칙 위반 422 |
 | `POST /api/auth/login` | 로그인(세션 쿠키 발급) | 200, 실패 401, 잠김 429 |
 | `POST /api/auth/logout` | 로그아웃 | 204 |
@@ -176,10 +181,10 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14) — 업무 변경은 같은 트랜잭션, 조회·다운로드·AI 호출 기록은 REQUIRES_NEW
 - 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일) + 기한 알림 스케줄러(`DeadlineReminderService`)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
-- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02, PDF·DOCX·HWPX·TXT 추출), LLM 구성 관리(F-10)
+- `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02, PDF·DOCX·HWPX·HWP·TXT 추출), LLM 구성 관리(F-10)
 - `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06) — 형식별 `DocumentExporter`(Markdown·PDF), 서류 유형별 허용 형식은 게시본 데이터(ADR 0007)
 - `policy`: 방화벽 규칙 생성·적용 기록·회수(F-15)
-- `notification`: 화면 안 알림(F-17) / `review.TodoService`: 처리할 일 배지 집계(F-17)
+- `notification`: 화면 안 알림 + 외부 채널(메일 SMTP·메신저 웹훅, `NotificationChannel` 플러그인)(F-17) / `review.TodoService`: 처리할 일 배지 집계(F-17)
 - `insight`: 업무 지표(F-16)
 - `installation`: 운영 기관 설정값(`GET /api/installation`)
 - `common`: ProblemDetail 오류 처리, Spring Security 설정, JPA Auditing, ArchUnit 패키지 규칙
@@ -190,9 +195,9 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 규칙 문서와 의도적으로 다른 결정은 `docs/DEVIATIONS.md`, 기술 결정은 `docs/adr/` 에 있다.
 
-스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `business_cases.business_case_id`, `reviews.review_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
+스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형별 진행 중 신청 1건(종료 상태 제외), 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `business_cases.business_case_id`, `reviews.review_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 18건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안 · OpenRouter seed · 반환 항목별 사유 · 알림 스케줄 · DeepSeek max_tokens)
+### ERD — 현재 (마이그레이션 22건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안 · OpenRouter seed · 반환 항목별 사유 · 알림 스케줄 · DeepSeek max_tokens · 연장 참조 · 기한 정지 · 계정 이메일)
 
 ```mermaid
 erDiagram
