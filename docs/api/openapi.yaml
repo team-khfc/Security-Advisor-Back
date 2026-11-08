@@ -2966,11 +2966,9 @@ components:
           type: boolean
         container:
           type: boolean
-        binary:
-          type: boolean
-        pojo:
-          type: boolean
         number:
+          type: boolean
+        missingNode:
           type: boolean
         nodeType:
           type: string
@@ -2984,30 +2982,32 @@ components:
           - OBJECT
           - POJO
           - STRING
-        floatingPointNumber:
-          type: boolean
         integralNumber:
-          type: boolean
-        bigInteger:
-          type: boolean
-        bigDecimal:
           type: boolean
         valueNode:
           type: boolean
-        missingNode:
+        bigInteger:
           type: boolean
-        short:
+        floatingPointNumber:
           type: boolean
-        int:
+        bigDecimal:
           type: boolean
-        long:
+        binary:
           type: boolean
-        double:
+        pojo:
           type: boolean
         textual:
           type: boolean
           deprecated: true
         string:
+          type: boolean
+        short:
+          type: boolean
+        long:
+          type: boolean
+        int:
+          type: boolean
+        double:
           type: boolean
         boolean:
           type: boolean

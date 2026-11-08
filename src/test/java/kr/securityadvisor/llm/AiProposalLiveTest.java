@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /**
  * 실제 모델 호출 검증(live). 환경변수 OPENROUTER_API_KEY 가 있을 때만 실행된다 — 키는 코드·설정 파일에 넣지 않는다.
- * OpenRouter 는 OpenAI 호환 API 라 SpringAiLlmGateway 가 그대로 쓴다. 모델은 OPENROUTER_MODEL(기본 openai/gpt-4o-mini).
+ * OpenRouter 는 OpenAI 호환 API 라 SpringAiLlmGateway 가 그대로 쓴다. 모델은 OPENROUTER_MODEL(기본 deepseek/deepseek-v4.1-flash-1017 — seed 구성과 같다).
  * 실행: $env:OPENROUTER_API_KEY="..."; .\gradlew.bat test --tests "*AiProposalLiveTest*"
  */
 @Tag("docker")
@@ -52,7 +52,7 @@ class AiProposalLiveTest {
     @Test
     @DisplayName("[live] OpenRouter 를 통한 실제 모델 호출로 근거 있는 AI 제안이 만들어진다")
     void liveProposal() throws Exception {
-        String model = System.getenv().getOrDefault("OPENROUTER_MODEL", "openai/gpt-4o-mini");
+        String model = System.getenv().getOrDefault("OPENROUTER_MODEL", "deepseek/deepseek-v4.1-flash-1017");
         // 구성 등록(관리자 API, 키는 환경변수 이름만) — seed 구성은 키가 없어 선택되지 않는다
         assertThat(mvc.post()
                         .uri("/api/llm-configurations")

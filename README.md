@@ -124,7 +124,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 - 프롬프트는 [기관 사실](서버가 역할로 걸러 넣은 `private_contexts` 행, 신청자용에는 없음)과 [공개 지식](스니펫, `S<id>` 로 인용) 블록으로 분리된다(원칙 3). 모델 출력의 IP·대역이 사실 블록에 없으면 `InternalInfoGuard` 가 거른다.
 - 감사 이력에는 프롬프트·응답 원문을 넣지 않고 모델 참조·항목 키·조각 ID 만 남긴다(불변식 25).
-- seed: 합성 스니펫 6건, 합성 비공개 컨텍스트 4건, LLM 구성 2건(`openai-default`: `OPENAI_API_KEY`, `ollama-exaone`: Ollama 의 OpenAI 호환 `/v1`). 실제 모델 호출은 키를 넣고 수동 검증한다 — 자동 테스트는 fake 모드만.
+- seed: 합성 스니펫 6건, 합성 비공개 컨텍스트 4건, LLM 구성 3건(priority 순: `openrouter-deepseek-v4.1-flash-1017`: OpenRouter 경유 DeepSeek, `OPENROUTER_API_KEY` / `openai-default`: `OPENAI_API_KEY` / `ollama-exaone`: Ollama 의 OpenAI 호환 `/v1`). 키 환경변수가 설정된 첫 구성이 쓰이므로 `.env`에 `OPENROUTER_API_KEY`만 넣으면 DeepSeek 로 동작한다. 실제 모델 호출은 `AiProposalLiveTest`(키 환경변수 있을 때만 실행)로 검증한다 — 그 외 자동 테스트는 fake 모드만.
 - 서류 다운로드 형식은 1차 범위 Markdown(.md). PDF/HWP 출력은 미구현.
 
 ## 담당자 AI 질의 · 문서 업로드·요약 · 서류 · 방화벽 규칙 · 알림 · 지표 · 설정 편집 API

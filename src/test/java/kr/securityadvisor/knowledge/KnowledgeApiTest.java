@@ -93,7 +93,7 @@ class KnowledgeApiTest {
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$[*].name")
-                .isEqualTo(List.of("openai-default", "ollama-exaone"));
+                .isEqualTo(List.of("openrouter-deepseek-v4.1-flash-1017", "openai-default", "ollama-exaone"));
         assertThat(mvc.post()
                         .uri("/api/llm-configurations")
                         .with(authentication(ADMIN))
