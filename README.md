@@ -144,7 +144,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | `GET /api/security-requests/{id}/firewall-rules` / `GET /api/firewall-rules?effectiveStatus=` | **방화벽 규칙**(F-15): FIREWALL 서류 확정 시 제출본에서 자동 생성(포트가 쉼표로 여럿이면 규칙도 여럿, 상시 규칙은 재검토일 = 시작일+12개월). `effectiveStatus` 는 오늘 기준 계산(APPLIED 의 종료일 30일 내 EXPIRING, 지나면 EXPIRED) | 200 |
 | `PUT /api/firewall-rules/{id}/application` / `…/revocation` | INFRA 가 사람으로서 적용 완료·적용 불가(사유 필수)·회수(사유 필수)를 기록. 시스템 자동 적용 없음 | 200, INFRA 아님 403, 상태 위반 422 |
 | `GET /api/notifications?unreadOnly=` / `GET …/unread-count` / `PATCH /api/notifications/{id}` `{"read":true}` | **알림**(F-17): 배정·보완 요청/답변·반환·제출·확정·종결·재검토 이벤트 + 기한 1영업일 전/경과(DEADLINE_IMMINENT/OVERDUE) + 미배정→관리자(UNASSIGNED) + 제출 뒤 공통 정보 변경→담당자(COMMON_INFO_CHANGED, 제출본은 불변). 별도 트랜잭션으로 저장돼 실패해도 업무는 실패하지 않음. 수신자 본인만 | 200 |
-| `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 단계·상태별 신청 수, 활성 기한 상태, 보완 상태, 규칙 상태, 평균 협의 일수. 읽기 전용, 개인 순위 없음 | 200 |
+| `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 서류 유형별·단계별·상태별 신청 수, 단계별 평균 소요 영업일(감사 이력의 첫 전이 시각 기준), 활성 기한 상태·기한 경과 건수, 보완 상태·신청당 보완 횟수, 차수 반환률, 1회 통과율(보완·반환 없이 확정), AI 제안 확인율(AI 값이 수정 없이 확인된 비율, 감사 이력 기준), 규칙 상태. 조회 시 계산·저장 없음, 개인 순위 없음, 비율은 분모 0이면 null | 200 |
 | `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 초안(현재 게시본에서 시작) 조회·저장(데이터 계약 검증: 코드·키 유일, REQUEST 항목 적용 서류, 참조) → 게시하면 새 게시본 버전. 기존 사업 건은 생성 시점 버전 유지 | 200 / 201, 검증 실패 422 |
 | `GET /api/publications/{id}` | 게시본 하나 | 200 |
 

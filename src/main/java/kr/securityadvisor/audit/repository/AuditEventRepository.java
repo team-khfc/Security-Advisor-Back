@@ -18,4 +18,7 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
 
     List<AuditEvent> findByTargetTypeAndActionInOrderByOccurredAtAscIdAsc(
             AuditTargetType targetType, java.util.Collection<kr.securityadvisor.audit.domain.AuditAction> actions);
+
+    List<AuditEvent> findByActionInOrderByOccurredAtAscIdAsc(
+            java.util.Collection<kr.securityadvisor.audit.domain.AuditAction> actions);
 }
