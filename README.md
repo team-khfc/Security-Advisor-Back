@@ -63,7 +63,8 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `PUT /api/reviewer-pools/{id}/activation` | 활성/비활성 설정(`active`·`reason`). 비활성화는 기본 지정을 풀고 **배정은 바꾸지 않으며** `reassignmentNeededRequestIds`(그 사람의 활성 배정이 남은 신청)를 돌려준다 → 관리자가 재배정 | 200 |
 | `GET /api/todo-summary` | **처리할 일 n건** 배지 — 역할별 집계(담당자: 협의 대기·답변된 보완·내 분야 최종 확인 대기 / 신청자: 미해결 보완·3단계 최종 검토 / 관리자: 미배정 신청) + `total` | 200 |
 | `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값 | 200 |
-| `POST /api/deadline-reminder-runs` | **기한 알림 수동 실행**(기관 관리자, `asOf` 선택). 매일 아침(`DEADLINE_REMINDER_CRON`, 기본 08:10 Asia/Seoul) 스케줄러가 같은 일을 한다: 활성 기한 중 **1영업일 전**(DEADLINE_IMMINENT)·**경과**(DEADLINE_OVERDUE) 알림을 담당자(협의·최종 확정)·신청자(보완 응답)에게 보낸다. 기한·종류당 한 번만, 업무 상태는 바꾸지 않는다 | 201(검사·임박·경과 건수), 관리자 아님 403 |
+| `GET /api/deadline-reminder-schedule` / `PUT …` `{"cron","enabled"}` | **기한 알림 스케줄**(기관 관리자): Spring 6필드 cron(Asia/Seoul)과 사용 여부. DB(`reminder_schedules`)에 저장되고 **저장 즉시 반영(재시작 불필요)**, 응답에 다음 실행 시각. 기본 매일 08:10 | 200, cron 형식 오류 422 |
+| `POST /api/deadline-reminder-runs` | **기한 알림 수동 실행**(기관 관리자, `asOf` 선택). 위 스케줄로 자동 실행되는 것과 같은 일을 한다: 활성 기한 중 **1영업일 전**(DEADLINE_IMMINENT)·**경과**(DEADLINE_OVERDUE) 알림을 담당자(협의·최종 확정)·신청자(보완 응답)에게 보낸다. 기한·종류당 한 번만, 업무 상태는 바꾸지 않는다 | 201(검사·임박·경과 건수), 관리자 아님 403 |
 | `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순) | 200 |
 | `GET /api/audit-events?targetType&targetId&page&size` | 기관 관리자 전체 감사 조회 | 200, 관리자 아님 403 |
 
@@ -188,7 +189,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 
 스키마는 Flyway 마이그레이션(`src/main/resources/db/migration/`)으로만 바꾼다. JPA는 `ddl-auto: validate`로 엔티티와 테이블이 맞는지만 확인한다. main에 머지된 마이그레이션 파일은 수정하지 않고 새 파일(`V<연월일시분>__<설명>.sql`)을 추가한다. **외래 키 제약(FOREIGN KEY)은 두지 않는다**(팀 결정 2026-11-07, 성능·운영 단순화). 참조 무결성은 도메인·서비스가 지키고, ERD의 `FK` 표기와 관계선은 논리적 참조를 뜻한다. 참조 컬럼에는 조회용 인덱스를 둔다. 업무 규칙을 담은 CHECK·UNIQUE(단계×상태 조합, 사업 건당 서류 유형 1건, 답변 유일, 멱등성 키 등)는 유지한다. 테이블·컬럼은 snake_case, 테이블명은 복수형이다. **기본 키 컬럼 이름은 맨 `id`를 쓰지 않고 `<테이블 단수형>_id`로 짓는다**(예: `business_cases.business_case_id`, `reviews.review_id`). 이렇게 하면 다른 테이블의 외래 키(`security_requests.business_case_id`)와 이름·형식이 같아지며, **같은 이름의 컬럼은 모든 테이블에서 같은 의미·같은 데이터 형식**이어야 한다(예: `business_case_id`는 어디서나 BIGINT, `created_by`는 어디서나 VARCHAR(50) username). `members`의 기본 키는 로그인 아이디 `username`(VARCHAR(50))이고, 이를 참조하는 컬럼도 같은 형식에 `_username` 접미사를 쓴다(`applicant_username`, `created_by`는 예외로 유지). 운영 기관은 설치당 1곳 고정이라 기관 테이블과 기관 키 컬럼은 없다(FUNCTIONAL_SPEC.md 3-4장).
 
-### ERD — 현재 (마이그레이션 16건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안 · OpenRouter seed · 반환 항목별 사유)
+### ERD — 현재 (마이그레이션 17건: … · 지식 · LLM 구성 · 질의 · 서류 · 방화벽 규칙 · 업로드/분석 · 알림 · 설정 초안 · OpenRouter seed · 반환 항목별 사유 · 알림 스케줄)
 
 ```mermaid
 erDiagram
@@ -394,6 +395,13 @@ erDiagram
         bigint      configuration_id PK
         jsonb       draft_field_schema
         integer     based_on_version
+    }
+    reminder_schedules {
+        bigint       reminder_schedule_id PK
+        varchar(30)  name "DEADLINE, UNIQUE"
+        varchar(100) cron_expression "Spring 6필드, Asia/Seoul"
+        boolean      enabled
+        varchar(50)  updated_by
     }
     stage_returns {
         bigint      stage_return_id PK

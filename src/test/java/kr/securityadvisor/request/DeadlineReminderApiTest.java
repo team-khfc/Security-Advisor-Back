@@ -113,6 +113,49 @@ class DeadlineReminderApiTest {
                 .isEqualTo("IN_REVIEW");
     }
 
+    @Test
+    @DisplayName("스케줄은 관리자만 조회·변경, cron 형식 오류 422, 변경 즉시 다음 실행 시각 반영, 끄면 null, 끝에 기본값 복원")
+    void schedule() throws Exception {
+        assertThat(mvc.get().uri("/api/deadline-reminder-schedule").with(authentication(INFRA)))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.get().uri("/api/deadline-reminder-schedule").with(authentication(ADMIN)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.timezone")
+                .isEqualTo("Asia/Seoul");
+        assertThat(changeSchedule("매일 아침", true)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+
+        MvcTestResult changed = changeSchedule("0 0 9 * * 1-5", true);
+        assertThat(changed).hasStatusOk();
+        assertThat(changed).bodyJson().extractingPath("$.cron").isEqualTo("0 0 9 * * 1-5");
+        assertThat(changed).bodyJson().extractingPath("$.enabled").isEqualTo(true);
+        assertThat(changed).bodyJson().extractingPath("$.updatedBy").isEqualTo("admin");
+        String next = JsonPath.read(changed.getResponse().getContentAsString(), "$.nextRunAt");
+        assertThat(next).contains("T09:00").contains("+09:00");
+
+        MvcTestResult disabled = changeSchedule("0 0 9 * * 1-5", false);
+        assertThat(disabled).hasStatusOk();
+        assertThat(disabled).bodyJson().extractingPath("$.enabled").isEqualTo(false);
+        assertThat(disabled).bodyJson().extractingPath("$.nextRunAt").isNull();
+
+        // 다른 테스트 컨텍스트와 DB 를 공유하므로 seed 값으로 되돌린다
+        assertThat(changeSchedule("0 10 8 * * *", true))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.nextRunAt")
+                .isNotNull();
+    }
+
+    private MvcTestResult changeSchedule(String cron, boolean enabled) {
+        return mvc.put()
+                .uri("/api/deadline-reminder-schedule")
+                .with(authentication(ADMIN))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"cron\":\"" + cron + "\",\"enabled\":" + enabled + "}")
+                .exchange();
+    }
+
     private MvcTestResult run(Authentication who, LocalDate asOf) {
         return mvc.post()
                 .uri("/api/deadline-reminder-runs")

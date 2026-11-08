@@ -53,9 +53,6 @@ securityadvisor:
     # 로그인 실패 제한: 연속 N회 실패 시 잠금, 잠금 시간 (SECURE_CODING.md 2절)
     max-failed-logins: ${LOGIN_MAX_FAILURES:5}
     lock-duration: ${LOGIN_LOCK_DURATION:15m}
-  deadline-reminder:
-    # 기한 알림 스케줄(F-13·F-17): 매일 아침 활성 기한을 훑어 1영업일 전·경과 알림을 만든다. cron 은 Asia/Seoul 기준, 비우면 수동 실행만
-    cron: ${DEADLINE_REMINDER_CRON:0 10 8 * * *}
   storage:
     # 업로드 파일 저장 폴더(서버 생성 파일명 UUID). Docker 에서는 볼륨으로 마운트
     dir: ${STORAGE_DIR:./storage}

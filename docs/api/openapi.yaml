@@ -476,6 +476,35 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/deadline-reminder-schedule:
+    get:
+      tags:
+      - deadline-reminder-controller
+      operationId: schedule
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReminderScheduleResponse"
+    put:
+      tags:
+      - deadline-reminder-controller
+      operationId: changeSchedule
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReminderScheduleCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ReminderScheduleResponse"
   /api/configurations/{id}:
     put:
       tags:
@@ -1246,6 +1275,23 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/InquiryTurnResult"
+  /api/deadline-reminder-runs:
+    post:
+      tags:
+      - deadline-reminder-controller
+      operationId: run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeadlineReminderRunCommand"
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DeadlineReminderRunResult"
   /api/configurations/{id}/publications:
     post:
       tags:
@@ -1905,6 +1951,40 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/field-help/{fieldKey}:
+    get:
+      tags:
+      - knowledge-controller
+      operationId: fieldHelp
+      parameters:
+      - name: fieldKey
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: publicationId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: docType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FieldHelpResponse"
   /api/configurations/current:
     get:
       tags:
@@ -2656,6 +2736,36 @@ components:
       required:
       - expectedRevision
       - result
+    ReminderScheduleCommand:
+      type: object
+      properties:
+        cron:
+          type: string
+          maxLength: 100
+          minLength: 0
+        enabled:
+          type: boolean
+      required:
+      - cron
+    ReminderScheduleResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        cron:
+          type: string
+        timezone:
+          type: string
+        enabled:
+          type: boolean
+        nextRunAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
     ConfigurationDraftCommand:
       type: object
       properties:
@@ -2968,7 +3078,34 @@ components:
           type: boolean
         number:
           type: boolean
+        pojo:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        double:
+          type: boolean
+        int:
+          type: boolean
+        short:
+          type: boolean
+        string:
+          type: boolean
+        long:
+          type: boolean
+        integralNumber:
+          type: boolean
         missingNode:
+          type: boolean
+        valueNode:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
+        bigDecimal:
           type: boolean
         nodeType:
           type: string
@@ -2982,34 +3119,7 @@ components:
           - OBJECT
           - POJO
           - STRING
-        integralNumber:
-          type: boolean
-        valueNode:
-          type: boolean
         bigInteger:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        binary:
-          type: boolean
-        pojo:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        string:
-          type: boolean
-        short:
-          type: boolean
-        long:
-          type: boolean
-        int:
-          type: boolean
-        double:
-          type: boolean
-        boolean:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3053,6 +3163,10 @@ components:
           type: array
           items:
             type: string
+        fieldReasons:
+          type: object
+          additionalProperties:
+            type: string
         expectedRevision:
           type: integer
           format: int64
@@ -3080,6 +3194,10 @@ components:
         fieldKeys:
           type: array
           items:
+            type: string
+        fieldReasons:
+          type: object
+          additionalProperties:
             type: string
         returnedBy:
           type: string
@@ -3475,6 +3593,27 @@ components:
           $ref: "#/components/schemas/InquiryMessageResponse"
         answer:
           $ref: "#/components/schemas/InquiryMessageResponse"
+    DeadlineReminderRunCommand:
+      type: object
+      properties:
+        asOf:
+          type: string
+          format: date
+    DeadlineReminderRunResult:
+      type: object
+      properties:
+        asOf:
+          type: string
+          format: date
+        scanned:
+          type: integer
+          format: int32
+        imminent:
+          type: integer
+          format: int32
+        overdue:
+          type: integer
+          format: int32
     PublishCommand:
       type: object
       properties:
@@ -3622,6 +3761,10 @@ components:
           - REQUEST_CONFIRMED
           - REQUEST_CLOSED
           - REVIEW_RECHECK
+          - DEADLINE_IMMINENT
+          - DEADLINE_OVERDUE
+          - UNASSIGNED
+          - COMMON_INFO_CHANGED
         title:
           type: string
         link:
@@ -3758,6 +3901,7 @@ components:
           - LLM_CONFIGURATION
           - CONFIGURATION
           - REVIEWER_POOL
+          - REMINDER_SCHEDULE
         targetId:
           type: string
         targetRevision:
@@ -3771,6 +3915,7 @@ components:
           - LOGIN_LOCKED
           - MEMBER_REGISTERED
           - MEMBER_ROLE_CHANGED
+          - REMINDER_SCHEDULE_CHANGED
           - REVIEWER_POOL_ADDED
           - REVIEWER_POOL_DEACTIVATED
           - REVIEWER_POOL_DEFAULT_CHANGED
@@ -3918,6 +4063,23 @@ components:
         completedReviewCount:
           type: integer
           format: int64
+    FieldHelpResponse:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+        label:
+          type: string
+        required:
+          type: boolean
+        askRole:
+          type: string
+        whyAsked:
+          type: string
+        snippets:
+          type: array
+          items:
+            $ref: "#/components/schemas/SnippetHit"
     BusinessCaseListItem:
       type: object
       properties:
