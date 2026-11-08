@@ -3074,28 +3074,9 @@ components:
           type: boolean
         float:
           type: boolean
-        container:
+        floatingPointNumber:
           type: boolean
-        number:
-          type: boolean
-        pojo:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        double:
-          type: boolean
-        int:
-          type: boolean
-        short:
-          type: boolean
-        string:
-          type: boolean
-        long:
+        bigDecimal:
           type: boolean
         integralNumber:
           type: boolean
@@ -3103,9 +3084,7 @@ components:
           type: boolean
         valueNode:
           type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigDecimal:
+        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -3119,7 +3098,28 @@ components:
           - OBJECT
           - POJO
           - STRING
-        bigInteger:
+        container:
+          type: boolean
+        number:
+          type: boolean
+        long:
+          type: boolean
+        boolean:
+          type: boolean
+        string:
+          type: boolean
+        pojo:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        binary:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        double:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3916,6 +3916,10 @@ components:
           - MEMBER_REGISTERED
           - MEMBER_ROLE_CHANGED
           - REMINDER_SCHEDULE_CHANGED
+          - LLM_CALLED
+          - LLM_CALL_FAILED
+          - DOCUMENT_DOWNLOADED
+          - PRIVATE_CONTEXT_VIEWED
           - REVIEWER_POOL_ADDED
           - REVIEWER_POOL_DEACTIVATED
           - REVIEWER_POOL_DEFAULT_CHANGED
@@ -4032,6 +4036,11 @@ components:
     InsightSummary:
       type: object
       properties:
+        requestsByDocType:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
         requestsByStage:
           type: object
           additionalProperties:
@@ -4042,16 +4051,50 @@ components:
           additionalProperties:
             type: integer
             format: int64
+        averageBusinessDaysByStage:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        completedByStage:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
         activeDeadlines:
           type: object
           additionalProperties:
             type: integer
             format: int64
+        overdueDeadlines:
+          type: integer
+          format: int64
         supplements:
           type: object
           additionalProperties:
             type: integer
             format: int64
+        supplementsPerRequest:
+          type: number
+          format: double
+        stageReturnRate:
+          type: number
+          format: double
+        firstPassRate:
+          type: number
+          format: double
+        aiProposals:
+          type: integer
+          format: int64
+        aiProposalsConfirmedUnchanged:
+          type: integer
+          format: int64
+        aiProposalsModified:
+          type: integer
+          format: int64
+        aiProposalConfirmRate:
+          type: number
+          format: double
         firewallRules:
           type: object
           additionalProperties:
