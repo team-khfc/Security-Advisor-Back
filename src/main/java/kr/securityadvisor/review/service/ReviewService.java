@@ -12,11 +12,13 @@ import kr.securityadvisor.assignment.service.AssignmentService;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
+import kr.securityadvisor.auth.service.MemberDirectory;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.schema.DocTypeDefinition;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.notification.domain.NotificationKind;
 import kr.securityadvisor.notification.service.Notifier;
@@ -70,6 +72,7 @@ public class ReviewService {
     private final AnswerService answerService;
     private final AuditRecorder auditRecorder;
     private final Notifier notifier;
+    private final MemberDirectory memberDirectory;
     private final ReviewJson json;
     private final Clock clock;
 
@@ -119,6 +122,15 @@ public class ReviewService {
                 NotificationKind.ASSIGNED,
                 "신청 #" + securityRequestId + " 협의가 배정되었습니다",
                 "/api/security-requests/" + securityRequestId);
+        if (!assignments.unassigned().isEmpty()) {
+            // 자동 배정 실패 → 기관 관리자에게(F-17). 재배정은 관리자가 사유와 함께 한다.
+            notifier.notify(
+                    memberDirectory.activeUsernamesWithRole(MemberRole.ADMIN),
+                    "request:" + securityRequestId + ":unassigned:" + request.getRevision(),
+                    NotificationKind.UNASSIGNED,
+                    "신청 #" + securityRequestId + " " + assignments.unassigned() + " 분야 담당자가 배정되지 않았습니다 — 재배정 필요",
+                    "/api/security-requests/" + securityRequestId + "/assignments");
+        }
         return new ReviewRequestResult(SecurityRequestSummary.from(request), reviews, assignments, deadlines);
     }
 
@@ -232,6 +244,7 @@ public class ReviewService {
      */
     @EventListener
     public void onAnswerChanged(AnswerChangedEvent event) {
+        notifySubmittedReviewers(event);
         if (event.affectedRequestIds().isEmpty()) {
             return;
         }
@@ -286,6 +299,22 @@ public class ReviewService {
                     + request.getStatus().label() + ")");
         }
         return request;
+    }
+
+    /** 제출된 신청의 공통 정보가 바뀌면 그 담당자에게 알린다. 제출본은 불변이라 상태는 바꾸지 않는다(불변식 7·F-17). */
+    private void notifySubmittedReviewers(AnswerChangedEvent event) {
+        for (Long requestId : event.submittedRequestIds()) {
+            notifier.notify(
+                    assignmentService.listForRequest(requestId).stream()
+                            .filter(AssignmentResponse::active)
+                            .map(AssignmentResponse::assigneeUsername)
+                            .toList(),
+                    "request:" + requestId + ":common-info-changed:" + event.fieldKey() + ":"
+                            + java.util.UUID.randomUUID(),
+                    NotificationKind.COMMON_INFO_CHANGED,
+                    "신청 #" + requestId + " 제출 뒤 공통 정보(" + event.fieldKey() + ")가 바뀌었습니다 — 제출본은 그대로입니다",
+                    "/api/security-requests/" + requestId);
+        }
     }
 
     private Optional<ReviewInboxItem> toInboxItem(AssignmentResponse assignment) {

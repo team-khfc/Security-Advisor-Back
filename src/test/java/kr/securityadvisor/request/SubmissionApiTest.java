@@ -83,6 +83,38 @@ class SubmissionApiTest {
         assertThat(((Number) JsonPath.read(again.getResponse().getContentAsString(), "$.submissionId")).longValue())
                 .isEqualTo(submissionId);
         assertThat(submit(requestId, "key-synthetic-2")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+
+        // 제출 뒤 공통 정보 변경(같은 사업 건의 보안성검토 신청은 아직 1단계라 편집 가능) → 제출본은 불변, 담당자에게 알림(F-17)
+        Long businessCaseId = ((Number) JsonPath.read(requestJson(requestId), "$.businessCaseId")).longValue();
+        String caseJson = mvc.get()
+                .uri("/api/business-cases/{id}", businessCaseId)
+                .with(authentication(APPLICANT))
+                .exchange()
+                .getResponse()
+                .getContentAsString();
+        long periodRevision = ((Number)
+                        ((List<?>) JsonPath.read(caseJson, "$.caseAnswers[?(@.fieldKey=='project.period')].revision"))
+                                .get(0))
+                .longValue();
+        assertThat(mvc.put()
+                        .uri("/api/business-cases/{id}/answers/{key}", businessCaseId, "project.period")
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"value\":\"2027-01-01~2027-12-31\",\"expectedRevision\":" + periodRevision + "}"))
+                .hasStatusOk();
+        assertThat(mvc.get().uri("/api/submissions/{id}", submissionId).with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.snapshot.answers[?(@.fieldKey=='project.period')].value")
+                .isEqualTo(List.of("2026-12-01~2027-11-30"));
+        assertThat(mvc.get().uri("/api/notifications").with(authentication(INFRA)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath(
+                        "$[?(@.kind=='COMMON_INFO_CHANGED' && @.link=='/api/security-requests/" + requestId + "')]")
+                .asArray()
+                .hasSize(1);
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/deadlines", requestId)
                         .with(authentication(APPLICANT)))
@@ -244,8 +276,8 @@ class SubmissionApiTest {
                 .with(authentication(APPLICANT))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                        "{\"title\":\"제출 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .content("{\"title\":\"제출 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\","
+                        + "\"docTypes\":[\"FIREWALL\",\"SECURITY_REVIEW\"]}")
                 .exchange();
         assertThat(created).hasStatus(HttpStatus.CREATED);
         String body = created.getResponse().getContentAsString();

@@ -34,6 +34,7 @@ class NotificationApiTest {
     private static final Authentication APPLICANT = auth("applicant", "김신청", MemberRole.APPLICANT);
     private static final Authentication INFRA = auth("infra", "박인프라", MemberRole.INFRA);
     private static final Authentication SECURITY = auth("security", "정보안", MemberRole.SECURITY);
+    private static final Authentication ADMIN = auth("admin", "최관리", MemberRole.ADMIN);
 
     @Autowired
     private MockMvcTester mvc;
@@ -98,6 +99,41 @@ class NotificationApiTest {
                 .bodyJson()
                 .extractingPath("$.status")
                 .isEqualTo("IN_REVIEW");
+    }
+
+    @Test
+    @DisplayName("기본 담당자 본인이 신청자면 그 분야는 미배정 → 기관 관리자에게 UNASSIGNED 알림(링크는 배정 자원)")
+    void unassignedNotifiesAdmin() throws Exception {
+        MvcTestResult created = mvc.post()
+                .uri("/api/business-cases")
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                        "{\"title\":\"담당자 본인 신청\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .exchange();
+        Long requestId = ((Number)
+                        JsonPath.read(created.getResponse().getContentAsString(), "$.requests[0].securityRequestId"))
+                .longValue();
+        MvcTestResult requested = mvc.post()
+                .uri("/api/security-requests/{id}/reviews", requestId)
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":0}")
+                .exchange();
+        assertThat(requested).hasStatus(HttpStatus.CREATED);
+        assertThat(requested)
+                .bodyJson()
+                .extractingPath("$.assignments.unassigned")
+                .isEqualTo(List.of("INFRA"));
+        assertThat(mvc.get().uri("/api/notifications").with(authentication(ADMIN)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath(
+                        "$[?(@.kind=='UNASSIGNED' && @.link=='/api/security-requests/" + requestId + "/assignments')]")
+                .asArray()
+                .hasSize(1);
     }
 
     private static Authentication auth(String username, String displayName, MemberRole role) {

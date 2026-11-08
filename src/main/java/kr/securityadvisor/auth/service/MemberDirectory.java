@@ -1,5 +1,6 @@
 package kr.securityadvisor.auth.service;
 
+import java.util.List;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.security.MemberRole;
@@ -33,6 +34,15 @@ public class MemberDirectory {
             throw new DomainRuleViolationException(
                     username + " 의 역할은 " + member.getRole() + " 이라 " + role + " 담당자로 등록할 수 없습니다");
         }
+    }
+
+    /** 그 역할의 활성 계정 아이디 목록(예: 관리자 알림 수신자). */
+    @Transactional(readOnly = true)
+    public List<String> activeUsernamesWithRole(MemberRole role) {
+        return memberRepository.findByRoleOrderByUsernameAsc(role).stream()
+                .filter(member -> member.isActive())
+                .map(member -> member.getUsername())
+                .toList();
     }
 
     /** 활성 계정이고 역할이 맞으면 true(자동 배정이 담당자 목록의 사람을 다시 확인할 때). */

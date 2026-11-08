@@ -17,6 +17,7 @@ import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.request.domain.Answer;
 import kr.securityadvisor.request.domain.BusinessCase;
+import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
@@ -78,7 +79,8 @@ public class AnswerService {
                 .orElseGet(() -> answerRepository.save(
                         Answer.userAnswer(AnswerScope.CASE, businessCaseId, null, field.key(), request.value())));
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
-        eventPublisher.publishEvent(new AnswerChangedEvent(principal, unsubmittedRequestIds(businessCaseId), fieldKey));
+        eventPublisher.publishEvent(new AnswerChangedEvent(
+                principal, unsubmittedRequestIds(businessCaseId), fieldKey, submittedRequestIds(businessCaseId)));
         return AnswerResponse.from(answer);
     }
 
@@ -291,6 +293,14 @@ public class AnswerService {
                     .orElseGet(() -> answerRepository.save(newPlaceholder(businessCase, securityRequest, field)));
             answer.markNeedsReview();
         }
+    }
+
+    /** 사업 건에서 제출됨(4단계, 확정 전) 상태인 신청 ID — 공통 답변이 바뀌면 그 담당자에게 알린다(제출본은 불변). */
+    public List<Long> submittedRequestIds(Long businessCaseId) {
+        return securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCaseId).stream()
+                .filter(request -> request.getStatus() == RequestStatus.SUBMITTED)
+                .map(SecurityRequest::getId)
+                .toList();
     }
 
     /** 사업 건의 미제출 신청 ID(공통 답변 변경의 영향 범위). */
