@@ -63,6 +63,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `PUT /api/reviewer-pools/{id}/activation` | 활성/비활성 설정(`active`·`reason`). 비활성화는 기본 지정을 풀고 **배정은 바꾸지 않으며** `reassignmentNeededRequestIds`(그 사람의 활성 배정이 남은 신청)를 돌려준다 → 관리자가 재배정 | 200 |
 | `GET /api/todo-summary` | **처리할 일 n건** 배지 — 역할별 집계(담당자: 협의 대기·답변된 보완·내 분야 최종 확인 대기 / 신청자: 미해결 보완·3단계 최종 검토 / 관리자: 미배정 신청) + `total` | 200 |
 | `GET /api/security-requests/{id}/deadlines` | 기한 목록. `status`(ON_TRACK·IMMINENT·OVERDUE·ENDED)는 오늘(Asia/Seoul) 기준 계산값 | 200 |
+| `POST /api/deadline-reminder-runs` | **기한 알림 수동 실행**(기관 관리자, `asOf` 선택). 매일 아침(`DEADLINE_REMINDER_CRON`, 기본 08:10 Asia/Seoul) 스케줄러가 같은 일을 한다: 활성 기한 중 **1영업일 전**(DEADLINE_IMMINENT)·**경과**(DEADLINE_OVERDUE) 알림을 담당자(협의·최종 확정)·신청자(보완 응답)에게 보낸다. 기한·종류당 한 번만, 업무 상태는 바꾸지 않는다 | 201(검사·임박·경과 건수), 관리자 아님 403 |
 | `GET /api/security-requests/{id}/audit-events` | 처리 이력(이 신청을 대상으로 한 감사 이력, 시간순) | 200 |
 | `GET /api/audit-events?targetType&targetId&page&size` | 기관 관리자 전체 감사 조회 | 200, 관리자 아님 403 |
 
@@ -168,7 +169,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 - `review`: 협의 요청(1→2단계), 담당자 입력·확인, INFRA 할당 완료, 분야 체크리스트·의견·협의 완료(INFRA 선행), 보완 요청·답변, 차수 반환, 종결(F-04·F-05), 4단계 최종 확인·확정(F-07)
 - `assignment`: 분야별 담당자 목록 관리(등록·기본 담당자·비활성화)·자동 배정·재배정(F-12)
 - `audit`: 추가 전용 감사 이력 기록·조회(F-14)
-- 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일)
+- 처리 기한(F-13): `request.Deadline` + `common.calendar.BusinessCalendar`(영업일) + 기한 알림 스케줄러(`DeadlineReminderService`)
 - `knowledge`: 공개 지식 스니펫(전문검색)·비공개 컨텍스트(역할 제한 조회) — F-09 1차
 - `llm`: LlmGateway + Spring AI 2.0 어댑터(OpenAI 호환, DB 구성·런타임 생성), fake 모드, AI 제안(F-03), 담당자 AI 질의(F-04), 문서 AI 요약(F-02), LLM 구성 관리(F-10)
 - `document`: 서류 초안/제출본/확정본 렌더링·다운로드(F-06)

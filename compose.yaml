@@ -38,6 +38,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:-boan}
       STORAGE_DIR: /data/storage
       LLM_ALLOWED_HOSTS: ${LLM_ALLOWED_HOSTS:-api.openai.com,openrouter.ai,ollama,localhost,host.docker.internal}
+      DEADLINE_REMINDER_CRON: ${DEADLINE_REMINDER_CRON:-0 10 8 * * *}
     volumes:
       - storage:/data/storage
     ports:

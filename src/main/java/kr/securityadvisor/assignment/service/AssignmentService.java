@@ -159,6 +159,14 @@ public class AssignmentService {
                 .orElse(false);
     }
 
+    /** 신청·분야의 활성 담당자(알림 수신자용). */
+    @Transactional(readOnly = true)
+    public Optional<String> activeAssignee(Long securityRequestId, ReviewField field) {
+        return assignmentRepository
+                .findBySecurityRequestIdAndFieldAndActiveTrue(securityRequestId, field)
+                .map(Assignment::getAssigneeUsername);
+    }
+
     /** 신청·분야에 활성 배정이 있는지(미배정 집계용). */
     @Transactional(readOnly = true)
     public boolean hasActiveAssignment(Long securityRequestId, ReviewField field) {
