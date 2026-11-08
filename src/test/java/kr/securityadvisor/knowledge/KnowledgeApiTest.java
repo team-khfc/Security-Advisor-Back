@@ -45,6 +45,27 @@ class KnowledgeApiTest {
                 .extractingPath("$[0].citation")
                 .asString()
                 .contains("3장 2절");
+        // 항목 도움말: 왜 묻는지(hint) + 태깅된 근거, 없는 항목 404, 잘못된 docType 400
+        assertThat(mvc.get()
+                        .uri("/api/field-help/{key}?docType=FIREWALL", "firewall.purpose")
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.snippets[*].fieldKeys[0]")
+                .asArray()
+                .contains("firewall.purpose");
+        assertThat(mvc.get().uri("/api/field-help/{key}", "project.period").with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.whyAsked")
+                .asString()
+                .isNotBlank();
+        assertThat(mvc.get().uri("/api/field-help/{key}", "no.such.field").with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(mvc.get()
+                        .uri("/api/field-help/{key}?docType=bad code", "firewall.purpose")
+                        .with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.BAD_REQUEST);
         assertThat(mvc.get().uri("/api/knowledge-snippets/search?q=')) & | !(*").with(authentication(APPLICANT)))
                 .hasStatusOk();
     }

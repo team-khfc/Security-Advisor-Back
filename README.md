@@ -118,6 +118,7 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | `POST /api/security-requests/{id}/ai-proposals` | **AI 제안**(신청자 본인, 미제출 신청). 값이 없거나 미확정 AI 값인 신청자 항목에 대해 사용자가 적은 내용 + 공개 지식 조각을 근거로 제안 → `AI_INFERRED`·미확정 저장. 근거 없는 제안·IP 류 토큰은 버린다(`skipped` 에 이유). 담당자 항목(askRole≠APPLICANT)은 대상이 아님. body `{"fieldKeys":[…]}` 는 선택 | 200(proposed·skipped·modelReference), 모델 불가 503, 제출 후 422 |
 | `PUT …/answers/{fieldKey}/confirmation` | (기존) 사용자가 AI 제안을 확인해야 제출 검사를 통과한다 | 200 |
 | `GET /api/knowledge-snippets` / `GET …/search?q=` | 공개 지식 목록 / 전문검색(출처·위치 포함) | 200 |
+| `GET /api/field-help/{fieldKey}?docType&q&publicationId` | **항목 도움말**(F-03): 왜 묻는지(게시본 hint)·필수 여부·답하는 역할 + 그 항목에 태깅된 공개자료 근거(출처·위치·발췌). 모델 호출 없음 | 200, 항목 없음 404 |
 | `POST /api/knowledge-snippets`, `PUT …/{id}` | 스니펫 등록·수정(관리자). 적용 항목 키 1개 이상 | 201 / 200 |
 | `GET /api/private-contexts/suggestions?q=` | 담당자 입력 자동완성 — 호출자 역할에 보이는 비공개 컨텍스트만(신청자는 항상 빈 목록) | 200 |
 | `GET/POST/PUT /api/private-contexts` | 비공개 컨텍스트 관리(관리자). `visibleRoles` 에 APPLICANT 불가. 값은 합성 데이터만 | 200/201, 규칙 위반 422 |

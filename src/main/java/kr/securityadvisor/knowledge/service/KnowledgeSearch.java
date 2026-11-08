@@ -25,10 +25,14 @@ public class KnowledgeSearch {
     private final KnowledgeSnippetRepository repository;
     private final JsonCodec json;
 
-    /** 한 항목에 적용되는 지식. queryText(사용자 답변·요약)가 있으면 그 단어로 순위를 매긴다. */
+    /** 한 항목에 적용되는 지식. docType 이 null 이면 유형 무관. queryText(사용자 답변·요약)가 있으면 그 단어로 순위를 매긴다. */
     public List<SnippetHit> forField(String fieldKey, DocTypeCode docType, String queryText) {
         return repository
-                .findForField(fieldKey, docType.code(), queryText == null ? "" : normalize(queryText), DEFAULT_LIMIT)
+                .findForField(
+                        fieldKey,
+                        docType == null ? "" : docType.code(),
+                        queryText == null ? "" : normalize(queryText),
+                        DEFAULT_LIMIT)
                 .stream()
                 .map(this::toHit)
                 .toList();

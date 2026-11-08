@@ -3,13 +3,17 @@ package kr.securityadvisor.knowledge.controller;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import kr.securityadvisor.common.error.BadRequestException;
+import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.knowledge.dto.FieldHelpResponse;
 import kr.securityadvisor.knowledge.dto.KnowledgeSnippetCommand;
 import kr.securityadvisor.knowledge.dto.KnowledgeSnippetResponse;
 import kr.securityadvisor.knowledge.dto.PrivateContextCommand;
 import kr.securityadvisor.knowledge.dto.PrivateContextResponse;
 import kr.securityadvisor.knowledge.service.FactRecord;
+import kr.securityadvisor.knowledge.service.FieldHelpService;
 import kr.securityadvisor.knowledge.service.KnowledgeAdminService;
 import kr.securityadvisor.knowledge.service.KnowledgeSearch;
 import kr.securityadvisor.knowledge.service.PrivateContextLookup;
@@ -31,6 +35,7 @@ public class KnowledgeController {
 
     private final KnowledgeAdminService adminService;
     private final KnowledgeSearch knowledgeSearch;
+    private final FieldHelpService fieldHelpService;
     private final PrivateContextLookup privateContextLookup;
 
     @GetMapping("/api/knowledge-snippets")
@@ -39,6 +44,22 @@ public class KnowledgeController {
     }
 
     /** 자유 질의 검색(전문검색). */
+    /** 항목 도움말 — 왜 묻는지(게시본 hint) + 공개자료 근거. 로그인한 누구나. docType·q(순위용 문장)·publicationId 는 선택. */
+    @GetMapping("/api/field-help/{fieldKey}")
+    public FieldHelpResponse fieldHelp(
+            @PathVariable String fieldKey,
+            @RequestParam(required = false) Long publicationId,
+            @RequestParam(required = false) String docType,
+            @RequestParam(required = false) String q) {
+        DocTypeCode docTypeCode;
+        try {
+            docTypeCode = docType == null || docType.isBlank() ? null : DocTypeCode.of(docType);
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("docType 값이 올바르지 않습니다: " + docType);
+        }
+        return fieldHelpService.help(fieldKey, publicationId, docTypeCode, q);
+    }
+
     @GetMapping("/api/knowledge-snippets/search")
     public List<SnippetHit> search(@RequestParam String q, @RequestParam(defaultValue = "5") int limit) {
         return knowledgeSearch.search(q, Math.min(Math.max(limit, 1), 20));

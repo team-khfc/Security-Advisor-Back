@@ -11,12 +11,12 @@ public interface KnowledgeSnippetRepository extends JpaRepository<KnowledgeSnipp
 
     List<KnowledgeSnippet> findAllByOrderByIdAsc();
 
-    /** 항목 키로 1차 필터(사람 태깅), 서류 유형 일치, 활성만. 질의 텍스트가 있으면 FTS 순위, 없으면 ID 순. */
+    /** 항목 키로 1차 필터(사람 태깅), 서류 유형 일치(빈 문자열이면 유형 무관), 활성만. 질의 텍스트가 있으면 FTS 순위, 없으면 ID 순. */
     @Query(value = """
             SELECT s.* FROM knowledge_snippets s
             WHERE s.active
               AND s.field_keys @> jsonb_build_array(CAST(:fieldKey AS text))
-              AND (s.doc_types @> jsonb_build_array(CAST(:docType AS text)) OR s.doc_types = '[]'::jsonb)
+              AND (:docType = '' OR s.doc_types @> jsonb_build_array(CAST(:docType AS text)) OR s.doc_types = '[]'::jsonb)
             ORDER BY CASE WHEN :query = '' THEN 0
                           ELSE ts_rank(s.search_vector, plainto_tsquery('simple', CAST(:query AS text))) END DESC,
                      s.knowledge_snippet_id ASC
