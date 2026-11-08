@@ -3,7 +3,7 @@
 보안길잡이(SecurityAdvisor) 백엔드 — Spring Boot 4.1 · Java 25 · PostgreSQL 17 · Flyway · Gradle(Kotlin DSL) · Lombok(허용 목록만, `lombok.config`로 강제).
 규칙·구조·명령은 팀 Claude 프로젝트의 AGENTS.md를 따른다(저장소 루트 사본은 추후 추가).
 
-구조·의존 방향·주요 흐름·확장 포인트는 **`docs/ARCHITECTURE.md`**, 결정 기록은 `docs/adr/`, 명세와 다른 점은 `docs/DEVIATIONS.md`.
+구조·의존 방향·주요 흐름·확장 포인트는 **`docs/ARCHITECTURE.md`**, 프론트 연동 안내는 **`docs/FRONTEND_HANDOFF.md`**, 결정 기록은 `docs/adr/`, 명세와 다른 점은 `docs/DEVIATIONS.md`.
 
 ## 준비물
 
