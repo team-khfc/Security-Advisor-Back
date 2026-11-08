@@ -3,6 +3,7 @@ package kr.securityadvisor.review.service;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
@@ -31,7 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 4단계 최종 확인·확정(F-07). 제출본을 INFRA 가 먼저, SECURITY 가 다음으로 각자 최종 확인하고, 두 분야 확인이 끝나면
+ * 4단계 최종 확인·확정(F-07). 제출본을 INFRA 가 먼저, SECURITY 가 다음으로 각자 최종 확인하고, 요구 분야 확인이 모두 끝나면
  * 배정된 SECURITY 담당자가 확정한다(불변식 34). 확정은 종료 상태(불변식 35)이며 방화벽 실제 적용이 아니다.
  * 방화벽 규칙 생성(불변식 26)은 확정 이벤트(RequestConfirmedEvent)를 받은 policy 컨텍스트(F-15)가 같은 트랜잭션에서 한다.
  */
@@ -48,6 +49,7 @@ public class FinalConfirmationService {
     private final AuditRecorder auditRecorder;
     private final Notifier notifier;
     private final ApplicationEventPublisher eventPublisher;
+    private final RequiredReviewFields requiredReviewFields;
     private final Clock clock;
 
     /** 분야 최종 확인(POST /api/submissions/{id}/final-confirmations). 호출자의 역할이 분야를 정한다. */
@@ -56,16 +58,24 @@ public class FinalConfirmationService {
         ReviewField field = fieldOf(principal);
         Submission submission = submissionService.requireSubmission(submissionId);
         SecurityRequest request = requireSubmittedLatest(principal, submission);
+        Set<ReviewField> required = requiredReviewFields.of(request);
+        if (!required.contains(field)) {
+            throw new DomainRuleViolationException(
+                    "이 서류 유형은 " + field + " 분야 협의·최종 확인을 요구하지 않습니다 (요구 분야 " + required + ")");
+        }
         reviewerAccessPolicy.requireAssignedReviewer(principal, request.getId(), field);
         request.requireRevision(command.expectedRevision());
 
+        // INFRA 선행은 INFRA 가 요구 분야일 때만
+        boolean infraConfirmed = !requiredReviewFields.infraPrecedes(required)
+                || finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, ReviewField.INFRA);
         FinalConfirmation confirmation = finalConfirmationRepository.save(FinalConfirmation.confirm(
                 submissionId,
                 request.getId(),
                 field,
                 command.opinion(),
                 principal.username(),
-                finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, ReviewField.INFRA),
+                infraConfirmed,
                 finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, field),
                 clock.instant()));
         auditRecorder.record(
@@ -79,18 +89,21 @@ public class FinalConfirmationService {
         return FinalConfirmationResponse.from(confirmation);
     }
 
-    /** 확정(PUT /api/submissions/{id}/confirmation). 배정된 SECURITY 담당자만, 두 분야 최종 확인 이후. 멱등: 이미 확정이면 그대로. */
+    /** 확정(PUT /api/submissions/{id}/confirmation). 후행 분야(보통 SECURITY) 배정 담당자만, 요구 분야 최종 확인 이후. 멱등. */
     public SecurityRequestSummary confirm(MemberPrincipal principal, Long submissionId, ConfirmationCommand command) {
         Submission submission = submissionService.requireSubmission(submissionId);
         SecurityRequest request = accessPolicy.viewableRequest(principal, submission.getSecurityRequestId());
-        reviewerAccessPolicy.requireAssignedReviewer(principal, request.getId(), ReviewField.SECURITY);
+        Set<ReviewField> required = requiredReviewFields.of(request);
+        // 확정은 후행 분야 담당자(SECURITY 가 요구되면 SECURITY, INFRA 만 요구하는 서류면 INFRA)
+        reviewerAccessPolicy.requireAssignedReviewer(
+                principal, request.getId(), requiredReviewFields.confirmer(required));
         if (!submissionService.isLatest(submission)) {
             throw new DomainRuleViolationException("최신 제출본이 아닙니다: " + submissionId);
         }
         request.requireRevision(command.expectedRevision());
-        boolean both = finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, ReviewField.INFRA)
-                && finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, ReviewField.SECURITY);
-        request.confirm(both);
+        boolean allConfirmed = required.stream()
+                .allMatch(f -> finalConfirmationRepository.existsBySubmissionIdAndField(submissionId, f));
+        request.confirm(allConfirmed);
         Instant now = clock.instant();
         deadlineService.endActive(principal, request.getId(), DeadlineKind.FINAL_CONFIRMATION, now, "확정");
         auditRecorder.record(

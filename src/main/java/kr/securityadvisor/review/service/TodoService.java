@@ -38,6 +38,7 @@ public class TodoService {
     private final FinalConfirmationRepository finalConfirmationRepository;
     private final SecurityRequestRepository securityRequestRepository;
     private final BusinessCaseRepository businessCaseRepository;
+    private final RequiredReviewFields requiredReviewFields;
 
     public TodoSummary summarize(MemberPrincipal principal) {
         return switch (principal.role()) {
@@ -66,7 +67,7 @@ public class TodoService {
                     pendingReviews++;
                 }
             } else if (request.getStatus() == RequestStatus.SUBMITTED
-                    && awaitsMyFinalConfirmation(request.getId(), assignment.field())) {
+                    && awaitsMyFinalConfirmation(request, assignment.field())) {
                 pendingFinal++;
             }
         }
@@ -75,15 +76,16 @@ public class TodoService {
         return TodoSummary.of(principal.role(), pendingReviews, answered, pendingFinal, 0, 0, 0);
     }
 
-    /** 최신 제출본에 내 분야 최종 확인이 없고, SECURITY 면 INFRA 확인이 먼저 있어야 "지금 내 차례"다. */
-    private boolean awaitsMyFinalConfirmation(Long requestId, ReviewField field) {
+    /** 최신 제출본에 내 분야 최종 확인이 없고, SECURITY 면 (INFRA 가 요구 분야일 때) INFRA 확인이 먼저 있어야 "지금 내 차례"다. */
+    private boolean awaitsMyFinalConfirmation(SecurityRequest request, ReviewField field) {
         Submission latest = submissionRepository
-                .findFirstBySecurityRequestIdOrderBySequenceNoDesc(requestId)
+                .findFirstBySecurityRequestIdOrderBySequenceNoDesc(request.getId())
                 .orElse(null);
         if (latest == null || finalConfirmationRepository.existsBySubmissionIdAndField(latest.getId(), field)) {
             return false;
         }
         return field == ReviewField.INFRA
+                || !requiredReviewFields.infraPrecedes(requiredReviewFields.of(request))
                 || finalConfirmationRepository.existsBySubmissionIdAndField(latest.getId(), ReviewField.INFRA);
     }
 

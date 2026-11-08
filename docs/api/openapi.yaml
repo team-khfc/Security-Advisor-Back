@@ -3103,30 +3103,28 @@ components:
           type: boolean
         float:
           type: boolean
-        container:
-          type: boolean
-        number:
+        long:
           type: boolean
         double:
+          type: boolean
+        string:
+          type: boolean
+        boolean:
           type: boolean
         textual:
           type: boolean
           deprecated: true
         short:
           type: boolean
-        binary:
-          type: boolean
-        long:
+        pojo:
           type: boolean
         int:
           type: boolean
-        boolean:
+        binary:
           type: boolean
-        pojo:
+        container:
           type: boolean
-        string:
-          type: boolean
-        missingNode:
+        number:
           type: boolean
         nodeType:
           type: string
@@ -3140,13 +3138,15 @@ components:
           - OBJECT
           - POJO
           - STRING
-        integralNumber:
-          type: boolean
         bigDecimal:
           type: boolean
-        bigInteger:
+        missingNode:
+          type: boolean
+        integralNumber:
           type: boolean
         floatingPointNumber:
+          type: boolean
+        bigInteger:
           type: boolean
         valueNode:
           type: boolean

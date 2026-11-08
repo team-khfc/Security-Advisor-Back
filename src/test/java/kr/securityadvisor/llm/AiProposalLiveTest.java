@@ -62,7 +62,7 @@ class AiProposalLiveTest {
                         .content("{\"name\":\"openrouter-live\",\"provider\":\"OPENAI_COMPATIBLE\","
                                 + "\"baseUrl\":\"https://openrouter.ai/api/v1\",\"model\":\"" + model + "\","
                                 + "\"apiKeyEnv\":\"OPENROUTER_API_KEY\",\"purposes\":[\"INTERVIEW\"],\"priority\":1,"
-                                + "\"timeoutSeconds\":120}"))
+                                + "\"maxTokens\":4096,\"timeoutSeconds\":120}")) // 추론형 모델은 사고 토큰이 응답 상한을 먹으므로 넉넉히
                 .hasStatus(HttpStatus.CREATED);
 
         MvcTestResult created = mvc.post()

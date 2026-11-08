@@ -50,11 +50,14 @@ public record FieldSchema(
                 .toList();
     }
 
-    /** 제출 전 검사에 쓰는 필수 항목(공통 + 해당 서류). */
+    /**
+     * 제출 전 검사에 쓰는 필수 항목(공통 + 해당 서류). 공통 항목도 {@code docTypes} 를 적어 두었으면 그 서류에만 필수다 —
+     * 예: INFRA 가 채우는 서버·출발지·목적지는 INFRA 협의가 없는 서류 유형에 요구하지 않는다(적용 서류 유형은 데이터 계약).
+     */
     public List<FieldDefinition> requiredFieldsFor(DocTypeCode docType) {
         return fields.stream()
                 .filter(FieldDefinition::required)
-                .filter(field -> field.scope() == AnswerScope.CASE || field.appliesTo(docType))
+                .filter(field -> field.appliesTo(docType))
                 .toList();
     }
 }

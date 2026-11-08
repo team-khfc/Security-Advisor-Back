@@ -20,8 +20,9 @@
 | 15 | **LLM 공급자 구현을 OpenAI 호환 API 하나로 통일** — Ollama 도 /v1 호환 엔드포인트로 호출. Spring AI starter(자동 구성) 대신 모델 모듈을 직접 써서 DB 구성으로 런타임 생성 | AGENTS 1장 Spring AI 사용 방식(starter 전제 여부 미지정), F-10 "공급자 2종" | AGENTS 1장에 "자동 구성 미사용, OpenAI 호환 단일 구현" 명시 | 공급자별 코드 없이 baseUrl 교체로 2종 이상 구동 입증. 실제 호출 검증은 수동(실제 키 필요) |
 | 16 | **알림은 동기 호출 + 별도 트랜잭션(REQUIRES_NEW)** — 업무 서비스가 `Notifier` 를 직접 호출, 실패는 로그만 | FUNCTIONAL_SPEC F-17(발송 방식 미지정), 불변식 30 | AGENTS 5장 컨텍스트 연결 방식 | 이벤트 버스 없이 불변식 30(알림 실패 ≠ 업무 실패)을 지키는 최소 구현. 수신자 결정(배정 담당자·신청자)은 호출하는 서비스가 안다 |
 | 17 | **담당자 AI 질의·문서 AI 요약을 llm 컨텍스트에 둠** — 명세는 질의를 review(F-04), 분석 작업을 request(uploaded_files·analysis_jobs)에 적음 | FUNCTIONAL_SPEC 1장 도메인 맵, 8-1 | FUNCTIONAL_SPEC 1장·8-1 | llm → request/review 의존은 되지만 역방향은 순환이 되므로 AI 호출이 필요한 유스케이스는 llm 에 모았다. 업로드 파일 자체는 request 에 있다 |
-| 18 | **서류 출력 형식은 Markdown** — PDF·HWP 렌더링 없음 | FUNCTIONAL_SPEC F-06 "미리보기·다운로드(형식·용량 표시)" | PROJECT_CONTEXT 범위 | 1차 범위. 섹션 JSON 을 함께 주므로 프론트가 화면 미리보기를 그리고, PDF 는 후속 |
+| 18 | **서류 출력 형식은 Markdown·PDF**(형식별 변환기 플러그인, 서류 유형별 허용 형식은 게시본 데이터 — ADR 0007). HWPX 는 형식 값만 있고 변환기 없음, API 전달·메일 발송 채널 없음 | FUNCTIONAL_SPEC F-06 "미리보기·다운로드(형식·용량 표시)" | PROJECT_CONTEXT 범위 | 2026-11-08 PDF 추가로 갱신. HWPX·전달 채널은 후속 |
 | 19 | **상시 방화벽 규칙의 재검토일 = 시작일 + 12개월 고정**, 만료 예고 30일 고정 | FUNCTIONAL_SPEC 8-1 configurations "규칙 만료 예고 일수·재검토 주기"(게시본 정책) | 게시본 deadlinePolicy 에 두 값 추가 | 1차 범위 상수. 게시본 정책으로 옮길 때 `RulePeriod`·`FirewallRuleService` 두 곳만 바꾸면 된다 |
+| 20 | **INFRA 선행·확정 권한은 "서류가 요구하는 분야" 기준** — `reviewFields` 가 SECURITY 만이면 INFRA 할당·INFRA 최종 확인 없이 협의 완료·확정 가능, INFRA 만이면 INFRA 담당자가 확정(후행 분야 = 확정자) | FUNCTIONAL_SPEC 불변식 9·3, F-07 "배정된 SECURITY 담당자가 확정" | 불변식 9·F-07 에 "요구 분야 기준" 문구 추가 | ADR 0005(서류 유형은 데이터)를 끝까지 지키기 위한 해석. INFRA·SECURITY 둘 다 요구하는 seed 서류는 종전과 같다(SecurityOnlyDocTypeApiTest) |
 | 7 | **Java 버전** — 구축본은 Java 25 toolchain(지침과 일치). 한때 21로 바꾸자는 안이 있었으나 폐기 | — | — | 기록용. 지침(Java 25) 그대로 |
 
 ## 규칙 문서 개정 시 확인할 것

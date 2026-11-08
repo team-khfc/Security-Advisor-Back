@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
 import kr.securityadvisor.assignment.dto.AssignmentSummary;
 import kr.securityadvisor.assignment.service.AssignmentService;
@@ -15,7 +14,6 @@ import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.service.MemberDirectory;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
-import kr.securityadvisor.common.schema.DocTypeDefinition;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
@@ -73,6 +71,7 @@ public class ReviewService {
     private final AuditRecorder auditRecorder;
     private final Notifier notifier;
     private final MemberDirectory memberDirectory;
+    private final RequiredReviewFields requiredReviewFields;
     private final ReviewJson json;
     private final Clock clock;
 
@@ -206,9 +205,11 @@ public class ReviewService {
         review.requireRevision(command.expectedRevision());
 
         List<Review> reviews = reviewRepository.findBySecurityRequestIdOrderByIdAsc(request.getId());
-        boolean infraAllocated = reviews.stream()
-                .filter(other -> other.getField() == ReviewField.INFRA)
-                .anyMatch(Review::isAllocated);
+        // INFRA 선행(불변식 9)은 이 서류가 INFRA 협의를 요구할 때만 — SECURITY 만 요구하는 서류는 바로 완료할 수 있다
+        boolean infraAllocated = !requiredReviewFields.infraPrecedes(requiredReviewFields.of(request))
+                || reviews.stream()
+                        .filter(other -> other.getField() == ReviewField.INFRA)
+                        .anyMatch(Review::isAllocated);
         int openSupplements = supplementRepository.countByReviewIdAndStatus(reviewId, SupplementStatus.OPEN);
         Instant now = clock.instant();
         review.complete(
@@ -232,7 +233,7 @@ public class ReviewService {
         if (reviews.stream().allMatch(Review::isCompleted)) {
             request.completeReviews(true);
             deadlineService.endActive(principal, request.getId(), DeadlineKind.REVIEW, now, "협의 완료");
-            audit(principal, request, AuditAction.STAGE_ADVANCED, null, "2단계 협의 중 → 3단계 최종 검토 중 (두 분야 협의 완료)");
+            audit(principal, request, AuditAction.STAGE_ADVANCED, null, "2단계 협의 중 → 3단계 최종 검토 중 (필요한 분야 협의 완료)");
         }
         return toResponse(review);
     }
@@ -365,17 +366,6 @@ public class ReviewService {
 
     /** 서류 유형이 요구하는 협의 분야(게시본 docTypes.reviewFields). 1차 범위는 INFRA·SECURITY 둘 다가 기본. */
     private Set<ReviewField> reviewFieldsOf(BusinessCase businessCase, SecurityRequest request) {
-        DocTypeDefinition docType = publicationService
-                .getFieldSchema(businessCase.getPublicationId())
-                .findDocType(request.getDocType())
-                .orElseThrow(() -> new DomainRuleViolationException("게시본에 없는 서류 유형입니다: " + request.getDocType()));
-        Set<ReviewField> fields =
-                docType.reviewFields() == null || docType.reviewFields().isEmpty()
-                        ? Set.of(ReviewField.INFRA, ReviewField.SECURITY)
-                        : docType.reviewFields().stream().map(ReviewField::of).collect(Collectors.toSet());
-        if (fields.isEmpty()) {
-            throw new DomainRuleViolationException("협의 분야가 없는 서류 유형입니다: " + request.getDocType());
-        }
-        return fields;
+        return requiredReviewFields.of(businessCase, request);
     }
 }

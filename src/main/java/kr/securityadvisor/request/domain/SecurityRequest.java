@@ -150,7 +150,7 @@ public class SecurityRequest extends BaseAuditEntity {
     public void completeReviews(boolean allReviewsCompleted) {
         requireState(2, RequestStatus.IN_REVIEW, "협의 완료 전이는 2단계 협의 중인 신청에서만 할 수 있습니다");
         if (!allReviewsCompleted) {
-            throw new DomainRuleViolationException("INFRA·SECURITY 협의가 모두 완료되어야 최종 검토 단계로 넘어갑니다");
+            throw new DomainRuleViolationException("요구되는 모든 분야의 협의가 완료되어야 최종 검토 단계로 넘어갑니다");
         }
         moveTo(3, RequestStatus.FINAL_REVIEW);
     }
@@ -182,12 +182,12 @@ public class SecurityRequest extends BaseAuditEntity {
     /**
      * 4단계 확정: INFRA·SECURITY 최종 확인이 모두 끝난 뒤 배정된 SECURITY 담당자만(불변식 34 — 담당자 검사는 서비스).
      *
-     * @param bothFinalConfirmed 같은 제출본에 두 분야 최종 확인이 있는지
+     * @param allFinalConfirmed 같은 제출본에 이 서류가 요구하는 모든 분야의 최종 확인이 있는지
      */
-    public void confirm(boolean bothFinalConfirmed) {
+    public void confirm(boolean allFinalConfirmed) {
         requireState(4, RequestStatus.SUBMITTED, "확정은 4단계 제출됨 상태에서만 할 수 있습니다");
-        if (!bothFinalConfirmed) {
-            throw new DomainRuleViolationException("INFRA·SECURITY 최종 확인이 모두 끝나야 확정할 수 있습니다");
+        if (!allFinalConfirmed) {
+            throw new DomainRuleViolationException("요구되는 모든 분야의 최종 확인이 끝나야 확정할 수 있습니다");
         }
         this.status = RequestStatus.CONFIRMED;
     }

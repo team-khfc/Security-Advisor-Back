@@ -42,7 +42,11 @@ public class SubmissionChecker {
             }
         }
         for (Answer answer : answers.values()) {
-            if (answer.isUnconfirmed()) {
+            // 이 서류에 적용되지 않는 공통 항목(예: INFRA 협의가 없는 서류의 서버·출발지·목적지 자리)은 검사하지 않는다
+            boolean applies = schema.find(answer.getFieldKey())
+                    .map(field -> field.appliesTo(request.getDocType()))
+                    .orElse(true);
+            if (applies && answer.isUnconfirmed()) {
                 unconfirmed.add(answer.getFieldKey());
             }
         }
