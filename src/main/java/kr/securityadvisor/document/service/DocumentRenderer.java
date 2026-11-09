@@ -104,13 +104,13 @@ public class DocumentRenderer {
                 display = field.isStaffField() ? "담당자 확인 필요" : "미입력";
                 status = field.required() ? "필수 · 미입력" : "선택 · 미입력";
             } else if (s.valueSource() == null) {
-                display = s.value() + " (담당자 확인 필요)";
+                display = displayValue(field, s.value()) + " (담당자 확인 필요)";
                 status = "출처 없음 · 담당자 확인 필요";
             } else if (!confirmed) {
-                display = s.value();
+                display = displayValue(field, s.value());
                 status = "미확정 · " + (s.valueSource() == ValueSource.AI_INFERRED ? "AI 제안 확인 전" : "확인 전");
             } else {
-                display = s.value();
+                display = displayValue(field, s.value());
                 status = "확인 완료";
             }
             if (s != null && s.needsReview()) {
@@ -130,6 +130,14 @@ public class DocumentRenderer {
                     status));
         }
         return values;
+    }
+
+    static String displayValue(FieldDefinition field, String value) {
+        if ("BOOLEAN".equals(field.type())) {
+            if ("true".equals(value)) return "예";
+            if ("false".equals(value)) return "아니요";
+        }
+        return value;
     }
 
     static String sourceLabel(String valueSource) {

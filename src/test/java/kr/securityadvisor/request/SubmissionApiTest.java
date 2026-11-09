@@ -1,6 +1,7 @@
 package kr.securityadvisor.request;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
@@ -28,7 +29,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * F-07: 3단계 → 제출(제출 전 검사·멱등성 키·스냅샷) → 4단계 INFRA 최종 확인 → SECURITY 최종 확인 → SECURITY 확정 → 종료, 문서함.
  */
 @Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
-@SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
+@SpringBootTest(properties = {"securityadvisor.demo.account-password=Test-Demo-1234", "securityadvisor.llm.mode=fake"})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class SubmissionApiTest {
@@ -45,6 +46,9 @@ class SubmissionApiTest {
 
     @Autowired
     private MockMvcTester mvc;
+
+    @Autowired
+    private kr.securityadvisor.request.service.FinalDraftService finalDraftService;
 
     @Test
     @DisplayName("제출 전 검사 → 제출(멱등) → INFRA·SECURITY 최종 확인(INFRA 선행) → SECURITY 확정 → 종료 상태, 문서함")
@@ -288,6 +292,136 @@ class SubmissionApiTest {
                 .extractingPath("$[?(@.firewallRuleId==" + ruleId + ")]")
                 .asArray()
                 .hasSize(1);
+    }
+
+    @Test
+    @DisplayName("최종 초안 미확정·원본 변경은 제출 차단, 사람 수정·확인 후 스냅샷과 PDF 보존")
+    void finalDraftAndPdf() throws Exception {
+        Long requestId = createFirewallRequestAtStage3();
+        answerAsApplicantNew(requestId, "firewall.purpose", "합성 최종 보고서 검증");
+        MvcTestResult generated = mvc.post()
+                .uri("/api/security-requests/{id}/final-draft-generations", requestId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":" + requestRevision(requestId) + "}")
+                .exchange();
+        assertThat(generated).hasStatus(HttpStatus.CREATED);
+        assertThat(generated).bodyJson().extractingPath("$.valueSource").isEqualTo("AI_INFERRED");
+        Long draftId =
+                ((Number) JsonPath.read(generated.getResponse().getContentAsString(), "$.finalDraftId")).longValue();
+        MemberPrincipal applicant = (MemberPrincipal) APPLICANT.getPrincipal();
+        String pendingGeneration = finalDraftService.prepare(applicant, requestId, requestRevision(requestId));
+        assertThat(submit(requestId, "final-draft-unconfirmed")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/final-draft", requestId)
+                        .with(authentication(APPLICANT2)))
+                .hasStatus(HttpStatus.NOT_FOUND);
+        assertThat(mvc.put()
+                        .uri("/api/final-drafts/{id}/confirmation", draftId)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":0,\"text\":\"무권한 확인\"}"))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.put()
+                        .uri("/api/final-drafts/{id}/confirmation", draftId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":0,\"text\":\"사용자가 확인한 합성 최종 서술\"}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.confirmed")
+                .isEqualTo(true);
+        // 모델 응답을 기다리는 동안 사용자가 확인한 본문을 늦은 AI 응답이 덮어쓸 수 없다.
+        assertThatThrownBy(() -> finalDraftService.propose(
+                        applicant,
+                        requestId,
+                        pendingGeneration,
+                        "늦게 도착한 AI 응답",
+                        kr.securityadvisor.common.schema.ValueSource.AI_INFERRED,
+                        "fake/offline"))
+                .isInstanceOf(kr.securityadvisor.common.error.ConflictException.class);
+        // 별도 답변의 변경은 확인된 초안을 다시 사용할 수 없게 한다.
+        long answerRevision = ((Number) ((List<?>) JsonPath.read(
+                                requestJson(requestId), "$.answers[?(@.fieldKey=='firewall.purpose')].revision"))
+                        .get(0))
+                .longValue();
+        assertThat(mvc.put()
+                        .uri("/api/security-requests/{id}/answers/firewall.purpose", requestId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"value\":\"변경한 합성 목적\",\"expectedRevision\":" + answerRevision + "}"))
+                .hasStatusOk();
+        assertThat(submit(requestId, "final-draft-stale")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/final-draft", requestId)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.stale")
+                .isEqualTo(true);
+        MvcTestResult replacement = mvc.post()
+                .uri("/api/security-requests/{id}/final-drafts", requestId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":" + requestRevision(requestId) + ",\"text\":\"변경을 반영한 합성 최종 서술\"}")
+                .exchange();
+        assertThat(replacement).hasStatus(HttpStatus.CREATED);
+        Long newId =
+                ((Number) JsonPath.read(replacement.getResponse().getContentAsString(), "$.finalDraftId")).longValue();
+        assertThat(mvc.put()
+                        .uri("/api/final-drafts/{id}/confirmation", draftId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":1,\"text\":\"이전 초안\"}"))
+                .hasStatus(HttpStatus.CONFLICT);
+        assertThat(mvc.put()
+                        .uri("/api/final-drafts/{id}/confirmation", newId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":0,\"text\":\"변경을 반영한 합성 최종 서술\"}"))
+                .hasStatusOk();
+        MvcTestResult submitted = submit(requestId, "final-draft-confirmed");
+        assertThat(submitted).hasStatus(HttpStatus.CREATED);
+        assertThat(submitted)
+                .bodyJson()
+                .extractingPath("$.snapshot.finalDraft.text")
+                .isEqualTo("변경을 반영한 합성 최종 서술");
+        Long submissionId =
+                ((Number) JsonPath.read(submitted.getResponse().getContentAsString(), "$.submissionId")).longValue();
+        assertThat(submit(requestId, "final-draft-confirmed")).hasStatusOk();
+        assertThat(mvc.put()
+                        .uri("/api/final-drafts/{id}/confirmation", newId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":1,\"text\":\"제출 이후 변경 시도\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        MvcTestResult doc = mvc.post()
+                .uri("/api/security-requests/{id}/generated-documents", requestId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"submissionId\":" + submissionId + "}")
+                .exchange();
+        assertThat(doc).hasStatus(HttpStatus.CREATED);
+        Long documentId =
+                ((Number) JsonPath.read(doc.getResponse().getContentAsString(), "$.generatedDocumentId")).longValue();
+        MvcTestResult pdf = mvc.get()
+                .uri("/api/generated-documents/{id}/download?format=PDF", documentId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(pdf).hasStatusOk().hasContentTypeCompatibleWith(MediaType.APPLICATION_PDF);
+        try (var document = org.apache.pdfbox.Loader.loadPDF(pdf.getResponse().getContentAsByteArray())) {
+            String text = new org.apache.pdfbox.text.PDFTextStripper().getText(document);
+            assertThat(text).contains("변경을 반영한 합성 최종 서술").contains("사용자 확인");
+        }
     }
 
     private MvcTestResult submit(Long requestId, String key) throws Exception {

@@ -115,7 +115,16 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 
 - 부족하면 4→3 차수 반환(`POST …/stage-returns`)으로 돌려보내고, 다시 제출하면 새 개정본(`sequenceNo` 증가)이 된다. 이전 제출본은 불변·조회만.
 - 서류 확정 ≠ 방화벽 적용. 방화벽 규칙 생성(불변식 26)·적용 기록은 policy 컨텍스트(F-15)에서 추가한다 — 미구현.
-- 3단계 AI 최종 초안(F-06·F-07 의 AI 보완)과 서류 렌더링·다운로드(document 컨텍스트)는 미구현. 문서함은 제출본(스냅샷) 단위로만 동작한다.
+- 3단계 최종 보고서는 AI 생성 또는 직접 작성 → 수정·확인 → 제출 순서로 처리한다. 한 번 생성한 초안은 최신 원본 기준으로 확인되어야 제출할 수 있다. 제출본에는 최종 서술·AI 원문·출처·모델·확인자를 답변과 함께 보존한다. 서술 없는 기존 API 신청은 답변만 제출하는 호환 경로를 유지한다(ADR 0008).
+
+| 최종 초안 API | 설명 | 결과 |
+|---|---|---|
+| `GET /api/security-requests/{id}/final-draft` | 현재 최종 초안·확인·원본 변경 상태 | 200, 미작성 204 |
+| `POST /api/security-requests/{id}/final-draft-generations` | `{expectedRevision}`으로 AI 최종 서술 생성, 미확정 | 201, 모델 불가 503, 원본/초안 경합 409 |
+| `POST /api/security-requests/{id}/final-drafts` | `{text, expectedRevision}`으로 직접 작성, 미확정 | 201 |
+| `PUT /api/final-drafts/{id}/confirmation` | `{text, expectedRevision}`으로 본문 수정·확인. 생성은 신청 revision, 확인은 초안 revision 사용 | 200, 권한 없음 403/404, 단계 오류 422, 원본 변경·이전 초안·버전 충돌 409 |
+
+생성·확인은 신청자 본인과 3단계 최종 검토에서만 허용한다. 현재 답변이 바뀌면 기존 확인은 무효화되며, 제출본과 과거 PDF는 보존된다. PDF는 `generated-documents`에 `submissionId`를 지정해 만들고 `download?format=PDF`로 받는다.
 
 ## AI·지식 API (F-03 AI 제안 · F-09 지식 기반 · F-10 LLM 구성)
 
@@ -218,6 +227,7 @@ erDiagram
     business_cases ||--o{ answers : "scope=CASE (security_request_id NULL)"
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ submissions : "sequence_no 증가"
+    security_requests ||--o{ final_drafts : "최종 서술 생성·확인 이력"
     submissions ||--o{ final_confirmations : "분야별 1건, INFRA 선행"
     submissions ||--o{ firewall_rules : "FIREWALL 확정 시 생성"
     security_requests ||--o{ inquiries : "담당자별 대화"
@@ -317,6 +327,21 @@ erDiagram
         varchar(50) resolved_by
         timestamptz resolved_at
         bigint      revision
+    }
+    final_drafts {
+        bigint      final_draft_id PK
+        bigint      security_request_id
+        varchar(64) source_fingerprint
+        text        original_text "AI 원문 또는 최초 작성문"
+        text        text "사용자 확인 본문"
+        varchar(30) value_source "AI_INFERRED | USER_ANSWER"
+        varchar(200) model_reference
+        varchar(50) confirmed_by
+        timestamptz confirmed_at
+        boolean     invalidated
+        bigint      revision
+        timestamptz created_at
+        timestamptz updated_at
     }
     final_confirmations {
         bigint      final_confirmation_id PK
