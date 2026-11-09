@@ -1,5 +1,7 @@
 package kr.securityadvisor.request.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -51,6 +53,8 @@ public class SubmissionService {
     private final BusinessCaseRepository businessCaseRepository;
     private final RequestAccessPolicy accessPolicy;
     private final SubmissionChecker submissionChecker;
+    private final FinalDraftService finalDraftService;
+    private final EntityManager entityManager;
     private final ReviewFactsProvider reviewFacts;
     private final DeadlineService deadlineService;
     private final AuditRecorder auditRecorder;
@@ -70,6 +74,7 @@ public class SubmissionService {
             throw new BadRequestException("Idempotency-Key 헤더가 필요합니다(100자 이내)");
         }
         SecurityRequest request = accessPolicy.ownedRequest(principal, securityRequestId);
+        entityManager.refresh(request, LockModeType.PESSIMISTIC_WRITE);
         Submission existing =
                 submissionRepository.findByIdempotencyKey(idempotencyKey).orElse(null);
         if (existing != null) {
@@ -86,6 +91,7 @@ public class SubmissionService {
                 request,
                 reviewFacts.openSupplementCount(securityRequestId),
                 reviewFacts.allReviewsCompleted(securityRequestId));
+        Map<String, Object> finalDraft = finalDraftService.submissionSnapshot(request);
         request.submit(preconditions);
 
         Instant now = clock.instant();
@@ -94,7 +100,7 @@ public class SubmissionService {
                 securityRequestId,
                 businessCase.getPublicationId(),
                 submissionRepository.countBySecurityRequestId(securityRequestId) + 1,
-                snapshotJson(businessCase, request, answers, now),
+                snapshotJson(businessCase, request, answers, now, finalDraft),
                 idempotencyKey,
                 principal.username(),
                 now));
@@ -213,7 +219,11 @@ public class SubmissionService {
 
     /** 스냅샷: 값·출처·확인자까지 담는다(제출본 불변의 근거). AI 근거 원문은 담지 않고 참조만(불변식 25 준용). */
     private String snapshotJson(
-            BusinessCase businessCase, SecurityRequest request, Map<String, Answer> answers, Instant now) {
+            BusinessCase businessCase,
+            SecurityRequest request,
+            Map<String, Answer> answers,
+            Instant now,
+            Map<String, Object> finalDraft) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", SNAPSHOT_FORMAT);
         root.put("businessCaseId", businessCase.getId());
@@ -243,6 +253,7 @@ public class SubmissionService {
                 })
                 .toList();
         root.put("answers", values);
+        if (finalDraft != null) root.put("finalDraft", finalDraft);
         return objectMapper.writeValueAsString(root);
     }
 

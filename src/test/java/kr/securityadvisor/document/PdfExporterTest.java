@@ -57,7 +57,23 @@ class PdfExporterTest {
                 Instant.parse("2026-11-08T09:00:00Z"));
 
         assertThat(exporter.format()).isEqualTo(ExportFormat.PDF);
-        byte[] bytes = exporter.export(document, List.of(new DocumentSection("1. 사업 정보", values)));
+        String finalText = "사용자가 확인한 합성 최종 보고서의 긴 서술입니다. ".repeat(150) + "최종 보고서 끝";
+        byte[] bytes = exporter.export(
+                document,
+                List.of(
+                        new DocumentSection("1. 사업 정보", values),
+                        new DocumentSection(
+                                "최종 보고서",
+                                List.of(new DocumentValue(
+                                        "report.finalSummary",
+                                        "최종 서술",
+                                        "REQUEST",
+                                        finalText,
+                                        "AI_INFERRED",
+                                        true,
+                                        false,
+                                        finalText,
+                                        "사용자 확인 · applicant")))));
         assertThat(new String(bytes, 0, 5, java.nio.charset.StandardCharsets.US_ASCII))
                 .isEqualTo("%PDF-");
 
@@ -71,6 +87,8 @@ class PdfExporterTest {
                     .contains("AI 보완 서술 (미확정")
                     .contains("합성 시연 데이터")
                     .contains("2 쪽")
+                    .contains("사용자 확인 · applicant")
+                    .contains("최종 보고서 끝")
                     .doesNotContain("😀");
         }
         assertThat(new ByteArrayInputStream(bytes).available()).isLessThan(1_500_000);

@@ -25,7 +25,7 @@ API 표·ERD 는 `README.md`, API 계약은 `docs/api/openapi.yaml`(생성물).
 | `audit` | 감사 이력 기록(`AuditRecorder`)·조회 | audit_events | 거의 전부 |
 | `auth` | 계정·로그인·잠금·회원가입·역할 부여, 다른 컨텍스트용 조회 창구 `MemberDirectory` | members | assignment, review |
 | `configuration` | 설정 초안 편집·게시, 게시본 조회(`PublicationService`) | configurations, publications | request, review, knowledge, llm, document, policy, insight |
-| `request` | 사업 건·신청·답변·제출본·기한·업로드 파일·기한 알림 스케줄 | business_cases, security_requests, answers, submissions, deadlines, uploaded_files, reminder_schedules | review, llm, document, policy, insight |
+| `request` | 사업 건·신청·답변·최종 초안 확인·제출본·기한·업로드 파일·기한 알림 스케줄 | business_cases, security_requests, answers, final_drafts, submissions, deadlines, uploaded_files, reminder_schedules | review, llm, document, policy, insight |
 | `assignment` | 분야별 담당자 목록·자동 배정·재배정 | reviewer_pools, assignments | request, review |
 | `review` | 협의·보완·차수 반환·종결·최종 확인·확정·요청함·처리할 일 | reviews, supplements, stage_returns, final_confirmations | llm, policy, insight |
 | `knowledge` | 공개 지식 스니펫(FTS)·비공개 컨텍스트·항목 도움말 | knowledge_snippets, private_contexts | llm, document |

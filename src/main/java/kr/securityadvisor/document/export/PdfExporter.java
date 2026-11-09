@@ -70,7 +70,12 @@ public class PdfExporter implements DocumentExporter {
             for (DocumentSection section : sections) {
                 w.heading(section.title());
                 for (DocumentValue value : section.values()) {
-                    w.row(value.label(), value.display(), sourceLabel(value));
+                    if ("report.finalSummary".equals(value.fieldKey())) {
+                        w.text(sourceLabel(value) + " · " + value.status(), SMALL_SIZE);
+                        for (String line : value.display().split("\\R")) w.text(line, BODY_SIZE);
+                    } else {
+                        w.row(value.label(), value.display(), sourceLabel(value));
+                    }
                 }
                 w.gap(8);
             }
@@ -140,7 +145,7 @@ public class PdfExporter implements DocumentExporter {
             content.moveTo(MARGIN, y + 3);
             content.lineTo(MARGIN + width, y + 3);
             content.stroke();
-            y -= 4;
+            y -= 14;
         }
 
         /** 항목 / 값 / 출처 3열. 값이 여러 줄이면 줄 수만큼 높이를 쓴다. */
@@ -166,10 +171,10 @@ public class PdfExporter implements DocumentExporter {
             }
             y -= height;
             content.setLineWidth(0.2f);
-            content.moveTo(MARGIN, y + 2);
-            content.lineTo(MARGIN + width, y + 2);
+            content.moveTo(MARGIN, y + 4);
+            content.lineTo(MARGIN + width, y + 4);
             content.stroke();
-            y -= 2;
+            y -= 10;
         }
 
         void gap(float points) {

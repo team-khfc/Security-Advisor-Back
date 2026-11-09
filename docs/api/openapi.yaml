@@ -549,6 +549,31 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/final-drafts/{id}/confirmation:
+    put:
+      tags:
+      - final-draft-controller
+      operationId: confirm_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalDraftCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FinalDraftResponse"
   /api/deadline-reminder-schedule:
     get:
       tags:
@@ -710,7 +735,7 @@ paths:
     put:
       tags:
       - business-case-controller
-      operationId: confirm_2
+      operationId: confirm_3
       parameters:
       - name: id
         in: path
@@ -1049,6 +1074,56 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/GeneratedDocumentResponse"
+  /api/security-requests/{id}/final-drafts:
+    post:
+      tags:
+      - final-draft-controller
+      operationId: create
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalDraftCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FinalDraftResponse"
+  /api/security-requests/{id}/final-draft-generations:
+    post:
+      tags:
+      - generated-document-controller
+      operationId: generateFinalDraft
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateFinalDraftCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FinalDraftResponse"
   /api/security-requests/{id}/draft-generations:
     post:
       tags:
@@ -1321,7 +1396,7 @@ paths:
     post:
       tags:
       - llm-configuration-controller
-      operationId: create
+      operationId: create_1
       requestBody:
         content:
           application/json:
@@ -1526,7 +1601,7 @@ paths:
     post:
       tags:
       - business-case-controller
-      operationId: create_1
+      operationId: create_2
       requestBody:
         content:
           application/json:
@@ -2017,6 +2092,27 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/security-requests/{id}/final-draft:
+    get:
+      tags:
+      - final-draft-controller
+      operationId: current
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: 현재 최종 초안
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FinalDraftResponse"
+        "204":
+          description: 아직 작성한 최종 초안 없음
   /api/security-requests/{id}/documents:
     get:
       tags:
@@ -2169,7 +2265,7 @@ paths:
     get:
       tags:
       - publication-controller
-      operationId: current
+      operationId: current_1
       responses:
         "200":
           description: OK
@@ -2435,7 +2531,7 @@ paths:
     get:
       tags:
       - configuration-controller
-      operationId: current_1
+      operationId: current_2
       responses:
         "200":
           description: OK
@@ -3267,6 +3363,47 @@ components:
       required:
       - expectedRevision
       - result
+    FinalDraftCommand:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 12000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - expectedRevision
+      - text
+    FinalDraftResponse:
+      type: object
+      properties:
+        finalDraftId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        text:
+          type: string
+        valueSource:
+          type: string
+        modelReference:
+          type: string
+        confirmedBy:
+          type: string
+        confirmedAt:
+          type: string
+          format: date-time
+        confirmed:
+          type: boolean
+        stale:
+          type: boolean
+        revision:
+          type: integer
+          format: int64
     ReminderScheduleCommand:
       type: object
       properties:
@@ -3553,19 +3690,32 @@ components:
           type: boolean
         float:
           type: boolean
+        double:
+          type: boolean
+        long:
+          type: boolean
+        short:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        string:
+          type: boolean
+        int:
+          type: boolean
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        pojo:
+          type: boolean
         container:
           type: boolean
         number:
           type: boolean
-        missingNode:
-          type: boolean
         valueNode:
           type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        bigInteger:
+        missingNode:
           type: boolean
         nodeType:
           type: string
@@ -3581,24 +3731,11 @@ components:
           - STRING
         integralNumber:
           type: boolean
-        pojo:
+        bigDecimal:
           type: boolean
-        binary:
+        floatingPointNumber:
           type: boolean
-        string:
-          type: boolean
-        int:
-          type: boolean
-        short:
-          type: boolean
-        long:
-          type: boolean
-        double:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        boolean:
+        bigInteger:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3905,6 +4042,15 @@ components:
         generatedAt:
           type: string
           format: date-time
+    GenerateFinalDraftCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - expectedRevision
     ReassignRequest:
       type: object
       properties:
@@ -4780,6 +4926,8 @@ components:
           - INQUIRY_OPENED
           - INQUIRY_ASKED
           - DOCUMENT_GENERATED
+          - FINAL_DRAFT_CREATED
+          - FINAL_DRAFT_CONFIRMED
           - FIREWALL_RULES_CREATED
           - FIREWALL_RULE_APPLIED
           - FIREWALL_RULE_NOT_APPLICABLE
