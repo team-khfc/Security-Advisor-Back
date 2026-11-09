@@ -1660,6 +1660,82 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/AnalysisJobResponse"
+  /api/business-cases/{caseId}/interview-turns:
+    get:
+      tags:
+      - interview-controller
+      operationId: list_10
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InterviewTurnResponse"
+    post:
+      tags:
+      - interview-controller
+      operationId: ask_1
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewTurnCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InterviewTurnResponse"
+  /api/business-cases/{caseId}/interview-turns/{turnId}/applications:
+    post:
+      tags:
+      - interview-controller
+      operationId: apply
+      parameters:
+      - name: caseId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: turnId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerActionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InterviewTurnResponse"
   /api/auth/logout:
     post:
       tags:
@@ -1690,7 +1766,7 @@ paths:
     post:
       tags:
       - analysis-job-controller
-      operationId: apply
+      operationId: apply_1
       parameters:
       - name: id
         in: path
@@ -1856,7 +1932,7 @@ paths:
     get:
       tags:
       - security-request-controller
-      operationId: list_10
+      operationId: list_11
       parameters:
       - name: status
         in: query
@@ -1903,7 +1979,7 @@ paths:
     get:
       tags:
       - supplement-controller
-      operationId: list_11
+      operationId: list_12
       parameters:
       - name: id
         in: path
@@ -2125,7 +2201,7 @@ paths:
     get:
       tags:
       - notification-controller
-      operationId: list_12
+      operationId: list_13
       parameters:
       - name: unreadOnly
         in: query
@@ -2291,7 +2367,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_13
+      operationId: list_14
       parameters:
       - name: effectiveStatus
         in: query
@@ -3485,9 +3561,11 @@ components:
           type: boolean
         valueNode:
           type: boolean
+        floatingPointNumber:
+          type: boolean
         bigDecimal:
           type: boolean
-        integralNumber:
+        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -3501,15 +3579,19 @@ components:
           - OBJECT
           - POJO
           - STRING
-        floatingPointNumber:
-          type: boolean
-        bigInteger:
-          type: boolean
-        string:
+        integralNumber:
           type: boolean
         pojo:
           type: boolean
+        binary:
+          type: boolean
+        string:
+          type: boolean
         int:
+          type: boolean
+        short:
+          type: boolean
+        long:
           type: boolean
         double:
           type: boolean
@@ -3517,12 +3599,6 @@ components:
           type: boolean
           deprecated: true
         boolean:
-          type: boolean
-        binary:
-          type: boolean
-        long:
-          type: boolean
-        short:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4237,6 +4313,72 @@ components:
           type: string
           format: date-time
         finishedAt:
+          type: string
+          format: date-time
+    InterviewTurnCommand:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+          maxLength: 100
+          minLength: 0
+        mode:
+          type: string
+          minLength: 1
+          pattern: ASK|SUGGEST
+        text:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        draft:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - expectedRevision
+      - fieldKey
+      - mode
+      - text
+    InterviewTurnResponse:
+      type: object
+      properties:
+        interviewTurnId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        fieldKey:
+          type: string
+        mode:
+          type: string
+        question:
+          type: string
+        reply:
+          type: string
+        proposedValue:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/Evidence"
+        basedRevision:
+          type: integer
+          format: int64
+        answerRevision:
+          type: integer
+          format: int64
+        modelReference:
+          type: string
+        flagged:
+          type: boolean
+        applied:
+          type: boolean
+        createdAt:
           type: string
           format: date-time
     LoginRequest:
