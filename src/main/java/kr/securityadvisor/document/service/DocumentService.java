@@ -201,6 +201,57 @@ public class DocumentService {
         return new Download(fileName, format, bytes);
     }
 
+    /**
+     * 서류 미리보기 데이터(JSON): 저장하지 않고 현재 답변(또는 제출본 스냅샷)으로 섹션을 렌더링해 돌려준다.
+     * 화면이 "문서 데이터 내려받기"로 쓰는 경량 경로 — 정식 출력은 generate → download 다. 조회 감사는 남기지 않는다(저장물이 아님).
+     */
+    @Transactional(readOnly = true)
+    public DocumentData previewData(MemberPrincipal principal, Long securityRequestId, Long submissionId) {
+        SecurityRequest request = accessPolicy.viewableRequest(principal, securityRequestId);
+        BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
+        FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
+        DocumentKind kind;
+        Map<String, DocumentRenderer.Source> sources;
+        if (submissionId == null) {
+            kind = DocumentKind.DRAFT;
+            sources = fromCurrentAnswers(request);
+        } else {
+            Submission submission = submissionService.requireSubmission(submissionId);
+            if (!submission.getSecurityRequestId().equals(securityRequestId)) {
+                throw new DomainRuleViolationException("다른 신청의 제출본입니다: " + submissionId);
+            }
+            kind = request.getStatus() == RequestStatus.CONFIRMED && submissionService.isLatest(submission)
+                    ? DocumentKind.CONFIRMED
+                    : DocumentKind.SUBMITTED;
+            sources = fromSnapshot(submission.getSnapshot());
+        }
+        List<DocumentSection> sections = renderer.sections(schema, request, sources);
+        return new DocumentData(
+                securityRequestId,
+                submissionId,
+                kind,
+                kind.label(),
+                schema.findDocType(request.getDocType())
+                        .map(d -> d.name())
+                        .orElse(request.getDocType().code()),
+                businessCase.getTitle(),
+                sections,
+                renderer.unconfirmedCount(sections),
+                clock.instant());
+    }
+
+    /** 미리보기 데이터(저장 안 함). */
+    public record DocumentData(
+            Long securityRequestId,
+            Long submissionId,
+            DocumentKind kind,
+            String kindLabel,
+            String docTypeName,
+            String caseTitle,
+            List<DocumentSection> sections,
+            int unconfirmedCount,
+            Instant generatedAt) {}
+
     /** 출력 형식 목록 — 구현 여부를 함께 준다(화면은 미구현 형식을 "준비 중"으로 표시). */
     public List<ExportFormatInfo> exportFormats() {
         return java.util.Arrays.stream(ExportFormat.values())

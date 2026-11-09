@@ -121,6 +121,33 @@ class GeneratedDocumentApiTest {
                                         .replace("+", "%20"));
         assertThat(download.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
                 .startsWith("# 방화벽 정책 허용 신청서");
+        // 화면 호환 경로: 서류 데이터(JSON) 내려받기와 AI 보완 초안 별칭
+        MvcTestResult data = mvc.get()
+                .uri("/api/security-requests/{id}/documents", requestId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(data).hasStatusOk();
+        assertThat(data).hasContentTypeCompatibleWith(MediaType.APPLICATION_JSON);
+        assertThat(data).bodyJson().extractingPath("$.kind").isEqualTo("DRAFT");
+        assertThat(data).bodyJson().extractingPath("$.sections").asArray().isNotEmpty();
+        assertThat(data)
+                .headers()
+                .hasValue(
+                        "Content-Disposition",
+                        "attachment; filename*=UTF-8''"
+                                + java.net.URLEncoder.encode(
+                                                "초안_" + requestId + ".json", java.nio.charset.StandardCharsets.UTF_8)
+                                        .replace("+", "%20"));
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/draft-generations", requestId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf()))
+                .hasStatus(HttpStatus.CREATED)
+                .bodyJson()
+                .extractingPath("$.aiSupplement")
+                .asString()
+                .isNotBlank();
+
         // PDF 출력(F-06): application/pdf, %PDF 시작, 한글 글꼴 임베드. 미구현 형식 503, 모르는 형식 400
         MvcTestResult pdf = mvc.get()
                 .uri("/api/generated-documents/{id}/download?format=pdf", documentId)
@@ -170,7 +197,7 @@ class GeneratedDocumentApiTest {
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.length()")
-                .isEqualTo(1);
+                .isEqualTo(2); // 초안 + draft-generations 별칭으로 만든 AI 보완 초안
     }
 
     private static Authentication auth(String username, String displayName, MemberRole role) {

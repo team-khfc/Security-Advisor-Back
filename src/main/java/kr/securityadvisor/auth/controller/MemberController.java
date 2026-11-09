@@ -3,9 +3,11 @@ package kr.securityadvisor.auth.controller;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import kr.securityadvisor.auth.dto.ActivationCommand;
 import kr.securityadvisor.auth.dto.ContactChangeCommand;
 import kr.securityadvisor.auth.dto.MemberDetail;
 import kr.securityadvisor.auth.dto.MemberResponse;
+import kr.securityadvisor.auth.dto.RoleAssignmentCommand;
 import kr.securityadvisor.auth.dto.RoleChangeCommand;
 import kr.securityadvisor.auth.dto.SignupRequest;
 import kr.securityadvisor.auth.service.MemberAdminService;
@@ -14,6 +16,7 @@ import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -58,6 +62,25 @@ public class MemberController {
     @GetMapping("/{username}")
     public MemberDetail get(@CurrentMember MemberPrincipal admin, @PathVariable String username) {
         return memberAdminService.get(admin, username);
+    }
+
+    /** 활성/비활성 설정(관리자). 비활성 계정은 로그인 불가·자동 배정 제외. 자기 자신·마지막 관리자는 422. */
+    @PutMapping("/{username}/activation")
+    public MemberDetail setActivation(
+            @CurrentMember MemberPrincipal admin,
+            @PathVariable String username,
+            @Valid @RequestBody ActivationCommand command) {
+        return memberAdminService.setActivation(admin, username, command);
+    }
+
+    /** 역할·활성 상태 한 번에(관리자 화면 호환). 결과는 계정 상세. */
+    @PostMapping("/{username}/role-assignments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MemberDetail assignRole(
+            @CurrentMember MemberPrincipal admin,
+            @PathVariable String username,
+            @Valid @RequestBody RoleAssignmentCommand command) {
+        return memberAdminService.assignRole(admin, username, command);
     }
 
     /** 연락처(메일 알림 주소) 변경 — 본인 또는 관리자. */

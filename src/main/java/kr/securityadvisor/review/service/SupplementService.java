@@ -134,6 +134,32 @@ public class SupplementService {
         return SupplementResponse.from(supplement, json.readKeys(supplement.getTargetFieldKeys()));
     }
 
+    /**
+     * 담당자 해소(PUT /api/supplements/{id}/resolution): 답변된 보완을 검토가 끝났다고 표시한다. 협의 완료 시 일괄 해소되기도 하지만,
+     * 담당자가 미리 정리할 수 있게 둔 명시적 경로. 그 분야 배정 담당자만. 멱등: 이미 해소면 그대로.
+     */
+    public SupplementResponse resolve(MemberPrincipal principal, Long supplementId, SupplementAnswerCommand command) {
+        Supplement supplement = supplementRepository
+                .findById(supplementId)
+                .orElseThrow(() -> new NotFoundException("보완 요청을 찾을 수 없습니다: " + supplementId));
+        SecurityRequest request = accessPolicy.viewableRequest(principal, supplement.getSecurityRequestId());
+        reviewerAccessPolicy.requireAssignedReviewer(principal, request.getId(), supplement.getField());
+        if (supplement.getStatus() == SupplementStatus.RESOLVED) {
+            return SupplementResponse.from(supplement, json.readKeys(supplement.getTargetFieldKeys()));
+        }
+        supplement.requireRevision(command.expectedRevision());
+        supplement.resolve(principal.username(), clock.instant());
+        auditRecorder.record(
+                principal,
+                AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(request.getId()),
+                request.getRevision(),
+                AuditAction.SUPPLEMENT_RESOLVED,
+                command.note(),
+                supplement.getField() + " 보완 해소 (보완 " + supplementId + ")");
+        return SupplementResponse.from(supplement, json.readKeys(supplement.getTargetFieldKeys()));
+    }
+
     /** 신청의 보완 요청 목록(요청순). */
     @Transactional(readOnly = true)
     public List<SupplementResponse> listForRequest(MemberPrincipal principal, Long securityRequestId) {

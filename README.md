@@ -41,6 +41,8 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `GET /api/publications/current` | 현재 게시본 — 서류 유형 목록(`docTypes`)과 질문 항목(`fields`). 서류 유형은 코드가 아니라 이 데이터가 정한다(ADR 0005) | 200 |
 | `POST /api/business-cases` | 사업 건 + 선택한 서류 유형별 신청 생성. `docTypes` 는 현재 게시본 `docTypes` 의 활성 코드(문자열). 사업명·개요·부서는 공통 답변으로, 담당자 항목은 "담당자 확인 필요"로 미리 생성 | 201 + `Location`, 유형 없음 400, 게시본에 없는 유형 422 |
 | `GET /api/business-cases?page&size` | 내 사업 건 목록(진행 요약은 하위 신청에서 계산) | 200 |
+| `GET /api/security-requests?status&docType&page&size` | **내 신청 목록**(역할별): 신청자는 자기 사업 건의 신청, 담당자는 내게 활성 배정된 신청, 관리자는 전체. 사업 건 제목·부서 포함, 최근 수정순 | 200, 상태 이름 오류 400 |
+| `PATCH /api/business-cases/{id}/answers` / `PATCH /api/security-requests/{id}/answers` `{answers:[{fieldKey,value,expectedRevision?}]}` | **답변 일괄 저장** — 항목마다 `PUT …/answers/{key}` 와 같은 규칙, 한 트랜잭션(하나라도 실패하면 전부 취소) | 200(저장된 답변 목록) |
 | `POST /api/business-cases/{id}/security-requests` `{docType}` | **기존 사업 건에 서류 추가**(F-01 P2): 공통 답변·문서를 공유하는 새 신청이 1단계로 생긴다(게시본은 사업 건 생성 시점 것). 같은 유형의 진행 중 신청이 있으면 422 | 201 |
 | `POST /api/doc-type-suggestions` `{summary?, businessCaseId?}` | **AI 서류 유형 제안**(F-01): 개요·문서 AI 요약을 근거로 게시본의 활성 유형 중 필요한 것을 근거·확신도와 함께 제안(제안만, 선택은 사용자). 목록에 없는 유형은 버림 | 200, 둘 다 없음 400, 모델 실패 503 |
 | `GET /api/business-cases/{id}` | 사업 건 상세 + 공통 답변 + 신청 요약 | 200, 남의 것 404 |
@@ -88,6 +90,7 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 | `PUT /api/reviews/{id}/answers/{fieldKey}/confirmation` | **담당자 확인**(출처 STAFF_CONFIRMED) — 사용자 답변·AI 추론 값이 맞다고 확인. 값은 바뀌지 않는다 | 200, 답변 없음 404 |
 | `PUT /api/reviews/{id}/allocation-completion` | **INFRA 할당 완료** — 협의 완료가 아니다(불변식 12). SECURITY 완료의 선행 조건 | 200, SECURITY 협의 422 |
 | `PUT /api/reviews/{id}/completion` | **분야 협의 완료** — 의견 필수, 분야 체크리스트 전부 `true`(INFRA: source·destination·protocol·port·period / SECURITY: processed_info·external_transfer·access_control·logging), 미해결 보완 없음, SECURITY 는 INFRA 할당 완료 이후. 필요한 분야가 모두 완료되면 신청이 **3단계 최종 검토**로 넘어가고 협의 기한이 종료된다 | 200, 규칙 위반 422, revision 409 |
+| `PUT /api/supplements/{id}/resolution` `{note?, expectedRevision}` | **보완 해소**(그 분야 배정 담당자): 답변된 보완을 검토 완료로 표시. 협의 완료 시 자동 해소와 별개의 명시적 경로, 멱등 | 200 |
 | `POST /api/reviews/{id}/supplements` | **보완 요청** — 대상 항목 1개 이상 + 사유 필수. 신청 상태 → 보완 요청(단계 유지), 대상 답변 `needsReview=true`(값 보존), 보완 응답 기한 재산정 | 201 + `Location`, 완료된 협의 422 |
 | `POST /api/supplements/{id}/answers` | **신청자 보완 답변** — 항목 값은 답변 API 로 먼저 고친 뒤 호출. 협의의 미해결 보완이 없으면 협의·신청 상태가 원래대로, 보완 응답 기한 종료 | 201, 남의 신청 404, 본인 아님 403 |
 | `GET /api/security-requests/{id}/supplements` | 보완 요청 목록 | 200 |
@@ -141,8 +144,11 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | `POST /api/security-requests/{id}/inquiries` / `GET …/inquiries` | **담당자 AI 질의 대화**(F-04) 생성·내 대화 목록. 그 신청의 분야에 배정된 담당자만, 분야는 역할로 결정 | 201, 미배정·신청자 403 |
 | `POST /api/inquiries/{id}/messages` / `GET …/messages` | 질문 한 턴(질문·답변 반환) / 대화 이력. 매 턴 신청 답변·공개 지식·역할로 걸러진 기관 사실을 주입, 최근 10개 메시지 기억. 답변의 근거 없는 IP·대역은 가리고 `flagged` | 201 / 200, 남의 대화 404 |
 | `POST /api/business-cases/{id}/uploaded-files` (multipart `file`) / `GET …` | **문서 업로드**(F-02): pdf·docx·hwpx·**hwp**·txt·md, 20MB, UUID 저장명(`STORAGE_DIR`). 확장자뿐 아니라 **실제 내용 서명**(PDF 헤더·zip 내부 구조·OLE·UTF-8)을 검사해 이름만 바꾼 파일을 거부. HWP 5.0 은 본문 텍스트만 추출(표·서식 없음)하며 암호·배포용 HWP 는 분석 실패 메시지로 "HWPX 로 변환해 올려 주세요" 안내. 신청자 본인·미제출 신청이 있는 사업 건만 | 201, 형식·크기·내용 불일치 422 |
+| `POST /api/analysis-jobs/{id}/applications` `{expectedRevision}` | **분석 결과 적용**(신청자): 요약을 사업 개요(`project.summary`) AI 제안값으로 넣고 미제출 신청마다 AI 항목 제안 실행. 전부 미확정, 모델 없으면 제안 부분만 `warnings` | 201, revision 409, 완료 아님 422 |
 | `POST /api/business-cases/{id}/analysis-jobs` → `GET /api/analysis-jobs/{id}` | **AI 요약**: 접수 202 + `Location`, 커밋 후 비동기 처리. 상태 `QUEUED → RUNNING → NEEDS_REVIEW`(요약은 미확정) / `FAILED`. 완료 요약은 AI 제안 컨텍스트에 포함 | 202 / 200 |
 | `POST /api/security-requests/{id}/generated-documents` | **서류 생성**(F-06): body 없으면 현재 답변으로 초안, `submissionId` 주면 제출본/확정본(신청이 CONFIRMED 이고 최신 제출본이면 확정본), `aiSupplement:true` 면 AI 보완 서술(미확정)을 덧붙임. 값마다 출처·확인 상태, 미확정은 "담당자 확인 필요" | 201 |
+| `POST /api/security-requests/{id}/draft-generations` | AI 보완 초안 생성 별칭(= `generated-documents` + `aiSupplement:true`) | 201 |
+| `GET /api/security-requests/{id}/documents?submissionId` | **서류 데이터(JSON)** — 현재 답변 또는 제출본 스냅샷으로 렌더링한 섹션·값·출처(저장 안 함, `Content-Disposition` .json) | 200 |
 | `GET /api/generated-documents/{id}` / `…/download?format=` / `GET /api/security-requests/{id}/generated-documents` | 서류 조회(섹션 + Markdown) / **다운로드** — `format` 은 `MARKDOWN`(기본)·`PDF`(A4, 한글 글꼴 임베드, 미확정 표시·합성 데이터 바닥글). 허용 형식은 게시본 `docTypes[].exportFormats`(기본 MARKDOWN·PDF)가 정한다(ADR 0007) / 버전 목록 | 200, 허용 안 된 형식 422, 미구현 형식(HWPX) 503, 모르는 형식 400 |
 | `GET /api/document-export-formats` | 출력 형식 목록과 구현 여부(`implemented`). 새 형식은 `DocumentExporter` 구현 하나로 추가 | 200 |
 | `GET /api/installation` | 운영 기관 표시 정보(`INSTITUTION_NAME`·`INSTITUTION_CODE`), 인증 없음 | 200 |
@@ -161,11 +167,14 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 |---|---|---|
 | `POST /api/members` | 회원가입(익명). 아이디·비밀번호·표시 이름·부서(선택). 역할은 요청과 무관하게 APPLICANT | 201 + `Location`, 중복 409, 형식 400 |
 | `GET /api/members?role` · `GET /api/members/{username}` | 계정 목록·상세(기관 관리자). 해시·실패 횟수는 내보내지 않는다 | 200, 관리자 아님 403 |
+| `PUT /api/members/{username}/activation` `{active, reason}` | **계정 활성/비활성**(관리자). 비활성 계정은 로그인 불가·자동 배정 제외, 기존 배정은 "재배정 필요". 자기 자신·마지막 관리자 비활성화는 422 | 200 |
+| `POST /api/members/{username}/role-assignments` `{role, active?, reason}` | 역할 + 활성 상태를 한 번에(관리자 화면 호환) | 201 |
 | `PUT /api/members/{username}/contact` `{email}` | 메일 알림 수신 주소(본인 또는 관리자). 비우면 해제. 시연에서는 실존 주소 금지 | 200, 형식 400 |
 | `PUT /api/members/{username}/role` | **역할 부여·변경**(기관 관리자, `role`·`reason`). 멱등. 자기 자신·마지막 활성 관리자 강등은 불가(불변식 32). 역할을 잃은 담당자는 자동 배정에서 제외되고, 담당자 목록 비활성화는 `/api/reviewer-pools`에서 따로 한다 | 200, 404, 규칙 위반 422 |
 | `POST /api/auth/login` | 로그인(세션 쿠키 발급) | 200, 실패 401, 잠김 429 |
 | `POST /api/auth/logout` | 로그아웃 | 204 |
-| `GET /api/auth/me` | 현재 사용자 | 200, 미로그인·만료 401 |
+| `GET /api/auth/me` | 현재 사용자(`department`·`email`·세션 만료 예정 `expiresAt` 포함) | 200, 미로그인·만료 401 |
+| `POST /api/sessions/current/renewals` | 세션 연장 — 세션은 요청마다 비활동 시간이 다시 시작되므로 새 `expiresAt` 을 돌려준다 | 201 |
 
 - **CSRF:** 상태 변경 요청(POST 등)은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 한다(로그인·회원가입 포함). 쿠키는 아무 GET 응답(예: `GET /api/auth/me`, 401이어도)에 실려 온다. 없거나 틀리면 403.
 - **로그인 실패 제한:** 연속 `LOGIN_MAX_FAILURES`(기본 5)회 실패하면 `LOGIN_LOCK_DURATION`(기본 15분) 동안 429. 성공하면 초기화.

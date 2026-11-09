@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -43,6 +44,15 @@ public class SupplementController {
             @Valid @RequestBody SupplementAnswerCommand command) {
         SupplementResponse response = supplementService.answer(member, id, command);
         return ResponseEntity.created(URI.create("/api/supplements/" + id)).body(response);
+    }
+
+    /** 담당자 해소(그 분야 배정자). 답변된 보완만, 멱등. */
+    @PutMapping("/api/supplements/{id}/resolution")
+    public SupplementResponse resolve(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody SupplementAnswerCommand command) {
+        return supplementService.resolve(member, id, command);
     }
 
     /** 신청의 보완 요청 목록. */

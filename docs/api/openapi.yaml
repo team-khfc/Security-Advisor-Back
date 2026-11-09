@@ -8,6 +8,31 @@ servers:
 - url: http://localhost
   description: Generated server url
 paths:
+  /api/supplements/{id}/resolution:
+    put:
+      tags:
+      - supplement-controller
+      operationId: resolve
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplementAnswerCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SupplementResponse"
   /api/submissions/{id}/confirmation:
     put:
       tags:
@@ -400,6 +425,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberDetail"
+  /api/members/{username}/activation:
+    put:
+      tags:
+      - member-controller
+      operationId: setActivation_1
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActivationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
   /api/llm-configurations/{id}:
     put:
       tags:
@@ -757,6 +806,21 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/FinalConfirmationResponse"
+  /api/sessions/current/renewals:
+    post:
+      tags:
+      - session-controller
+      operationId: renew
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+                  format: date-time
   /api/security-requests/{id}/submissions:
     get:
       tags:
@@ -985,6 +1049,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/GeneratedDocumentResponse"
+  /api/security-requests/{id}/draft-generations:
+    post:
+      tags:
+      - generated-document-controller
+      operationId: generateDraft
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDocumentCommand"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/GeneratedDocumentResponse"
   /api/security-requests/{id}/assignments:
     get:
       tags:
@@ -1192,6 +1280,30 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberResponse"
+  /api/members/{username}/role-assignments:
+    post:
+      tags:
+      - member-controller
+      operationId: assignRole
+      parameters:
+      - name: username
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleAssignmentCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MemberDetail"
   /api/llm-configurations:
     get:
       tags:
@@ -1574,6 +1686,58 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberResponse"
+  /api/analysis-jobs/{id}/applications:
+    post:
+      tags:
+      - analysis-job-controller
+      operationId: apply
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalysisApplicationCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/AnalysisApplicationResult"
+  /api/security-requests/{id}/answers:
+    patch:
+      tags:
+      - security-request-controller
+      operationId: answerBatch
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerBatchCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnswerResponse"
   /api/notifications/{id}:
     patch:
       tags:
@@ -1599,6 +1763,33 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/NotificationResponse"
+  /api/business-cases/{id}/answers:
+    patch:
+      tags:
+      - business-case-controller
+      operationId: answerBatch_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerBatchCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnswerResponse"
   /api/todo-summary:
     get:
       tags:
@@ -1661,6 +1852,34 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SubmissionResponse"
+  /api/security-requests:
+    get:
+      tags:
+      - security-request-controller
+      operationId: list_10
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: docType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: pageable
+        in: query
+        required: true
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSecurityRequestListItem"
   /api/security-requests/{id}:
     get:
       tags:
@@ -1684,7 +1903,7 @@ paths:
     get:
       tags:
       - supplement-controller
-      operationId: list_10
+      operationId: list_11
       parameters:
       - name: id
         in: path
@@ -1722,6 +1941,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/FirewallRuleResponse"
+  /api/security-requests/{id}/documents:
+    get:
+      tags:
+      - generated-document-controller
+      operationId: documentData
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: submissionId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/DocumentData"
   /api/security-requests/{id}/deadlines:
     get:
       tags:
@@ -1881,7 +2125,7 @@ paths:
     get:
       tags:
       - notification-controller
-      operationId: list_11
+      operationId: list_12
       parameters:
       - name: unreadOnly
         in: query
@@ -2047,7 +2291,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_12
+      operationId: list_13
       parameters:
       - name: effectiveStatus
         in: query
@@ -2207,6 +2451,67 @@ paths:
                 $ref: "#/components/schemas/AnalysisJobResponse"
 components:
   schemas:
+    SupplementAnswerCommand:
+      type: object
+      properties:
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    SupplementResponse:
+      type: object
+      properties:
+        supplementId:
+          type: integer
+          format: int64
+        securityRequestId:
+          type: integer
+          format: int64
+        reviewId:
+          type: integer
+          format: int64
+        field:
+          type: string
+          enum:
+          - INFRA
+          - SECURITY
+        fieldKeys:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+        status:
+          type: string
+          enum:
+          - OPEN
+          - ANSWERED
+          - RESOLVED
+        statusLabel:
+          type: string
+        requestedBy:
+          type: string
+        requestedAt:
+          type: string
+          format: date-time
+        answerNote:
+          type: string
+        answeredAt:
+          type: string
+          format: date-time
+        resolvedBy:
+          type: string
+        resolvedAt:
+          type: string
+          format: date-time
+        revision:
+          type: integer
+          format: int64
     ConfirmationCommand:
       type: object
       properties:
@@ -2616,6 +2921,17 @@ components:
           format: email
           maxLength: 200
           minLength: 0
+    ActivationCommand:
+      type: object
+      properties:
+        active:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - reason
     LlmConfigurationCommand:
       type: object
       properties:
@@ -3104,67 +3420,6 @@ components:
         updatedAt:
           type: string
           format: date-time
-    SupplementAnswerCommand:
-      type: object
-      properties:
-        note:
-          type: string
-          maxLength: 2000
-          minLength: 0
-        expectedRevision:
-          type: integer
-          format: int64
-      required:
-      - expectedRevision
-    SupplementResponse:
-      type: object
-      properties:
-        supplementId:
-          type: integer
-          format: int64
-        securityRequestId:
-          type: integer
-          format: int64
-        reviewId:
-          type: integer
-          format: int64
-        field:
-          type: string
-          enum:
-          - INFRA
-          - SECURITY
-        fieldKeys:
-          type: array
-          items:
-            type: string
-        reason:
-          type: string
-        status:
-          type: string
-          enum:
-          - OPEN
-          - ANSWERED
-          - RESOLVED
-        statusLabel:
-          type: string
-        requestedBy:
-          type: string
-        requestedAt:
-          type: string
-          format: date-time
-        answerNote:
-          type: string
-        answeredAt:
-          type: string
-          format: date-time
-        resolvedBy:
-          type: string
-        resolvedAt:
-          type: string
-          format: date-time
-        revision:
-          type: integer
-          format: int64
     FinalConfirmationCommand:
       type: object
       properties:
@@ -3226,6 +3481,14 @@ components:
           type: boolean
         number:
           type: boolean
+        missingNode:
+          type: boolean
+        valueNode:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        integralNumber:
+          type: boolean
         nodeType:
           type: string
           enum:
@@ -3238,36 +3501,28 @@ components:
           - OBJECT
           - POJO
           - STRING
-        binary:
+        floatingPointNumber:
           type: boolean
-        textual:
+        bigInteger:
           type: boolean
-          deprecated: true
         string:
           type: boolean
-        long:
+        pojo:
           type: boolean
         int:
           type: boolean
         double:
           type: boolean
-        pojo:
+        textual:
           type: boolean
-        short:
-          type: boolean
+          deprecated: true
         boolean:
           type: boolean
-        missingNode:
+        binary:
           type: boolean
-        bigDecimal:
+        long:
           type: boolean
-        floatingPointNumber:
-          type: boolean
-        integralNumber:
-          type: boolean
-        valueNode:
-          type: boolean
-        bigInteger:
+        short:
           type: boolean
         embeddedValue:
           type: boolean
@@ -3696,6 +3951,32 @@ components:
           - SECURITY
           - INFRA
           - ADMIN
+        department:
+          type: string
+        email:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+    RoleAssignmentCommand:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - APPLICANT
+          - SECURITY
+          - INFRA
+          - ADMIN
+        active:
+          type: boolean
+        reason:
+          type: string
+          maxLength: 1000
+          minLength: 0
+      required:
+      - reason
+      - role
     InquiryMessageCommand:
       type: object
       properties:
@@ -3970,6 +4251,65 @@ components:
       required:
       - password
       - username
+    AnalysisApplicationCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    AnalysisApplicationResult:
+      type: object
+      properties:
+        job:
+          $ref: "#/components/schemas/AnalysisJobResponse"
+        summaryProposal:
+          $ref: "#/components/schemas/AnswerResponse"
+        proposals:
+          type: array
+          items:
+            $ref: "#/components/schemas/RequestProposals"
+        warnings:
+          type: array
+          items:
+            type: string
+    RequestProposals:
+      type: object
+      properties:
+        securityRequestId:
+          type: integer
+          format: int64
+        result:
+          $ref: "#/components/schemas/AiProposalResult"
+    AnswerBatchCommand:
+      type: object
+      properties:
+        answers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
+          maxItems: 100
+          minItems: 0
+      required:
+      - answers
+    Item:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+          maxLength: 100
+          minLength: 0
+        value:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - fieldKey
+      - value
     NotificationReadCommand:
       type: object
       properties:
@@ -4084,6 +4424,76 @@ components:
         submittedAt:
           type: string
           format: date-time
+    Pageable:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+        sort:
+          type: array
+          items:
+            type: string
+    PageResponseSecurityRequestListItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityRequestListItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    SecurityRequestListItem:
+      type: object
+      properties:
+        securityRequestId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        caseTitle:
+          type: string
+        department:
+          type: string
+        applicantUsername:
+          type: string
+        docType:
+          type: string
+        stage:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+          - DRAFTING
+          - IN_REVIEW
+          - SUPPLEMENT_REQUESTED
+          - FINAL_REVIEW
+          - SUBMITTED
+          - CONFIRMED
+          - CLOSED
+          - WITHDRAWN
+        statusLabel:
+          type: string
+        revision:
+          type: integer
+          format: int64
+        updatedAt:
+          type: string
+          format: date-time
     SubmissionSummary:
       type: object
       properties:
@@ -4101,6 +4511,37 @@ components:
         submittedBy:
           type: string
         submittedAt:
+          type: string
+          format: date-time
+    DocumentData:
+      type: object
+      properties:
+        securityRequestId:
+          type: integer
+          format: int64
+        submissionId:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - DRAFT
+          - SUBMITTED
+          - CONFIRMED
+        kindLabel:
+          type: string
+        docTypeName:
+          type: string
+        caseTitle:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSection"
+        unconfirmedCount:
+          type: integer
+          format: int32
+        generatedAt:
           type: string
           format: date-time
     AuditEventResponse:
@@ -4150,6 +4591,7 @@ components:
           - MEMBER_REGISTERED
           - MEMBER_ROLE_CHANGED
           - MEMBER_CONTACT_CHANGED
+          - MEMBER_ACTIVATION_CHANGED
           - REMINDER_SCHEDULE_CHANGED
           - LLM_CALLED
           - LLM_CALL_FAILED
@@ -4179,6 +4621,7 @@ components:
           - STAGE_ADVANCED
           - SUPPLEMENT_REQUESTED
           - SUPPLEMENT_ANSWERED
+          - SUPPLEMENT_RESOLVED
           - STAGE_RETURNED
           - REQUEST_CLOSED
           - SUBMITTED
@@ -4204,6 +4647,7 @@ components:
           - ANALYSIS_REQUESTED
           - ANALYSIS_FINISHED
           - ANALYSIS_FAILED
+          - ANALYSIS_APPLIED
           - CONFIGURATION_DRAFT_SAVED
           - CONFIGURATION_PUBLISHED
         reason:

@@ -6,8 +6,10 @@ import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.domain.Member;
+import kr.securityadvisor.auth.dto.ActivationCommand;
 import kr.securityadvisor.auth.dto.ContactChangeCommand;
 import kr.securityadvisor.auth.dto.MemberDetail;
+import kr.securityadvisor.auth.dto.RoleAssignmentCommand;
 import kr.securityadvisor.auth.dto.RoleChangeCommand;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
@@ -80,6 +82,50 @@ public class MemberAdminService {
                     "역할 변경 " + before + " → " + command.role());
         }
         return MemberDetail.from(member, clock.instant());
+    }
+
+    /**
+     * 활성/비활성 설정(관리자). 멱등. 자기 자신·마지막 활성 관리자 비활성화는 422.
+     * 비활성 계정은 로그인·자동 배정에서 빠지고, 기존 배정은 유지된 채 "재배정 필요"로 다룬다(담당자 목록은 assignment 가 관리).
+     */
+    @Transactional
+    public MemberDetail setActivation(MemberPrincipal admin, String username, ActivationCommand command) {
+        admin.requireAnyRole(MemberRole.ADMIN);
+        Member member = requireMember(username);
+        if (member.isActive() == command.active()) {
+            return MemberDetail.from(member, clock.instant());
+        }
+        if (!command.active()) {
+            if (admin.username().equals(username)) {
+                throw new DomainRuleViolationException("자기 자신의 계정은 비활성화할 수 없습니다");
+            }
+            if (member.getRole() == MemberRole.ADMIN
+                    && memberRepository.countByRoleAndActiveTrue(MemberRole.ADMIN) <= 1) {
+                throw new DomainRuleViolationException("마지막 활성 기관 관리자는 비활성화할 수 없습니다");
+            }
+            member.deactivate();
+        } else {
+            member.activate();
+        }
+        auditRecorder.record(
+                admin,
+                AuditTargetType.MEMBER,
+                username,
+                null,
+                AuditAction.MEMBER_ACTIVATION_CHANGED,
+                command.reason(),
+                "계정 " + (command.active() ? "활성화" : "비활성화"));
+        return MemberDetail.from(member, clock.instant());
+    }
+
+    /** 역할과 활성 상태를 한 번에(관리자 화면의 "역할 지정" 명령). 각 규칙은 개별 메서드와 같다. */
+    @Transactional
+    public MemberDetail assignRole(MemberPrincipal admin, String username, RoleAssignmentCommand command) {
+        MemberDetail detail = changeRole(admin, username, new RoleChangeCommand(command.role(), command.reason()));
+        if (command.active() != null) {
+            detail = setActivation(admin, username, new ActivationCommand(command.active(), command.reason()));
+        }
+        return detail;
     }
 
     /** 연락처 변경 — 본인 또는 기관 관리자. 값은 감사 요약에 넣지 않는다(개인정보). */

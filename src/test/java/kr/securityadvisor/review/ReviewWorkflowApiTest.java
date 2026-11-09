@@ -193,6 +193,34 @@ class ReviewWorkflowApiTest {
         assertThat(answered).hasStatus(HttpStatus.CREATED);
         assertThat(answered).bodyJson().extractingPath("$.status").isEqualTo("ANSWERED");
         assertThat(requestStatus(requestId)).isEqualTo("IN_REVIEW");
+        // 담당자 명시적 해소(PUT …/resolution): 답변된 보완만, 그 분야 배정자만, 멱등
+        long supplementRevision = ((Number) ((List<?>) JsonPath.read(
+                                mvc.get()
+                                        .uri("/api/security-requests/{id}/supplements", requestId)
+                                        .with(authentication(SECURITY))
+                                        .exchange()
+                                        .getResponse()
+                                        .getContentAsString(),
+                                "$[?(@.supplementId==" + supplementId + ")].revision"))
+                        .get(0))
+                .longValue();
+        assertThat(mvc.put()
+                        .uri("/api/supplements/{id}/resolution", supplementId)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"확인\",\"expectedRevision\":" + supplementRevision + "}"))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.put()
+                        .uri("/api/supplements/{id}/resolution", supplementId)
+                        .with(authentication(SECURITY))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"note\":\"확인\",\"expectedRevision\":" + supplementRevision + "}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.status")
+                .isEqualTo("RESOLVED");
         // 답변 후 SECURITY 협의 기한이 남은 영업일로 재개된다
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/deadlines", requestId)

@@ -2,7 +2,9 @@ package kr.securityadvisor.auth.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import kr.securityadvisor.auth.dto.LoginRequest;
 import kr.securityadvisor.auth.dto.MemberResponse;
 import kr.securityadvisor.auth.dto.MemberResponse.LoginResult;
@@ -38,7 +40,16 @@ public class AuthController {
             HttpServletResponse httpResponse) {
         LoginResult result = authService.login(request);
         sessionAuthenticator.login(result.principal(), httpRequest, httpResponse);
-        return result.member();
+        return result.member().withExpiresAt(expiresAt(httpRequest));
+    }
+
+    /** 세션 만료 예정 시각: 마지막 접근 + 비활동 허용 시간. 세션이 없으면 null. */
+    static Instant expiresAt(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getMaxInactiveInterval() <= 0) {
+            return null;
+        }
+        return Instant.ofEpochMilli(session.getLastAccessedTime()).plusSeconds(session.getMaxInactiveInterval());
     }
 
     /** 로그아웃. 세션을 무효화한다. 로그인하지 않은 상태여도 204. */
@@ -50,7 +61,7 @@ public class AuthController {
 
     /** 현재 로그인한 사용자. 세션이 없거나 만료되면 401. */
     @GetMapping("/me")
-    public MemberResponse me(@CurrentMember MemberPrincipal member) {
-        return authService.getCurrentMember(member);
+    public MemberResponse me(@CurrentMember MemberPrincipal member, HttpServletRequest httpRequest) {
+        return authService.getCurrentMember(member).withExpiresAt(expiresAt(httpRequest));
     }
 }

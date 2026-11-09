@@ -5,24 +5,31 @@ import java.util.List;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
 import kr.securityadvisor.assignment.dto.ReassignRequest;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
+import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
+import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
 import kr.securityadvisor.request.dto.DeadlineResponse;
+import kr.securityadvisor.request.dto.SecurityRequestListItem;
 import kr.securityadvisor.request.dto.SecurityRequestResponse;
 import kr.securityadvisor.request.dto.WithdrawRequest;
 import kr.securityadvisor.request.service.AnswerService;
 import kr.securityadvisor.request.service.SecurityRequestService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -44,6 +51,25 @@ public class SecurityRequestController {
     }
 
     /** 서류별 항목 답변 저장(사용자 답변). */
+    /** 역할별 내 신청 목록: 신청자는 자기 사업 건의 신청, 담당자는 내게 활성 배정된 신청, 관리자는 전체. status·docType 필터(선택). */
+    @GetMapping
+    public PageResponse<SecurityRequestListItem> list(
+            @CurrentMember MemberPrincipal member,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String docType,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return securityRequestService.list(member, status, docType, pageable);
+    }
+
+    /** 서류별 답변 일괄 저장(PATCH). 항목마다 PUT 과 같은 규칙, 한 트랜잭션. */
+    @PatchMapping("/{id}/answers")
+    public List<AnswerResponse> answerBatch(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody AnswerBatchCommand command) {
+        return answerService.answerRequestFields(member, id, command);
+    }
+
     @PutMapping("/{id}/answers/{fieldKey}")
     public AnswerResponse answer(
             @CurrentMember MemberPrincipal member,

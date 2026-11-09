@@ -2,11 +2,13 @@ package kr.securityadvisor.request.controller;
 
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.dto.AddSecurityRequestCommand;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
+import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
 import kr.securityadvisor.request.dto.BusinessCaseListItem;
@@ -22,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -94,6 +97,15 @@ public class BusinessCaseController {
     }
 
     /** 공통 항목 답변 저장(사용자 답변). */
+    /** 공통 답변 일괄 저장(PATCH). 항목마다 PUT 과 같은 규칙, 한 트랜잭션. */
+    @PatchMapping("/{id}/answers")
+    public List<AnswerResponse> answerBatch(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody AnswerBatchCommand command) {
+        return answerService.answerCaseFields(member, id, command);
+    }
+
     @PutMapping("/{id}/answers/{fieldKey}")
     public AnswerResponse answer(
             @CurrentMember MemberPrincipal member,

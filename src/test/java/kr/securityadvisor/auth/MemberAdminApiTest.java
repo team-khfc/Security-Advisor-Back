@@ -21,6 +21,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
+import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
 /** F-11: 역할 부여는 기관 관리자만, 자기 자신·마지막 관리자는 보호(불변식 32). */
 @Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
@@ -103,6 +104,44 @@ class MemberAdminApiTest {
                 .extractingPath("$.email")
                 .isEqualTo("synthetic@demo.invalid");
 
+        // 활성/비활성: 비활성화 → 로그인 불가 상태(active=false), 자기 자신은 422, 다시 활성화. role-assignments 는 역할+활성 한 번에
+        assertThat(mvc.put()
+                        .uri("/api/members/{u}/activation", "role.target1")
+                        .with(authentication(ADMIN))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false,\"reason\":\"전보(합성)\"}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.active")
+                .isEqualTo(false);
+        assertThat(mvc.put()
+                        .uri("/api/members/{u}/activation", "admin")
+                        .with(authentication(ADMIN))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"active\":false,\"reason\":\"실수\"}"))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        MvcTestResult assigned = mvc.post()
+                .uri("/api/members/{u}/role-assignments", "role.target1")
+                .with(authentication(ADMIN))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"role\":\"SECURITY\",\"active\":true,\"reason\":\"복귀(합성)\"}")
+                .exchange();
+        assertThat(assigned).hasStatus(HttpStatus.CREATED);
+        assertThat(assigned).bodyJson().extractingPath("$.role").isEqualTo("SECURITY");
+        assertThat(assigned).bodyJson().extractingPath("$.active").isEqualTo(true);
+        // 세션 연장 자원: 만료 예정 시각을 돌려준다
+        assertThat(mvc.post()
+                        .uri("/api/sessions/current/renewals")
+                        .with(authentication(ADMIN))
+                        .with(csrf()))
+                .hasStatus(HttpStatus.CREATED)
+                .bodyJson()
+                .extractingPath("$.expiresAt")
+                .isNotNull();
+
         // 두 번째 관리자를 만들면 그 사람을 다시 강등할 수 있다(마지막 관리자가 아니므로)
         assertThat(changeRole(ADMIN, "role.target1", "ADMIN")).hasStatusOk();
         assertThat(changeRole(ADMIN, "role.target1", "APPLICANT"))
@@ -122,8 +161,7 @@ class MemberAdminApiTest {
                 .hasStatus(HttpStatus.CREATED);
     }
 
-    private org.springframework.test.web.servlet.assertj.MvcTestResult changeRole(
-            Authentication actor, String username, String role) {
+    private MvcTestResult changeRole(Authentication actor, String username, String role) {
         return mvc.put()
                 .uri("/api/members/{u}/role", username)
                 .with(authentication(actor))

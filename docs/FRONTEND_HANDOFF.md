@@ -85,7 +85,28 @@ docker compose up --build # db(PostgreSQL 17) + app, http://localhost:8080
 - 시연 수치(지표)는 "합성 데이터 기준"을 화면에 적는다. 서류 PDF 바닥글에도 이미 들어 있다.
 - 미구현 기능(HWPX 출력, 메일 알림 등)은 "준비 중"으로 보이게 한다. 구현된 것처럼 보이는 버튼을 두지 않는다.
 
-## 6. 백엔드에 물어볼 것·바꿀 것이 생기면
+## 6. Front 모의 계약(contract/README.md 기준)과의 대응표 — 2026-11-09
+
+Front 저장소 `228022c` 의 모의 경로를 대조해 Back 에 맞춰 넣은 것과 의미가 다른 것을 정리했다.
+
+| Front 모의 경로 | Back | 비고 |
+|---|---|---|
+| `GET /api/security-requests` | **추가됨** `GET /api/security-requests?status&docType&page&size` | 역할별 내 신청. 응답은 `SecurityRequestListItem`(`securityRequestId`·`caseTitle`…) |
+| `PATCH /api/business-cases/{id}`(공통 답변 일괄) / `PATCH …/security-requests/{id}/answers` | **추가됨** `PATCH /api/business-cases/{id}/answers`, `PATCH /api/security-requests/{id}/answers` | body `{answers:[{fieldKey,value,expectedRevision?}]}`. 사업 개요 수정은 그대로 `PUT /api/business-cases/{id}` |
+| `POST /api/analysis-jobs/{id}/applications` | **추가됨** | 요약 → `project.summary` AI 제안 + 미제출 신청 AI 항목 제안. 응답은 `AnalysisApplicationResult`(사업 건이 아님) |
+| `PUT /api/supplements/{id}/resolution` | **추가됨** | 그 분야 배정 담당자, body `{note?, expectedRevision}` |
+| `POST …/draft-generations` | **추가됨**(별칭) | = `generated-documents` + `aiSupplement:true` |
+| `GET …/documents?submissionId` | **추가됨** | JSON 데이터. 정식 파일은 `…/download?format=PDF` |
+| `POST /api/members/{id}/role-assignments {role, active, reason}` | **추가됨** + `PUT …/activation` | `{id}` 는 `username` |
+| `GET /api/auth/me` 의 `expiresAt`, `POST /api/sessions/current/renewals` | **추가됨** | 세션은 비활동 30분, 요청마다 연장 |
+| `POST /api/business-cases/{id}/analysis-jobs`(multipart text+file) | 의미 다름 | Back 은 업로드(`…/uploaded-files`) → `POST …/analysis-jobs {uploadedFileId}` 202 → 폴링. 직접 입력 개요는 `PUT /api/business-cases/{id}`·`summary` |
+| `POST /api/security-requests/{id}/supplements` | 경로 다름 | Back 은 `POST /api/reviews/{id}/supplements`(협의 아래) |
+| `POST /api/demo-sessions` | **추가하지 않음** | 비밀번호 없는 진입은 실제 서버에 두지 않는다. 로그인으로 대체 |
+| 신청 상세의 집계(reviews·assignments·supplements·returns·deadlines·submissions·finalConfirmations·`blockers`·`allowedActions`) | 자원별 조회 | `…/reviews`, `…/assignments`, `…/supplements`, `…/stage-returns`, `…/deadlines`, `…/submissions`, `/api/submissions/{id}/final-confirmations`. 제출 가능 여부는 제출 시도의 422 `detail` 로 안다 |
+
+식별자는 숫자(`businessCaseId`·`securityRequestId`·`reviewId`…), 답변은 `fieldKey`·`valueSource`·`confirmed`·`needsReview`·`revision`, 기한은 `kind` REVIEW/SUPPLEMENT_RESPONSE/FINAL_CONFIRMATION·`status` ON_TRACK/IMMINENT/OVERDUE/ENDED, 협의 완료 body 는 `opinion`+`checklist`, 재배정은 `assigneeUsername`, 감사는 `actorUsername`·`actorRole`이다.
+
+## 7. 백엔드에 물어볼 것·바꿀 것이 생기면
 
 - 계약 변경은 Back 저장소 이슈/PR 로. `openapi.yaml` 은 Back 이 재생성한다.
 - 모르는 422 메시지가 나오면 `README.md` 표의 "응답" 열에 조건이 적혀 있다.

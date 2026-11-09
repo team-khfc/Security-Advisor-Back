@@ -168,6 +168,78 @@ class BusinessCaseApiTest {
     }
 
     @Test
+    @DisplayName("내 신청 목록(역할별)과 답변 일괄 저장(PATCH): 남의 신청은 목록에 없고, 잘못된 상태 이름은 400, 일괄 저장은 항목별 규칙 적용")
+    void listAndBatchAnswers() throws Exception {
+        MvcTestResult created = mvc.post()
+                .uri("/api/business-cases")
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                        "{\"title\":\"목록 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .exchange();
+        String body = created.getResponse().getContentAsString();
+        Long caseId = ((Number) JsonPath.read(body, "$.businessCaseId")).longValue();
+        Long requestId = ((Number) JsonPath.read(body, "$.requests[0].securityRequestId")).longValue();
+
+        MvcTestResult mine = mvc.get()
+                .uri("/api/security-requests?status=DRAFTING&size=100")
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(mine).hasStatusOk();
+        List<Integer> ids = JsonPath.read(mine.getResponse().getContentAsString(), "$.content[*].securityRequestId");
+        assertThat(ids).contains(requestId.intValue());
+        assertThat(mine)
+                .bodyJson()
+                .extractingPath("$.content[0].caseTitle")
+                .asString()
+                .isNotBlank();
+        List<Integer> others = JsonPath.read(
+                mvc.get()
+                        .uri("/api/security-requests?size=100")
+                        .with(authentication(OTHER_APPLICANT))
+                        .exchange()
+                        .getResponse()
+                        .getContentAsString(),
+                "$.content[*].securityRequestId");
+        assertThat(others).doesNotContain(requestId.intValue());
+        assertThat(mvc.get().uri("/api/security-requests?status=NOPE").with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.BAD_REQUEST);
+
+        // 일괄 저장: 공통 2건 + 서류별 1건, 응답은 저장된 답변 목록. 없는 항목이 섞이면 전체 실패(404)
+        MvcTestResult batch = mvc.patch()
+                .uri("/api/business-cases/{id}/answers", caseId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"answers\":[{\"fieldKey\":\"project.period\",\"value\":\"2026-12-01~2027-11-30\"},"
+                        + "{\"fieldKey\":\"data.personal_info\",\"value\":\"false\"}]}")
+                .exchange();
+        assertThat(batch).hasStatusOk();
+        assertThat(batch).bodyJson().extractingPath("$.length()").isEqualTo(2);
+        assertThat(batch).bodyJson().extractingPath("$[0].valueSource").isEqualTo("USER_ANSWER");
+        assertThat(mvc.patch()
+                        .uri("/api/security-requests/{id}/answers", requestId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"answers\":[{\"fieldKey\":\"firewall.port\",\"value\":\"443\"}]}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[0].fieldKey")
+                .isEqualTo("firewall.port");
+        assertThat(
+                        mvc.patch()
+                                .uri("/api/security-requests/{id}/answers", requestId)
+                                .with(authentication(APPLICANT))
+                                .with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"answers\":[{\"fieldKey\":\"firewall.protocol\",\"value\":\"TCP\"},{\"fieldKey\":\"no.such\",\"value\":\"x\"}]}"))
+                .hasStatus(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("기존 사업 건에 서류 추가: 1단계 신청이 생기고 공통 답변을 공유, 같은 유형 중복·게시본에 없는 유형은 422, 남의 사업 건은 404")
     void addRequestToExistingCase() throws Exception {
         MvcTestResult created = mvc.post()

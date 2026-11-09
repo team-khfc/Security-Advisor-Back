@@ -175,6 +175,13 @@ public class Member extends BaseTimeEntity {
         this.active = false;
     }
 
+    /** 비활성 계정을 다시 활성화한다. 잠금·실패 횟수는 초기화한다. */
+    public void activate() {
+        this.active = true;
+        this.failedLoginCount = 0;
+        this.lockedUntil = null;
+    }
+
     /**
      * 기관 관리자가 역할을 바꾼다(불변식 32 — 역할 부여는 관리자만). 같은 역할이면 아무것도 바꾸지 않는다.
      * 호출자(서비스)가 관리자 권한·마지막 관리자 보호를 검사한 뒤 호출한다.

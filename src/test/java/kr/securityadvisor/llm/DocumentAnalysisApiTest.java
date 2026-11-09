@@ -147,6 +147,40 @@ class DocumentAnalysisApiTest {
                 .bodyJson()
                 .extractingPath("$.length()")
                 .isEqualTo(1);
+
+        // 분석 결과 적용: 요약이 사업 개요 AI 제안(미확정)으로 들어가고 미제출 신청에 AI 항목 제안이 실행된다. revision 틀리면 409
+        long caseRevision = ((Number) JsonPath.read(
+                        mvc.get()
+                                .uri("/api/business-cases/{id}", caseId)
+                                .with(authentication(APPLICANT))
+                                .exchange()
+                                .getResponse()
+                                .getContentAsString(),
+                        "$.revision"))
+                .longValue();
+        assertThat(mvc.post()
+                        .uri("/api/analysis-jobs/{id}/applications", jobId)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":" + (caseRevision + 99) + "}"))
+                .hasStatus(HttpStatus.CONFLICT);
+        MvcTestResult applied = mvc.post()
+                .uri("/api/analysis-jobs/{id}/applications", jobId)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":" + caseRevision + "}")
+                .exchange();
+        assertThat(applied).hasStatus(HttpStatus.CREATED);
+        // 사업 개요는 사용자가 확인한 값이 있으므로 덮어쓰지 않고 경고만 남긴다(불변 원칙 1).
+        assertThat(applied).bodyJson().extractingPath("$.summaryProposal").isNull();
+        assertThat(applied).bodyJson().extractingPath("$.warnings").asArray().hasSize(1);
+        assertThat(applied).bodyJson().extractingPath("$.proposals").asArray().hasSize(1);
+        assertThat(applied)
+                .bodyJson()
+                .extractingPath("$.proposals[0].result.modelReference")
+                .isEqualTo("fake/offline");
     }
 
     private static Authentication auth(String username, String displayName, MemberRole role) {

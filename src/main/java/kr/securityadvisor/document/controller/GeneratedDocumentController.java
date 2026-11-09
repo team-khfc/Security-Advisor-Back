@@ -39,6 +39,37 @@ public class GeneratedDocumentController {
                 .body(response);
     }
 
+    /** AI 보완 초안 생성 별칭(화면 호환): generated-documents 에 aiSupplement=true 로 생성하는 것과 같다. */
+    @PostMapping("/api/security-requests/{id}/draft-generations")
+    public ResponseEntity<GeneratedDocumentResponse> generateDraft(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @RequestBody(required = false) GenerateDocumentCommand command) {
+        GenerateDocumentCommand withAi =
+                new GenerateDocumentCommand(command == null ? null : command.submissionId(), true);
+        GeneratedDocumentResponse response = documentService.generate(member, id, withAi);
+        return ResponseEntity.created(URI.create("/api/generated-documents/" + response.generatedDocumentId()))
+                .body(response);
+    }
+
+    /**
+     * 서류 데이터(JSON) 내려받기 — 현재 답변 또는 `submissionId` 제출본 스냅샷으로 렌더링한 섹션·값·출처. 저장하지 않는다.
+     * 정식 서류 파일(Markdown·PDF)은 generated-documents 의 download 를 쓴다.
+     */
+    @GetMapping("/api/security-requests/{id}/documents")
+    public ResponseEntity<DocumentService.DocumentData> documentData(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @RequestParam(required = false) Long submissionId) {
+        DocumentService.DocumentData data = documentService.previewData(member, id, submissionId);
+        String fileName = data.kindLabel() + "_" + id + (submissionId == null ? "" : "_s" + submissionId) + ".json";
+        String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encoded)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(data);
+    }
+
     @GetMapping("/api/security-requests/{id}/generated-documents")
     public List<GeneratedDocumentResponse> list(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
         return documentService.listForRequest(member, id);

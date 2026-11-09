@@ -22,6 +22,7 @@ import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
+import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
 import kr.securityadvisor.request.repository.AnswerRepository;
@@ -265,6 +266,34 @@ public class AnswerService {
                 AuditAction.ANSWER_AI_PROPOSED,
                 "AI 제안 " + modelReference + " 근거 " + evidenceReference);
         return AnswerResponse.from(answer);
+    }
+
+    /** 공통 답변 일괄 저장(PATCH). 항목마다 answerCaseField 와 같은 규칙, 한 트랜잭션. */
+    public List<AnswerResponse> answerCaseFields(
+            MemberPrincipal principal, Long businessCaseId, AnswerBatchCommand command) {
+        List<AnswerResponse> saved = new ArrayList<>();
+        for (AnswerBatchCommand.Item item : command.answers()) {
+            saved.add(answerCaseField(
+                    principal,
+                    businessCaseId,
+                    item.fieldKey(),
+                    new AnswerUpdateRequest(item.value(), item.expectedRevision())));
+        }
+        return saved;
+    }
+
+    /** 서류별 답변 일괄 저장(PATCH). 항목마다 answerRequestField 와 같은 규칙, 한 트랜잭션. */
+    public List<AnswerResponse> answerRequestFields(
+            MemberPrincipal principal, Long securityRequestId, AnswerBatchCommand command) {
+        List<AnswerResponse> saved = new ArrayList<>();
+        for (AnswerBatchCommand.Item item : command.answers()) {
+            saved.add(answerRequestField(
+                    principal,
+                    securityRequestId,
+                    item.fieldKey(),
+                    new AnswerUpdateRequest(item.value(), item.expectedRevision())));
+        }
+        return saved;
     }
 
     /**
