@@ -50,6 +50,7 @@ public class InterviewService {
             ASK는 질문에 설명만 한다(proposedValue=null). SUGGEST는 현재 항목의 답변 후보를 만든다.
             후보를 작성할 근거가 부족하면 proposedValue=null로 두고 reply에 필요한 추가 정보를 질문한다.
             BOOLEAN 후보는 '예' 또는 '아니요', NUMBER는 숫자, DATE_RANGE는 'YYYY-MM-DD ~ YYYY-MM-DD'로 쓴다.
+            사용자가 종료일 없는 상시 운영이라고 명시한 기간만 'YYYY-MM-DD ~ 종료일 없음'으로 쓴다.
             후보는 4000자 이하, 설명은 6000자 이하. 답변을 확정하거나 검토·제출·할당을 수행했다고 말하지 않는다.
             반드시 JSON 하나: {"reply":"설명 또는 추가 질문", "proposedValue":null, "evidence":["F","B"]}.
             evidence에는 이번에 제공한 자료 중 실제 인용한 태그만 포함한다. 모델명은 근거가 아니다.
@@ -310,8 +311,11 @@ public class InterviewService {
             case "DATE_RANGE" -> {
                 try {
                     String[] dates = value.split("\\s*~\\s*");
-                    yield dates.length == 2
-                            && !java.time.LocalDate.parse(dates[0]).isAfter(java.time.LocalDate.parse(dates[1]));
+                    if (dates.length != 2) yield false;
+                    java.time.LocalDate start = java.time.LocalDate.parse(dates[0]);
+                    yield dates[1].equals("종료일 없음")
+                            || dates[1].equals("상시")
+                            || !start.isAfter(java.time.LocalDate.parse(dates[1]));
                 } catch (RuntimeException invalid) {
                     yield false;
                 }

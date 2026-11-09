@@ -171,6 +171,24 @@ class InterviewApiTest {
     }
 
     @Test
+    @DisplayName("게시본에서 안내한 종료일 없는 기간도 추천 후보로 허용한다")
+    void openEndedPeriod() throws Exception {
+        long id = create();
+        doReturn(new LlmResult(
+                        "{\"reply\":\"입력한 기간입니다\",\"proposedValue\":\"2026-11-10 ~ 종료일 없음\",\"evidence\":[\"F\",\"B\"]}",
+                        "fake/test"))
+                .when(gateway)
+                .complete(any(), any(), any());
+        MvcTestResult result = ask(id, "SUGGEST", "project.period", APPLICANT);
+        assertThat(result)
+                .hasStatus(HttpStatus.CREATED)
+                .bodyJson()
+                .extractingPath("$.flagged")
+                .isEqualTo(false);
+        assertThat(apply(id, turnId(result))).hasStatusOk();
+    }
+
+    @Test
     @DisplayName("없는 출처·추측 IP·잘못된 입력 형식은 적용 가능한 후보로 노출하지 않는다")
     void rejectUnbackedOutput() throws Exception {
         long id = create();
