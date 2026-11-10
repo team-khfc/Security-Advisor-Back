@@ -4670,6 +4670,27 @@ components:
           type: boolean
         container:
           type: boolean
+        number:
+          type: boolean
+        double:
+          type: boolean
+        int:
+          type: boolean
+        string:
+          type: boolean
+        long:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        boolean:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        binary:
+          type: boolean
         nodeType:
           type: string
           enum:
@@ -4682,38 +4703,17 @@ components:
           - OBJECT
           - POJO
           - STRING
-        integralNumber:
-          type: boolean
         missingNode:
           type: boolean
-        bigDecimal:
-          type: boolean
         bigInteger:
+          type: boolean
+        integralNumber:
           type: boolean
         valueNode:
           type: boolean
         floatingPointNumber:
           type: boolean
-        string:
-          type: boolean
-        int:
-          type: boolean
-        pojo:
-          type: boolean
-        long:
-          type: boolean
-        double:
-          type: boolean
-        binary:
-          type: boolean
-        short:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        boolean:
-          type: boolean
-        number:
+        bigDecimal:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5802,6 +5802,23 @@ components:
         createdAt:
           type: string
           format: date-time
+    Context:
+      type: object
+      properties:
+        caseTitle:
+          type: string
+        department:
+          type: string
+        docType:
+          type: string
+        statusLabel:
+          type: string
+        stage:
+          type: integer
+          format: int32
+        updatedAt:
+          type: string
+          format: date-time
     PageResponseTodoItem:
       type: object
       properties:
@@ -5832,6 +5849,8 @@ components:
           type: string
         link:
           type: string
+        context:
+          $ref: "#/components/schemas/Context"
     TodoSummary:
       type: object
       properties:

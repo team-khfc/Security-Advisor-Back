@@ -69,6 +69,12 @@ class InboxAndTodoApiTest {
                 .exchange();
         assertThat(requested).hasStatus(HttpStatus.CREATED);
         Long securityReviewId = reviewId(requested.getResponse().getContentAsString(), "SECURITY");
+        assertThat(mvc.get().uri("/api/todos?page=0&size=100").with(authentication(INFRA)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.content[*].context.caseTitle")
+                .asArray()
+                .contains(title);
 
         // 요청함: 키워드(제목)로 걸러 한 건, 미배정 형제 신청(보안성검토)은 숨기고 미해결 보완 0
         MvcTestResult inbox = mvc.get()

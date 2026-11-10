@@ -55,7 +55,35 @@ public class TodoService {
         if (page < 0 || size < 1 || size > 100) throw new BadRequestException("페이지는 0 이상, 크기는 1~100이어야 합니다");
         List<TodoItem> items = items(principal);
         return new PageResponse<>(
-                items.stream().skip((long) page * size).limit(size).toList(), page, size, items.size());
+                items.stream()
+                        .skip((long) page * size)
+                        .limit(size)
+                        .map(this::withContext)
+                        .toList(),
+                page,
+                size,
+                items.size());
+    }
+
+    /** 권한 판정·페이지 선택 후 표시할 신청만 보강한다. 전체 목록을 상세 조회하지 않는다. */
+    private TodoItem withContext(TodoItem item) {
+        var request =
+                securityRequestRepository.findById(item.securityRequestId()).orElseThrow();
+        var business =
+                businessCaseRepository.findById(request.getBusinessCaseId()).orElseThrow();
+        return new TodoItem(
+                item.key(),
+                item.kind(),
+                item.securityRequestId(),
+                item.title(),
+                item.link(),
+                new TodoItem.Context(
+                        business.getTitle(),
+                        business.getDepartment(),
+                        request.getDocType().code(),
+                        request.getStatus().label(),
+                        request.getStage(),
+                        request.getUpdatedAt()));
     }
 
     private List<TodoItem> items(MemberPrincipal principal) {
