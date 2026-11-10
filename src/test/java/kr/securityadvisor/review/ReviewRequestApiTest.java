@@ -149,8 +149,14 @@ class ReviewRequestApiTest {
                 .extractingPath("$.totalElements")
                 .asNumber()
                 .isNotNull();
-        assertThat(mvc.get().uri("/api/audit-events").with(authentication(APPLICANT)))
-                .hasStatus(HttpStatus.FORBIDDEN);
+        // F-14: 신청자도 자기 신청의 업무 이력을 통합 목록에서 조회한다.
+        assertThat(mvc.get()
+                        .uri("/api/audit-events?targetType=SECURITY_REQUEST&targetId={id}", requestId)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.content[0].targetId")
+                .isEqualTo(String.valueOf(requestId));
     }
 
     @Test

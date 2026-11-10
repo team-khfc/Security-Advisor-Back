@@ -2,12 +2,7 @@ package kr.securityadvisor.request.service;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
 import kr.securityadvisor.assignment.dto.ReassignRequest;
 import kr.securityadvisor.assignment.service.AssignmentService;
@@ -16,7 +11,6 @@ import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
 import kr.securityadvisor.audit.service.AuditQueryService;
 import kr.securityadvisor.audit.service.AuditRecorder;
-import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.error.BadRequestException;
 import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.common.security.MemberPrincipal;
@@ -25,13 +19,14 @@ import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.DeadlineResponse;
-import kr.securityadvisor.request.dto.SecurityRequestListItem;
+import kr.securityadvisor.request.dto.RequestListQuery;
+import kr.securityadvisor.request.dto.RequestListResponse;
 import kr.securityadvisor.request.dto.SecurityRequestResponse;
 import kr.securityadvisor.request.dto.WithdrawRequest;
 import kr.securityadvisor.request.repository.BusinessCaseRepository;
+import kr.securityadvisor.request.repository.RequestListingRepository;
 import kr.securityadvisor.request.repository.SecurityRequestRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,61 +49,19 @@ public class SecurityRequestService {
     private final BusinessCaseRepository businessCaseRepository;
     private final Clock clock;
 
-    /**
-     * 역할별 "내 신청" 목록(최근 수정순). 신청자: 자기 사업 건의 신청 / 담당자: 내게 활성 배정된 신청 / 관리자: 전체.
-     * status·docType 은 선택 필터. 시연 규모에서 메모리 필터·페이지로 충분하다.
-     *
-     * @throws BadRequestException 상태 이름이 틀릴 때(400)
-     */
-    public PageResponse<SecurityRequestListItem> list(
-            MemberPrincipal principal, String status, String docType, Pageable pageable) {
-        RequestStatus statusFilter = null;
-        if (status != null && !status.isBlank()) {
+    private final RequestListingRepository listingRepository;
+
+    /** 권한·검색 조건을 적용한 뒤 DB에서 페이지와 업무함별 건수를 조회한다. */
+    public RequestListResponse list(MemberPrincipal principal, RequestListQuery filter) {
+        if (filter.status() != null) {
             try {
-                statusFilter = RequestStatus.valueOf(status.strip().toUpperCase(Locale.ROOT));
+                RequestStatus.valueOf(filter.status());
             } catch (IllegalArgumentException e) {
-                throw new BadRequestException("status 값이 올바르지 않습니다: " + status);
+                throw new BadRequestException("status 값이 올바르지 않습니다");
             }
         }
-        DocTypeCode docTypeFilter = null;
-        if (docType != null && !docType.isBlank()) {
-            try {
-                docTypeFilter = DocTypeCode.of(docType);
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("docType 값이 올바르지 않습니다: " + docType);
-            }
-        }
-        List<SecurityRequest> visible = switch (principal.role()) {
-            case APPLICANT ->
-                businessCaseRepository.findByApplicantUsernameOrderByIdAsc(principal.username()).stream()
-                        .flatMap(c -> securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(c.getId()).stream())
-                        .toList();
-            case SECURITY, INFRA ->
-                assignmentService.listMine(principal).stream()
-                        .map(AssignmentResponse::securityRequestId)
-                        .distinct()
-                        .map(id -> securityRequestRepository.findById(id).orElse(null))
-                        .filter(Objects::nonNull)
-                        .toList();
-            case ADMIN -> securityRequestRepository.findAll();
-        };
-        final RequestStatus st = statusFilter;
-        final DocTypeCode dt = docTypeFilter;
-        Map<Long, BusinessCase> cases = new HashMap<>();
-        List<SecurityRequestListItem> items = visible.stream()
-                .filter(r -> st == null || r.getStatus() == st)
-                .filter(r -> dt == null || dt.equals(r.getDocType()))
-                .sorted(Comparator.comparing(SecurityRequest::getUpdatedAt).reversed())
-                .map(r -> SecurityRequestListItem.from(
-                        r,
-                        cases.computeIfAbsent(
-                                r.getBusinessCaseId(),
-                                id -> businessCaseRepository.findById(id).orElseThrow())))
-                .toList();
-        int from = (int) Math.min(pageable.getOffset(), items.size());
-        int to = Math.min(from + pageable.getPageSize(), items.size());
-        return new PageResponse<>(
-                items.subList(from, to), pageable.getPageNumber(), pageable.getPageSize(), items.size());
+        if (filter.docType() != null) DocTypeCode.of(filter.docType());
+        return listingRepository.search(principal, filter);
     }
 
     /** 신청 상세(서류별 답변 포함). */
@@ -166,6 +119,7 @@ public class SecurityRequestService {
     /** 신청의 처리 이력(감사 이력 중 이 신청을 대상으로 한 것). 신청자는 자기 신청만 본다. */
     public List<AuditEventResponse> auditTrail(MemberPrincipal principal, Long securityRequestId) {
         accessPolicy.viewableRequest(principal, securityRequestId);
-        return auditQueryService.forTarget(AuditTargetType.SECURITY_REQUEST, String.valueOf(securityRequestId));
+        return auditQueryService.forTarget(
+                principal, AuditTargetType.SECURITY_REQUEST, String.valueOf(securityRequestId));
     }
 }
