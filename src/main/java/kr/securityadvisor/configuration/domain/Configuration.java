@@ -8,8 +8,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import kr.securityadvisor.common.entity.BaseTimeEntity;
-import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
+import kr.securityadvisor.common.error.RevisionConflictException;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -74,7 +74,7 @@ public class Configuration extends BaseTimeEntity {
 
     public void requireRevision(long expectedRevision) {
         if (expectedRevision != revision) {
-            throw new ConflictException("설정 초안이 다른 곳에서 수정되었습니다(revision " + revision + ")");
+            throw new RevisionConflictException("다른 관리자가 설정 초안을 수정했습니다. 입력한 내용을 보존한 채 최신 초안을 확인해 주세요", revision);
         }
     }
 

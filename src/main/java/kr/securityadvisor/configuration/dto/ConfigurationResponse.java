@@ -1,6 +1,8 @@
 package kr.securityadvisor.configuration.dto;
 
 import java.time.Instant;
+import java.util.List;
+import kr.securityadvisor.common.schema.FieldDefinition;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.configuration.domain.Configuration;
 
@@ -13,9 +15,11 @@ public record ConfigurationResponse(
         String note,
         String updatedBy,
         Instant updatedAt,
-        long revision) {
+        long revision,
+        List<FieldDefinition> builtInFields) {
 
-    public static ConfigurationResponse from(Configuration c, FieldSchema draft, int currentPublishedVersion) {
+    public static ConfigurationResponse from(
+            Configuration c, FieldSchema draft, int currentPublishedVersion, List<FieldDefinition> builtInFields) {
         return new ConfigurationResponse(
                 c.getId(),
                 draft,
@@ -24,6 +28,7 @@ public record ConfigurationResponse(
                 c.getNote(),
                 c.getUpdatedBy(),
                 c.getUpdatedAt(),
-                c.getRevision());
+                c.getRevision(),
+                builtInFields);
     }
 }

@@ -4,12 +4,15 @@ import java.time.Clock;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
+import kr.securityadvisor.common.error.ConflictException;
+import kr.securityadvisor.common.error.DomainRuleViolationException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.configuration.domain.Configuration;
 import kr.securityadvisor.configuration.domain.Publication;
+import kr.securityadvisor.configuration.dto.ConfigurationComparisonResponse;
 import kr.securityadvisor.configuration.dto.ConfigurationDraftCommand;
 import kr.securityadvisor.configuration.dto.ConfigurationResponse;
 import kr.securityadvisor.configuration.dto.PublicationResponse;
@@ -26,7 +29,7 @@ import tools.jackson.databind.ObjectMapper;
  * 새 사업 건에만 적용된다(불변식 8). 검토 절차 순서(INFRA 선행)는 1차 범위 고정이라 편집 대상이 아니다.
  */
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ConfigurationService {
 
@@ -38,24 +41,26 @@ public class ConfigurationService {
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
-    /** 현재 초안(없으면 현재 게시본을 복사해 만든다). */
+    /** 설치 시 생성한 현재 초안을 읽는다. 조회는 초안을 수정하지 않는다. */
     public ConfigurationResponse current(MemberPrincipal principal) {
         principal.requireAnyRole(MemberRole.ADMIN);
         Publication published = currentPublication();
         Configuration configuration = configurationRepository
                 .findFirstByOrderByIdAsc()
-                .orElseGet(() -> configurationRepository.save(Configuration.startFrom(
-                        published.getVersion(), published.getFieldSchemaJson(), principal.username())));
+                .orElseThrow(() -> new NotFoundException("설정 초안이 없습니다"));
         return toResponse(configuration, published.getVersion());
     }
 
+    /** 검증된 초안을 저장하고 실제 저장된 revision을 반환한다. */
+    @Transactional
     public ConfigurationResponse saveDraft(
             MemberPrincipal principal, Long configurationId, ConfigurationDraftCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
-        Configuration configuration = require(configurationId);
+        Configuration configuration = requireForUpdate(configurationId);
         configuration.requireRevision(command.expectedRevision());
-        validator.validate(command.draft());
+        validate(command.draft());
         configuration.saveDraft(objectMapper.writeValueAsString(command.draft()), command.note(), principal.username());
+        configurationRepository.flush();
         auditRecorder.record(
                 principal,
                 AuditTargetType.CONFIGURATION,
@@ -69,16 +74,31 @@ public class ConfigurationService {
     }
 
     /** 게시: 초안을 검증해 새 게시본 버전으로 만든다. 기존 게시본·사업 건은 바뀌지 않는다. */
+    @Transactional
     public PublicationResponse publish(MemberPrincipal principal, Long configurationId, PublishCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
-        Configuration configuration = require(configurationId);
+        Configuration configuration = requireForUpdate(configurationId);
         configuration.requireRevision(command.expectedRevision());
         FieldSchema draft = objectMapper.readValue(configuration.getDraftFieldSchema(), FieldSchema.class);
-        validator.validate(draft);
-        int newVersion = currentPublication().getVersion() + 1;
-        Publication publication = publicationRepository.save(
-                Publication.publish(newVersion, configuration.getDraftFieldSchema(), clock.instant()));
+        validate(draft);
+        Publication current = currentPublication();
+        if (configuration.getBasedOnVersion() != current.getVersion()) {
+            throw new ConflictException("기준 게시본이 변경되었습니다. 최신 초안을 확인해 주세요");
+        }
+        if (SchemaComparison.compare(publicationService.getFieldSchema(current.getId()), draft)
+                .isEmpty()) {
+            throw new DomainRuleViolationException("게시본과 다른 내용이 없어 게시할 수 없습니다");
+        }
+        int newVersion = current.getVersion() + 1;
+        Publication publication = publicationRepository.save(Publication.publish(
+                newVersion,
+                configuration.getDraftFieldSchema(),
+                clock.instant(),
+                principal.username(),
+                configuration.getNote(),
+                current.getVersion()));
         configuration.markPublished(newVersion, principal.username());
+        configurationRepository.flush();
         auditRecorder.record(
                 principal,
                 AuditTargetType.CONFIGURATION,
@@ -94,6 +114,34 @@ public class ConfigurationService {
         return configurationRepository.findById(id).orElseThrow(() -> new NotFoundException("설정 초안을 찾을 수 없습니다: " + id));
     }
 
+    /** 저장된 초안을 현재 게시본과 비교한다. */
+    public ConfigurationComparisonResponse comparison(MemberPrincipal principal, Long id) {
+        principal.requireAnyRole(MemberRole.ADMIN);
+        Configuration configuration = require(id);
+        Publication current = currentPublication();
+        return new ConfigurationComparisonResponse(
+                current.getVersion(),
+                null,
+                configuration.getRevision(),
+                SchemaComparison.compare(
+                        publicationService.getFieldSchema(current.getId()),
+                        objectMapper.readValue(configuration.getDraftFieldSchema(), FieldSchema.class)));
+    }
+
+    private Configuration requireForUpdate(Long id) {
+        return configurationRepository
+                .findForUpdate(id)
+                .orElseThrow(() -> new NotFoundException("설정 초안을 찾을 수 없습니다: " + id));
+    }
+
+    private void validate(FieldSchema schema) {
+        validator.validate(schema);
+        Publication initial = publicationRepository
+                .findFirstByOrderByVersionAsc()
+                .orElseThrow(() -> new NotFoundException("기본 게시본이 없습니다"));
+        validator.validateBuiltIns(schema, publicationService.getFieldSchema(initial.getId()));
+    }
+
     private Publication currentPublication() {
         return publicationRepository
                 .findTopByOrderByVersionDesc()
@@ -102,6 +150,14 @@ public class ConfigurationService {
 
     private ConfigurationResponse toResponse(Configuration c, int publishedVersion) {
         return ConfigurationResponse.from(
-                c, objectMapper.readValue(c.getDraftFieldSchema(), FieldSchema.class), publishedVersion);
+                c,
+                objectMapper.readValue(c.getDraftFieldSchema(), FieldSchema.class),
+                publishedVersion,
+                publicationService
+                        .getFieldSchema(publicationRepository
+                                .findFirstByOrderByVersionAsc()
+                                .orElseThrow()
+                                .getId())
+                        .fields());
     }
 }
