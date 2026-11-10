@@ -21,7 +21,8 @@ public record AnswerResponse(
         String confirmedBy,
         Instant confirmedAt,
         boolean needsReview,
-        long revision) {
+        long revision,
+        boolean notApplicable) {
 
     public static AnswerResponse from(Answer answer) {
         return new AnswerResponse(
@@ -35,6 +36,7 @@ public record AnswerResponse(
                 answer.getConfirmedBy(),
                 answer.getConfirmedAt(),
                 answer.isNeedsReview(),
-                answer.getRevision());
+                answer.getRevision(),
+                answer.isNotApplicable());
     }
 }

@@ -17,6 +17,16 @@ public record AnswerBatchCommand(@NotEmpty @Size(max = 100) List<@Valid Item> an
     /** @param expectedRevision 기존 답변의 revision(새 항목이면 생략) */
     public record Item(
             @NotBlank @Size(max = 100) String fieldKey,
-            @NotBlank @Size(max = 4000) String value,
-            Long expectedRevision) {}
+            @Size(max = 4000) String value,
+            Long expectedRevision,
+            Boolean notApplicable) {
+        @com.fasterxml.jackson.annotation.JsonCreator
+        public Item {
+            notApplicable = Boolean.TRUE.equals(notApplicable);
+        }
+
+        public Item(String fieldKey, String value, Long expectedRevision) {
+            this(fieldKey, value, expectedRevision, false);
+        }
+    }
 }

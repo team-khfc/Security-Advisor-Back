@@ -59,7 +59,7 @@ public class FieldSchemaValidator {
                 throw new DomainRuleViolationException("질문 문구는 200자, 도움말은 2000자 이하여야 합니다: " + f.key());
             }
             if (f.type() == null
-                    || !Set.of("TEXT", "LONG_TEXT", "BOOLEAN", "DATE_RANGE", "NUMBER")
+                    || !Set.of("TEXT", "LONG_TEXT", "BOOLEAN", "DATE_RANGE", "NUMBER", "IP_ADDRESS", "PORT", "PROTOCOL")
                             .contains(f.type())) {
                 throw new DomainRuleViolationException("지원하지 않는 응답 형식입니다: " + f.key());
             }

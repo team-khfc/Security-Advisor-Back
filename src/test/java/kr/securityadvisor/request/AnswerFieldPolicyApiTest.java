@@ -31,6 +31,57 @@ class AnswerFieldPolicyApiTest {
     MockMvcTester mvc;
 
     @Test
+    @org.junit.jupiter.api.DisplayName("미해당은 별도 상태로 조회되며 재입력·충돌·필수 거부·일괄 롤백을 지킨다")
+    void notApplicableRoundTrip() throws Exception {
+        var created = mvc.post()
+                .uri("/api/business-cases")
+                .with(authentication(auth(MemberRole.APPLICANT)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                        "{\"title\":\"합성 미해당 검증\",\"summary\":\"합성\",\"department\":\"합성부서\",\"docTypes\":[\"SECURITY_REVIEW\"]}")
+                .exchange();
+        assertThat(created).hasStatus(201);
+        long id = number(created.getResponse().getContentAsString(), "$.requests[0].securityRequestId");
+        String base = "/api/security-requests/" + id;
+        var saved = put(base + "/answers/review.encryption", MemberRole.APPLICANT, "{\"notApplicable\":true}");
+        assertThat(saved)
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.notApplicable")
+                .isEqualTo(true);
+        long revision = number(saved.getResponse().getContentAsString(), "$.revision");
+        assertThat(mvc.get().uri(base).with(authentication(auth(MemberRole.APPLICANT))))
+                .bodyJson()
+                .extractingPath("$.answers[?(@.fieldKey=='review.encryption')].notApplicable")
+                .isEqualTo(List.of(true));
+        assertThat(put(
+                        base + "/answers/review.encryption",
+                        MemberRole.APPLICANT,
+                        "{\"value\":\"합성 암호화\",\"expectedRevision\":" + revision + "}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.notApplicable")
+                .isEqualTo(false);
+        assertThat(put(
+                        base + "/answers/review.encryption",
+                        MemberRole.APPLICANT,
+                        "{\"notApplicable\":true,\"expectedRevision\":" + revision + "}"))
+                .hasStatus(409);
+        assertThat(put(
+                        base + "/answers/review.encryption",
+                        MemberRole.APPLICANT,
+                        "{\"notApplicable\":true,\"value\":\"동시 입력\"}"))
+                .hasStatus(422);
+        long caseId = number(created.getResponse().getContentAsString(), "$.businessCaseId");
+        assertThat(put(
+                        "/api/business-cases/" + caseId + "/answers/project.period",
+                        MemberRole.APPLICANT,
+                        "{\"notApplicable\":true}"))
+                .hasStatus(422);
+    }
+
+    @Test
     void blocksApplicantEditingInfraOwnedField() throws Exception {
         String created = create();
         long id = number(created, "$.businessCaseId");

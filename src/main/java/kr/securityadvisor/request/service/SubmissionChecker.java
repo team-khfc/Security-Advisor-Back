@@ -37,7 +37,7 @@ public class SubmissionChecker {
         List<String> unconfirmed = new ArrayList<>();
         for (FieldDefinition field : schema.requiredFieldsFor(request.getDocType())) {
             Answer answer = answers.get(field.key());
-            if (answer == null || !answer.hasValue()) {
+            if (answer == null || !answer.hasValue() || answer.isNotApplicable()) {
                 missing.add(field.key());
             }
         }
@@ -46,6 +46,11 @@ public class SubmissionChecker {
             boolean applies = schema.find(answer.getFieldKey())
                     .map(field -> field.appliesTo(request.getDocType()))
                     .orElse(true);
+            if (applies && answer.hasValue()) {
+                schema.find(answer.getFieldKey())
+                        .ifPresent(field ->
+                                kr.securityadvisor.request.domain.AnswerFieldPolicy.validate(field, answer.getValue()));
+            }
             if (applies && answer.isUnconfirmed()) {
                 unconfirmed.add(answer.getFieldKey());
             }

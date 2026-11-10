@@ -170,8 +170,8 @@ public class ReviewService {
             MemberPrincipal principal, Long reviewId, String fieldKey, StaffAnswerCommand command) {
         Review review = requireReview(reviewId);
         SecurityRequest request = requireReviewableRequest(principal, review);
-        AnswerResponse answer =
-                answerService.inputByStaff(principal, request, fieldKey, command.value(), command.expectedRevision());
+        AnswerResponse answer = answerService.inputByStaff(
+                principal, request, fieldKey, command.value(), command.expectedRevision(), command.notApplicable());
         review.touch();
         return answer;
     }
@@ -183,7 +183,7 @@ public class ReviewService {
         List<AnswerResponse> result = new java.util.ArrayList<>();
         for (AnswerBatchCommand.Item item : command.answers()) {
             result.add(answerService.inputByStaff(
-                    principal, request, item.fieldKey(), item.value(), item.expectedRevision()));
+                    principal, request, item.fieldKey(), item.value(), item.expectedRevision(), item.notApplicable()));
         }
         review.touch();
         return result;

@@ -138,7 +138,8 @@ class InquiryServiceTest {
                         "infra",
                         null,
                         false,
-                        5L)));
+                        5L,
+                        false)));
         when(gateway.complete(eq(LlmPurpose.INQUIRY), any(), any()))
                 .thenReturn(new LlmResult(
                         "{\"answer\":\"10.2.3.4 확인, 192.168.99.88 추측\",\"evidence\":[\"A1\",\"U999\"]}", "test"));

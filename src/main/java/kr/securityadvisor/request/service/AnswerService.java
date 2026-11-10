@@ -74,16 +74,16 @@ public class AnswerService {
         requireCaseEditable(businessCase);
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.CASE, null);
         AnswerFieldPolicy.requireWrite(field, principal.role());
-        AnswerFieldPolicy.validate(field, request.value());
+        String value = AnswerFieldPolicy.normalize(field, request.value(), request.notApplicable());
         Answer answer = answerRepository
                 .findByBusinessCaseIdAndScopeAndFieldKey(businessCaseId, AnswerScope.CASE, fieldKey)
                 .map(existing -> {
                     requireRevision(existing, request.expectedRevision());
-                    existing.updateByUser(request.value());
+                    existing.updateByUser(value);
                     return existing;
                 })
                 .orElseGet(() -> answerRepository.save(
-                        Answer.userAnswer(AnswerScope.CASE, businessCaseId, null, field.key(), request.value())));
+                        Answer.userAnswer(AnswerScope.CASE, businessCaseId, null, field.key(), value)));
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         eventPublisher.publishEvent(new AnswerChangedEvent(
                 principal, unsubmittedRequestIds(businessCaseId), fieldKey, submittedRequestIds(businessCaseId)));
@@ -98,12 +98,12 @@ public class AnswerService {
         BusinessCase businessCase = accessPolicy.viewableCase(principal, securityRequest.getBusinessCaseId());
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.REQUEST, securityRequest);
         AnswerFieldPolicy.requireWrite(field, principal.role());
-        AnswerFieldPolicy.validate(field, request.value());
+        String value = AnswerFieldPolicy.normalize(field, request.value(), request.notApplicable());
         Answer answer = answerRepository
                 .findBySecurityRequestIdAndFieldKey(securityRequestId, fieldKey)
                 .map(existing -> {
                     requireRevision(existing, request.expectedRevision());
-                    existing.updateByUser(request.value());
+                    existing.updateByUser(value);
                     return existing;
                 })
                 .orElseGet(() -> answerRepository.save(Answer.userAnswer(
@@ -111,7 +111,7 @@ public class AnswerService {
                         securityRequest.getBusinessCaseId(),
                         securityRequestId,
                         field.key(),
-                        request.value())));
+                        value)));
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         eventPublisher.publishEvent(new AnswerChangedEvent(principal, List.of(securityRequestId), fieldKey));
         return AnswerResponse.from(answer);
@@ -197,11 +197,22 @@ public class AnswerService {
             String fieldKey,
             String value,
             Long expectedRevision) {
+        return inputByStaff(staff, securityRequest, fieldKey, value, expectedRevision, false);
+    }
+
+    /** 미해당 상태도 담당자 권한과 게시본 검증을 거쳐 저장한다. */
+    public AnswerResponse inputByStaff(
+            MemberPrincipal staff,
+            SecurityRequest securityRequest,
+            String fieldKey,
+            String rawValue,
+            Long expectedRevision,
+            boolean notApplicable) {
         BusinessCase businessCase = accessPolicy.viewableCase(staff, securityRequest.getBusinessCaseId());
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
         AnswerFieldPolicy.requireWrite(field, staff.role());
-        AnswerFieldPolicy.validate(field, value);
+        String value = AnswerFieldPolicy.normalize(field, rawValue, notApplicable);
         Answer answer = findForField(businessCase, securityRequest, field)
                 .map(existing -> {
                     // "담당자 확인 필요" 자리(값 없음)를 처음 채울 때는 revision 없이도 된다. 값이 있던 항목은 충돌 검사.
@@ -295,7 +306,7 @@ public class AnswerService {
                     principal,
                     businessCaseId,
                     item.fieldKey(),
-                    new AnswerUpdateRequest(item.value(), item.expectedRevision())));
+                    new AnswerUpdateRequest(item.value(), item.expectedRevision(), item.notApplicable())));
         }
         return saved;
     }
@@ -309,7 +320,7 @@ public class AnswerService {
                     principal,
                     securityRequestId,
                     item.fieldKey(),
-                    new AnswerUpdateRequest(item.value(), item.expectedRevision())));
+                    new AnswerUpdateRequest(item.value(), item.expectedRevision(), item.notApplicable())));
         }
         return saved;
     }
