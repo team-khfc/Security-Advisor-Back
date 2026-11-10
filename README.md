@@ -624,3 +624,8 @@ erDiagram
 ### 예정 테이블
 
 FUNCTIONAL_SPEC.md 8-1 스키마 확정 체크리스트 기준으로 `business_cases`·`security_requests`·`answers`·`uploaded_files`·`analysis_jobs`·`submissions`·`reviews`·`supplements`·`stage_returns`·`final_confirmations`·`knowledge_snippets`(knowledge_sources 대신)·`private_contexts`·`llm_configurations`·`generated_documents`·`configurations`·`publications`·`reviewer_pools`·`assignments`·`deadlines`·`audit_events`·`firewall_rules`·`notifications`·`uploaded_files`·`analysis_jobs`·`inquiries`·`inquiry_messages`(이상 생성됨)·`knowledge_sources`·`private_contexts`·`llm_configurations`를 마이그레이션으로 추가한다. 이 README의 표는 마이그레이션이 늘 때마다 같은 PR에서 갱신한다.
+
+
+## 관리자 AI 모델 구성·연결 점검
+
+관리자는 `/models`에서 용도별 구성과 우선순위를 편집하고 연결 시험·변경 비교·이력·복원을 사용할 수 있습니다. 실제 키 값은 설치 환경변수로만 관리하며 `LLM_ALLOWED_KEY_ENVS`에 허용한 참조만 선택합니다. 모델 구성 적용은 이후 호출에 영향을 주고 기존 신청·답변·제출본은 보존합니다. [실제 두 모델과 도커 검증 기록](docs/LLM_ADMINISTRATION_20261110.md)을 참고하세요.

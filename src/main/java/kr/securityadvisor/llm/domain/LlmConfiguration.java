@@ -14,8 +14,8 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 import kr.securityadvisor.common.entity.BaseTimeEntity;
-import kr.securityadvisor.common.error.ConflictException;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
+import kr.securityadvisor.common.error.RevisionConflictException;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -176,7 +176,7 @@ public class LlmConfiguration extends BaseTimeEntity {
 
     public void requireRevision(long expectedRevision) {
         if (expectedRevision != revision) {
-            throw new ConflictException("LLM 구성이 다른 곳에서 수정되었습니다(revision " + revision + ")");
+            throw new RevisionConflictException("다른 관리자가 모델 구성을 수정했습니다. 최신 값을 확인해 주세요.", revision);
         }
     }
 
@@ -191,12 +191,19 @@ public class LlmConfiguration extends BaseTimeEntity {
     public static String hostOf(String baseUrl) {
         try {
             URI uri = URI.create(baseUrl.strip());
-            if (uri.getHost() == null || (!"https".equals(uri.getScheme()) && !"http".equals(uri.getScheme()))) {
-                throw new DomainRuleViolationException("baseUrl 은 http(s)://host 형식이어야 합니다: " + baseUrl);
+            if (uri.getHost() == null
+                    || (!"https".equals(uri.getScheme()) && !"http".equals(uri.getScheme()))
+                    || uri.getUserInfo() != null
+                    || uri.getQuery() != null
+                    || uri.getFragment() != null) {
+                throw new DomainRuleViolationException("연결 주소는 사용자 정보·쿼리 없이 http(s)://host 형식이어야 합니다.");
             }
-            return uri.getHost().toLowerCase(Locale.ROOT);
+            String host = uri.getHost().toLowerCase(Locale.ROOT);
+            if (host.startsWith("169.254.") || host.equals("[::ffff:a9fe:a9fe]"))
+                throw new DomainRuleViolationException("메타데이터 주소는 모델 엔드포인트로 사용할 수 없습니다");
+            return host;
         } catch (IllegalArgumentException e) {
-            throw new DomainRuleViolationException("baseUrl 형식이 잘못되었습니다: " + baseUrl);
+            throw new DomainRuleViolationException("연결 주소 형식이 잘못되었습니다.");
         }
     }
 

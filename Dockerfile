@@ -14,7 +14,8 @@ RUN --mount=type=cache,target=/root/.gradle ./gradlew bootJar --no-daemon -x tes
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
-RUN groupadd --system app && useradd --system --gid app app
+RUN groupadd --system app && useradd --system --gid app app \
+    && mkdir -p /data/storage && chown app:app /data/storage
 COPY --from=build /workspace/build/libs/*.jar app.jar
 USER app
 EXPOSE 8080

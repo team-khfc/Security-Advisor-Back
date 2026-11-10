@@ -450,6 +450,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/MemberDetail"
   /api/llm-configurations/{id}:
+    get:
+      tags:
+      - llm-configuration-controller
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConfigurationResponse"
     put:
       tags:
       - llm-configuration-controller
@@ -661,7 +679,7 @@ paths:
     get:
       tags:
       - business-case-controller
-      operationId: get
+      operationId: get_1
       parameters:
       - name: id
         in: path
@@ -1408,6 +1426,24 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberDetail"
+  /api/llm-connection-tests:
+    post:
+      tags:
+      - llm-connection-test-controller
+      operationId: test
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConnectionTestCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConnectionTestResponse"
   /api/llm-configurations:
     get:
       tags:
@@ -1439,6 +1475,74 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/LlmConfigurationResponse"
+  /api/llm-configurations/{id}/restorations:
+    post:
+      tags:
+      - llm-configuration-controller
+      operationId: restore
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmRestoreCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConfigurationResponse"
+  /api/llm-configurations/{id}/comparisons:
+    post:
+      tags:
+      - llm-configuration-controller
+      operationId: compare
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigurationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmComparisonResponse"
+  /api/llm-configurations/comparisons:
+    post:
+      tags:
+      - llm-configuration-controller
+      operationId: compareNew
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LlmConfigurationCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmComparisonResponse"
   /api/knowledge-snippets:
     get:
       tags:
@@ -2062,7 +2166,7 @@ paths:
     get:
       tags:
       - submission-controller
-      operationId: get_1
+      operationId: get_2
       parameters:
       - name: id
         in: path
@@ -2165,7 +2269,7 @@ paths:
     get:
       tags:
       - security-request-controller
-      operationId: get_2
+      operationId: get_3
       parameters:
       - name: id
         in: path
@@ -2357,7 +2461,7 @@ paths:
     get:
       tags:
       - review-action-controller
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: id
         in: path
@@ -2403,7 +2507,7 @@ paths:
     get:
       tags:
       - publication-controller
-      operationId: get_4
+      operationId: get_5
       parameters:
       - name: id
         in: path
@@ -2541,7 +2645,7 @@ paths:
     get:
       tags:
       - member-controller
-      operationId: get_5
+      operationId: get_6
       parameters:
       - name: username
         in: path
@@ -2555,6 +2659,70 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/MemberDetail"
+  /api/llm-connection-tests/{id}:
+    get:
+      tags:
+      - llm-connection-test-controller
+      operationId: get_7
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmConnectionTestResponse"
+  /api/llm-configurations/{id}/history:
+    get:
+      tags:
+      - llm-configuration-controller
+      operationId: history_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseLlmHistoryResponse"
+  /api/llm-configurations/management:
+    get:
+      tags:
+      - llm-configuration-controller
+      operationId: management
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LlmManagementResponse"
   /api/knowledge-snippets/search:
     get:
       tags:
@@ -2592,7 +2760,7 @@ paths:
     get:
       tags:
       - knowledge-publication-controller
-      operationId: history_1
+      operationId: history_2
       parameters:
       - name: page
         in: query
@@ -2761,7 +2929,7 @@ paths:
     get:
       tags:
       - knowledge-publication-controller
-      operationId: compare
+      operationId: compare_1
       responses:
         "200":
           description: OK
@@ -2773,7 +2941,7 @@ paths:
     get:
       tags:
       - installation-controller
-      operationId: get_6
+      operationId: get_8
       responses:
         "200":
           description: OK
@@ -2799,7 +2967,7 @@ paths:
     get:
       tags:
       - generated-document-controller
-      operationId: get_7
+      operationId: get_9
       parameters:
       - name: id
         in: path
@@ -3028,7 +3196,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: get_8
+      operationId: get_10
       parameters:
       - name: id
         in: path
@@ -3585,6 +3753,10 @@ components:
         expectedRevision:
           type: integer
           format: int64
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
       required:
       - apiKeyEnv
       - baseUrl
@@ -4171,17 +4343,17 @@ components:
           type: boolean
         container:
           type: boolean
-        valueNode:
+        number:
           type: boolean
         floatingPointNumber:
+          type: boolean
+        valueNode:
           type: boolean
         missingNode:
           type: boolean
         bigDecimal:
           type: boolean
         bigInteger:
-          type: boolean
-        integralNumber:
           type: boolean
         nodeType:
           type: string
@@ -4195,26 +4367,26 @@ components:
           - OBJECT
           - POJO
           - STRING
-        string:
-          type: boolean
-        short:
-          type: boolean
-        long:
-          type: boolean
-        pojo:
-          type: boolean
-        boolean:
-          type: boolean
-        double:
+        integralNumber:
           type: boolean
         textual:
           type: boolean
           deprecated: true
-        int:
+        long:
+          type: boolean
+        string:
+          type: boolean
+        boolean:
           type: boolean
         binary:
           type: boolean
-        number:
+        int:
+          type: boolean
+        double:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4686,6 +4858,121 @@ components:
       required:
       - reason
       - role
+    LlmConnectionTestCommand:
+      type: object
+      properties:
+        configurationId:
+          type: integer
+          format: int64
+        expectedRevision:
+          type: integer
+          format: int64
+        configuration:
+          $ref: "#/components/schemas/LlmConfigurationCommand"
+      required:
+      - configuration
+    LlmConfigurationValues:
+      type: object
+      properties:
+        name:
+          type: string
+        provider:
+          type: string
+          enum:
+          - OPENAI_COMPATIBLE
+        baseUrl:
+          type: string
+        model:
+          type: string
+        apiKeyEnv:
+          type: string
+        purposes:
+          type: array
+          items:
+            type: string
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+          format: int32
+        timeoutSeconds:
+          type: integer
+          format: int32
+        priority:
+          type: integer
+          format: int32
+        active:
+          type: boolean
+    LlmConnectionTestResponse:
+      type: object
+      properties:
+        testId:
+          type: integer
+          format: int64
+        configurationId:
+          type: integer
+          format: int64
+        configurationRevision:
+          type: integer
+          format: int64
+        status:
+          type: string
+        outcome:
+          type: string
+        message:
+          type: string
+        elapsedMillis:
+          type: integer
+          format: int64
+        testedAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+        testedValues:
+          $ref: "#/components/schemas/LlmConfigurationValues"
+    LlmRestoreCommand:
+      type: object
+      properties:
+        historyId:
+          type: integer
+          format: int64
+        expectedRevision:
+          type: integer
+          format: int64
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - expectedRevision
+      - historyId
+      - reason
+    Change:
+      type: object
+      properties:
+        field:
+          type: string
+        label:
+          type: string
+        before:
+          type: string
+        after:
+          type: string
+    LlmComparisonResponse:
+      type: object
+      properties:
+        currentRevision:
+          type: integer
+          format: int64
+        current:
+          $ref: "#/components/schemas/LlmConfigurationValues"
+        candidate:
+          $ref: "#/components/schemas/LlmConfigurationValues"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Change"
     PublishCommand:
       type: object
       properties:
@@ -5510,6 +5797,8 @@ components:
           - PRIVATE_CONTEXT_UPDATED
           - LLM_CONFIGURATION_CREATED
           - LLM_CONFIGURATION_UPDATED
+          - LLM_CONFIGURATION_RESTORED
+          - LLM_CONNECTION_TESTED
           - ANSWER_AI_PROPOSED
           - AI_PROPOSAL_REJECTED
           - INQUIRY_OPENED
@@ -5596,19 +5885,6 @@ components:
         previousVersion:
           type: integer
           format: int32
-    Change:
-      type: object
-      properties:
-        path:
-          type: string
-        label:
-          type: string
-        before:
-          type: string
-        after:
-          type: string
-        dataContractChange:
-          type: boolean
     ConfigurationComparisonResponse:
       type: object
       properties:
@@ -5667,6 +5943,89 @@ components:
           type: string
         enabled:
           type: boolean
+    LlmHistoryResponse:
+      type: object
+      properties:
+        historyId:
+          type: integer
+          format: int64
+        configurationId:
+          type: integer
+          format: int64
+        configurationRevision:
+          type: integer
+          format: int64
+        action:
+          type: string
+        changedBy:
+          type: string
+        changedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        restoredFromId:
+          type: integer
+          format: int64
+        values:
+          $ref: "#/components/schemas/LlmConfigurationValues"
+    PageResponseLlmHistoryResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/LlmHistoryResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    KeyReference:
+      type: object
+      properties:
+        name:
+          type: string
+        configured:
+          type: boolean
+    LlmManagementResponse:
+      type: object
+      properties:
+        mode:
+          type: string
+        allowedHosts:
+          type: array
+          items:
+            type: string
+        keyReferences:
+          type: array
+          items:
+            $ref: "#/components/schemas/KeyReference"
+        routes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Route"
+    Route:
+      type: object
+      properties:
+        purpose:
+          type: string
+          enum:
+          - INTERVIEW
+          - SUMMARY
+          - DOCUMENT
+          - INQUIRY
+        configurationId:
+          type: integer
+          format: int64
+        modelReference:
+          type: string
+        status:
+          type: string
     SnippetHit:
       type: object
       properties:

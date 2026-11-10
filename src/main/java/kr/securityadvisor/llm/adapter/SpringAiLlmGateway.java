@@ -62,7 +62,7 @@ public class SpringAiLlmGateway implements LlmBackend {
 
     private static ChatClient build(LlmConfiguration configuration, String apiKey) {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .baseUrl(configuration.getBaseUrl())
+                .baseUrl(OpenAiEndpoint.baseUrl(configuration.getBaseUrl()))
                 .apiKey(apiKey)
                 .model(configuration.getModel())
                 .temperature(configuration.getTemperature().doubleValue())

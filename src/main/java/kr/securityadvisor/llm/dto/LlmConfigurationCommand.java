@@ -22,4 +22,5 @@ public record LlmConfigurationCommand(
         Integer timeoutSeconds,
         Integer priority,
         Boolean active,
-        Long expectedRevision) {}
+        Long expectedRevision,
+        @Size(max = 500) String reason) {}
