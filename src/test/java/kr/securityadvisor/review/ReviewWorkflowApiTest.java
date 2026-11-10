@@ -549,6 +549,13 @@ class ReviewWorkflowApiTest {
     @DisplayName("서버 연결·미확인 AI 사양 임시 저장 후 확인 저장해야 협의할 수 있고 문서에 반영된다")
     void infrastructureServerDraftAndConfirmation(String docType) throws Exception {
         Long id = createReviewRequest(docType);
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/consultation-comparison", id)
+                        .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.baselineAvailable")
+                .isEqualTo(false);
         var reviews = mvc.post()
                 .uri("/api/security-requests/{id}/reviews", id)
                 .with(authentication(APPLICANT))
@@ -630,6 +637,54 @@ class ReviewWorkflowApiTest {
         assertThat(complete(SECURITY, securityReview, SECURITY_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(complete(INFRA, review, INFRA_CHECKLIST)).hasStatusOk();
         assertThat(complete(SECURITY, securityReview, SECURITY_CHECKLIST)).hasStatusOk();
+        var comparison = mvc.get()
+                .uri("/api/security-requests/{id}/consultation-comparison", id)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(comparison)
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.baselineAvailable")
+                .isEqualTo(true);
+        String compared = comparison.getResponse().getContentAsString();
+        assertThat(compared).contains("매일 백업 및 월간 복구 점검", "CONFIGURATION", "SECURITY", "합성 웹");
+        String fingerprint = JsonPath.read(compared, "$.fingerprint");
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/consultation-summaries", id)
+                        .with(authentication(SECURITY))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedFingerprint\":\"" + fingerprint + "\"}"))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/consultation-summaries", id)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedFingerprint\":\"old\"}"))
+                .hasStatus(HttpStatus.CONFLICT);
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/consultation-summaries", id)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedFingerprint\":\"" + fingerprint + "\"}"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.items[0].evidenceIds[0]")
+                .isEqualTo("business:title");
+        if (docType.equals("FIREWALL")) {
+            answerAsApplicant(id, "firewall.purpose", "사용자가 최종 검토에서 보완한 합성 목적");
+            var updatedComparison = mvc.get()
+                    .uri("/api/security-requests/{id}/consultation-comparison", id)
+                    .with(authentication(APPLICANT))
+                    .exchange();
+            String updatedBody = updatedComparison.getResponse().getContentAsString();
+            assertThat((String) JsonPath.read(updatedBody, "$.fingerprint")).isNotEqualTo(fingerprint);
+            assertThat((String) JsonPath.read(updatedBody, "$.summary.fingerprint"))
+                    .isEqualTo(fingerprint);
+            assertThat(updatedBody).contains("APPLICANT", "사용자가 최종 검토에서 보완한 합성 목적");
+        }
     }
 
     private MvcTestResult saveInfrastructure(Long id, Object command) {

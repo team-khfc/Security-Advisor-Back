@@ -53,6 +53,8 @@ public class AnswerService {
     private final AuditRecorder auditRecorder;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final ConsultationRecorder consultationRecorder;
+    private final jakarta.persistence.EntityManager consultationEntityManager;
     private final kr.securityadvisor.assignment.service.AssignmentService infrastructureAssignments;
 
     /** 답변 변경 기록(F-14). 값 자체는 남기지 않고 항목·출처만 남긴다(기관 사실 값 보호, 불변식 25). */
@@ -76,6 +78,10 @@ public class AnswerService {
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.CASE, null);
         AnswerFieldPolicy.requireWrite(field, principal.role());
         String value = AnswerFieldPolicy.normalize(field, request.value(), request.notApplicable());
+        var before = answerRepository
+                .findByBusinessCaseIdAndScopeAndFieldKey(businessCaseId, AnswerScope.CASE, fieldKey)
+                .map(AnswerResponse::from)
+                .orElse(null);
         Answer answer = answerRepository
                 .findByBusinessCaseIdAndScopeAndFieldKey(businessCaseId, AnswerScope.CASE, fieldKey)
                 .map(existing -> {
@@ -85,6 +91,8 @@ public class AnswerService {
                 })
                 .orElseGet(() -> answerRepository.save(
                         Answer.userAnswer(AnswerScope.CASE, businessCaseId, null, field.key(), value)));
+        recordFieldChange(
+                principal, unsubmittedRequestIds(businessCaseId), field, before, AnswerResponse.from(answer), "ANSWER");
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         eventPublisher.publishEvent(new AnswerChangedEvent(
                 principal, unsubmittedRequestIds(businessCaseId), fieldKey, submittedRequestIds(businessCaseId)));
@@ -100,6 +108,10 @@ public class AnswerService {
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.REQUEST, securityRequest);
         AnswerFieldPolicy.requireWrite(field, principal.role());
         String value = AnswerFieldPolicy.normalize(field, request.value(), request.notApplicable());
+        var before = answerRepository
+                .findBySecurityRequestIdAndFieldKey(securityRequestId, fieldKey)
+                .map(AnswerResponse::from)
+                .orElse(null);
         Answer answer = answerRepository
                 .findBySecurityRequestIdAndFieldKey(securityRequestId, fieldKey)
                 .map(existing -> {
@@ -113,6 +125,7 @@ public class AnswerService {
                         securityRequestId,
                         field.key(),
                         value)));
+        recordFieldChange(principal, List.of(securityRequestId), field, before, AnswerResponse.from(answer), "ANSWER");
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
         eventPublisher.publishEvent(new AnswerChangedEvent(principal, List.of(securityRequestId), fieldKey));
         return AnswerResponse.from(answer);
@@ -252,6 +265,9 @@ public class AnswerService {
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
         if (!sharedInfrastructure) AnswerFieldPolicy.requireWrite(field, staff.role());
+        var before = findForField(businessCase, securityRequest, field)
+                .map(AnswerResponse::from)
+                .orElse(null);
         String value = AnswerFieldPolicy.normalize(field, rawValue, notApplicable);
         Answer answer = findForField(businessCase, securityRequest, field)
                 .map(existing -> {
@@ -267,8 +283,39 @@ public class AnswerService {
                     created.inputByStaff(staff.username(), value, clock.instant());
                     return answerRepository.save(created);
                 });
+        recordConsultationAnswer(staff, securityRequest, field, before, AnswerResponse.from(answer), "ANSWER");
         audit(staff, answer, AuditAction.ANSWER_STAFF_INPUT, "담당자 입력");
         return AnswerResponse.from(answer);
+    }
+
+    private void recordConsultationAnswer(
+            MemberPrincipal actor,
+            SecurityRequest request,
+            FieldDefinition field,
+            AnswerResponse before,
+            AnswerResponse after,
+            String kind) {
+        var ids = field.scope() == AnswerScope.CASE
+                ? unsubmittedRequestIds(request.getBusinessCaseId())
+                : List.of(request.getId());
+        recordFieldChange(actor, ids, field, before, after, kind);
+    }
+
+    private void recordFieldChange(
+            MemberPrincipal actor,
+            List<Long> ids,
+            FieldDefinition field,
+            AnswerResponse before,
+            AnswerResponse after,
+            String kind) {
+        String key = "answer:" + field.key();
+        String group = field.scope() == AnswerScope.CASE ? "사업 정보" : "신청 정보";
+        consultationRecorder.change(
+                actor,
+                ids,
+                kind,
+                before == null ? Map.of() : Map.of(key, ConsultationFields.answer(field.label(), group, before)),
+                Map.of(key, ConsultationFields.answer(field.label(), group, after)));
     }
 
     /** 담당자가 기존 값(사용자 답변·AI 추론)을 확인한다 → STAFF_CONFIRMED(불변식 5). */
@@ -282,7 +329,9 @@ public class AnswerService {
                 .orElseThrow(() -> new NotFoundException("답변이 없는 항목입니다: " + fieldKey));
         requireRevision(answer, expectedRevision);
         AnswerFieldPolicy.validate(field, answer.getValue());
+        var before = AnswerResponse.from(answer);
         answer.confirmByStaff(staff.username(), clock.instant());
+        recordConsultationAnswer(staff, securityRequest, field, before, AnswerResponse.from(answer), "CONFIRM");
         audit(staff, answer, AuditAction.ANSWER_STAFF_CONFIRMED, "담당자 확인");
         return AnswerResponse.from(answer);
     }
@@ -463,6 +512,7 @@ public class AnswerService {
     }
 
     private void requireCaseEditable(BusinessCase businessCase) {
+        consultationEntityManager.lock(businessCase, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         boolean anyUnsubmitted =
                 securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCase.getId()).stream()
                         .anyMatch(SecurityRequest::isUnsubmitted);
@@ -471,7 +521,10 @@ public class AnswerService {
         }
     }
 
-    private static void requireRequestEditable(SecurityRequest securityRequest) {
+    private void requireRequestEditable(SecurityRequest securityRequest) {
+        consultationEntityManager.lock(securityRequest, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        consultationEntityManager.lock(
+                businessCaseOf(securityRequest), jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         if (!securityRequest.isUnsubmitted()) {
             throw new DomainRuleViolationException("제출·종결·철회된 신청의 답변은 바꿀 수 없습니다 (현재 "
                     + securityRequest.getStatus().label() + ")");

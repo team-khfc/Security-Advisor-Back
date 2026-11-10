@@ -30,6 +30,10 @@ public class FakeLlmGateway implements LlmBackend {
 
     @Override
     public LlmResult complete(LlmPurpose purpose, LlmPrompt prompt) {
+        if (prompt.system().contains(kr.securityadvisor.llm.service.ConsultationSummaryService.MARKER))
+            return new LlmResult(
+                    "{\"items\":[{\"text\":\"모의 요약입니다. 실제 AI 분석을 수행하지 않았습니다. 사업정보와 협의 비교 항목을 직접 확인해 주세요.\",\"evidenceIds\":[\"business:title\"]}]}",
+                    "fake/consultation");
         return switch (purpose) {
             case INTERVIEW ->
                 new LlmResult(

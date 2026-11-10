@@ -36,6 +36,7 @@ public class InfrastructurePlanService {
     private final EntityManager entityManager;
     private final ObjectMapper json;
     private final Clock clock;
+    private final ConsultationRecorder consultationRecorder;
 
     @Transactional(readOnly = true)
     public InfrastructurePlanResponse get(MemberPrincipal actor, Long id) {
@@ -80,6 +81,7 @@ public class InfrastructurePlanService {
             throw new ConflictException("다른 담당자가 수정했습니다. 최신 검토 정보를 다시 불러온 후 저장해 주세요.");
         if (plan.getRevision() > 0 && snapshot(id).schemaVersion() >= 2 && command.schemaVersion() < 2)
             throw new ConflictException("새 서버 구성 형식으로 다시 불러온 후 저장해 주세요.");
+        var beforePlan = ConsultationFields.plan(snapshot(id));
         command = InfrastructurePlanValidation.normalize(command);
         var business = access.viewableCase(actor, request.getBusinessCaseId());
         entityManager.refresh(business, LockModeType.PESSIMISTIC_WRITE);
@@ -120,6 +122,8 @@ public class InfrastructurePlanService {
         }
         plan.replace(json.writeValueAsString(command), actor.username(), clock.instant());
         repository.saveAndFlush(plan);
+        consultationRecorder.change(
+                actor, List.of(id), "CONFIGURATION", beforePlan, ConsultationFields.plan(snapshot(id)));
         events.publishEvent(new AnswerChangedEvent(
                 actor,
                 answers.unsubmittedRequestIds(business.getId()),
