@@ -28,16 +28,38 @@ public class ConsultationSummaryService {
         var overview = comparison.prepare(actor, id);
         if (!overview.fingerprint().equals(expectedFingerprint))
             throw new ConflictException("최신 협의 결과를 불러온 뒤 요약해 주세요.");
+        // 요청마다 서버가 근거 식별자를 발급한다. 모델이 내부 필드 경로를 조합하지 않도록 한다.
+        var keys = new TreeSet<>(overview.current().keySet());
+        keys.addAll(overview.baseline().keySet());
+        Map<String, String> evidenceKeys = new LinkedHashMap<>();
+        Map<String, Map<String, Field>> catalog = new LinkedHashMap<>();
+        for (String key : keys) {
+            String evidenceId = "E" + (evidenceKeys.size() + 1);
+            evidenceKeys.put(evidenceId, key);
+            Map<String, Field> versions = new LinkedHashMap<>();
+            if (overview.baseline().containsKey(key))
+                versions.put("baseline", overview.baseline().get(key));
+            if (overview.current().containsKey(key))
+                versions.put("current", overview.current().get(key));
+            catalog.put(evidenceId, versions);
+        }
         // 기존 요약을 다시 모델 입력으로 사용하지 않는다.
         String input = json.writeValueAsString(Map.of(
                 "baselineAvailable",
                 overview.baselineAvailable(),
-                "baseline",
-                overview.baseline(),
-                "current",
-                overview.current(),
+                "evidenceCatalog",
+                catalog,
                 "changes",
-                overview.changes()));
+                overview.changes().stream()
+                        .map(change -> new Change(
+                                change.id(),
+                                change.kind(),
+                                change.actorName(),
+                                change.actorRole(),
+                                change.at(),
+                                evidenceFields(change.before(), evidenceKeys),
+                                evidenceFields(change.after(), evidenceKeys)))
+                        .toList()));
         if (input.length() > 200000)
             throw new DomainRuleViolationException("협의 기록이 많아 한 번에 요약할 수 없습니다. 항목별 비교를 확인해 주세요.");
         var result = gateway.complete(
@@ -50,8 +72,12 @@ public class ConsultationSummaryService {
      입력에 없는 사실·담당자·사유·효과를 추정하지 않는다.
      baselineAvailable=false이면 과거 변경을 추정하지 말고 현재 결과와 실제 changes 기록만 설명한다.
      미확인·임시 저장 항목은 확정됐다고 표현하지 않는다. 개인정보·네트워크 값을 임의로 생성하지 않는다.
-     JSON만 출력: {"items":[{"text":"설명","evidenceIds":["current 또는 baseline의 정확한 키"]}]}
-     각 항목에는 실제 근거 키 1~6개를 연결한다. 키 앞에 current. 또는 baseline.을 붙이지 않는다.
+     evidenceCatalog는 서버가 발급한 근거 목록이다. 각 E번호 안에 같은 항목의 baseline/current 값이 있다.
+     changes의 before/after도 같은 E번호를 사용한다. 담당자·시점은 실제 changes 기록만 인용한다.
+     JSON만 출력: {"items":[{"text":"설명","evidenceIds":["E1"]}]}
+     각 항목의 evidenceIds에는 설명을 뒷받침하는 evidenceCatalog의 정확한 E번호 1~6개만 선택한다.
+     예시 E1을 무조건 사용하지 말고 해당 값과 설명을 대조한다. 목록에 없는 번호는 만들지 않는다.
+     필드명·JSON 경로·changes의 키·공개 지식 S번호는 evidenceIds로 반환하지 않는다.
      3~5개 항목, 항목당 300자 이내로 출력한다. 동일한 근거를 반복해 설명하지 않는다.
      """,
                         List.of(),
@@ -63,8 +89,6 @@ public class ConsultationSummaryService {
                         input),
                 LlmCallContext.of(actor, AuditTargetType.SECURITY_REQUEST, id));
         List<SummaryItem> items = new ArrayList<>();
-        Set<String> keys = new HashSet<>(overview.current().keySet());
-        keys.addAll(overview.baseline().keySet());
         String failure = "INVALID_JSON";
         try {
             String text = result.text();
@@ -80,8 +104,8 @@ public class ConsultationSummaryService {
                         || !row.path("evidenceIds").isArray()) throw new IllegalArgumentException();
                 List<String> refs = new ArrayList<>();
                 for (var ref : row.path("evidenceIds")) {
-                    String key = ref.asText();
-                    if (!keys.contains(key)) {
+                    String key = ref.isTextual() ? evidenceKeys.get(ref.asText()) : null;
+                    if (key == null) {
                         failure = "UNKNOWN_EVIDENCE";
                         throw new IllegalArgumentException();
                     }
@@ -104,5 +128,13 @@ public class ConsultationSummaryService {
         }
         return comparison.saveSummary(
                 actor, id, new Summary(overview.fingerprint(), result.modelReference(), clock.instant(), items));
+    }
+
+    private static Map<String, Field> evidenceFields(Map<String, Field> fields, Map<String, String> evidenceKeys) {
+        Map<String, Field> result = new LinkedHashMap<>();
+        evidenceKeys.forEach((id, key) -> {
+            if (fields.containsKey(key)) result.put(id, fields.get(key));
+        });
+        return result;
     }
 }
