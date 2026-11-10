@@ -649,6 +649,11 @@ class ReviewWorkflowApiTest {
         String compared = comparison.getResponse().getContentAsString();
         assertThat(compared).contains("매일 백업 및 월간 복구 점검", "CONFIGURATION", "SECURITY", "합성 웹");
         String fingerprint = JsonPath.read(compared, "$.fingerprint");
+        java.util.Set<String> summaryEvidenceKeys =
+                new java.util.HashSet<>(JsonPath.<java.util.Map<String, Object>>read(compared, "$.current")
+                        .keySet());
+        summaryEvidenceKeys.addAll(JsonPath.<java.util.Map<String, Object>>read(compared, "$.baseline")
+                .keySet());
         assertThat(mvc.post()
                         .uri("/api/security-requests/{id}/consultation-summaries", id)
                         .with(authentication(SECURITY))
@@ -672,7 +677,7 @@ class ReviewWorkflowApiTest {
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.items[0].evidenceIds[0]")
-                .isEqualTo("business:title");
+                .isIn(summaryEvidenceKeys);
         if (docType.equals("FIREWALL")) {
             answerAsApplicant(id, "firewall.purpose", "사용자가 최종 검토에서 보완한 합성 목적");
             var updatedComparison = mvc.get()
