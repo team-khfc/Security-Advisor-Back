@@ -2,6 +2,7 @@ package kr.securityadvisor.common.schema;
 
 import java.time.LocalDate;
 import java.util.Set;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * 처리 기한 정책(F-13). 게시본에 포함되어 사업 건 생성 시점 버전으로 고정된다. 값이 없으면 기본 5영업일.
@@ -13,10 +14,18 @@ import java.util.Set;
  * @param holidays 기관 공휴일(합성 seed)
  */
 public record DeadlinePolicy(
+        @JsonDeserialize(using = BusinessDaysDeserializer.class)
         Integer reviewBusinessDays,
+
+        @JsonDeserialize(using = BusinessDaysDeserializer.class)
         Integer supplementBusinessDays,
+
+        @JsonDeserialize(using = BusinessDaysDeserializer.class)
         Integer finalConfirmationBusinessDays,
+
+        @JsonDeserialize(using = BusinessDaysDeserializer.class)
         Integer imminentBusinessDays,
+
         Set<LocalDate> holidays) {
 
     public static final int DEFAULT_BUSINESS_DAYS = 5;
@@ -34,6 +43,7 @@ public record DeadlinePolicy(
     }
 
     private static Integer positiveOrDefault(Integer value, int fallback) {
-        return (value == null || value < 1) ? fallback : value;
+        // 생략값만 보충한다. 잘못 입력한 0·음수는 초안 검증에서 거부해야 한다.
+        return value == null ? fallback : value;
     }
 }

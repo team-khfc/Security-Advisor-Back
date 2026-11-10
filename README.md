@@ -177,8 +177,12 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | `GET /api/notification-channels` | **외부 알림 채널 상태**(관리자): EMAIL(SMTP 릴레이, 계정별 수신 주소)·WEBHOOK(메신저 incoming webhook). 환경변수(`SMTP_*`, `NOTIFY_WEBHOOK_URL`)가 비어 있으면 꺼짐. 화면 안 알림 저장 뒤 비동기 전달, 실패해도 업무·화면 알림 영향 없음, 본문에 값 없음 | 200 |
 | `GET /api/notifications?unreadOnly=` / `GET …/unread-count` / `PATCH /api/notifications/{id}` `{"read":true}` | **알림**(F-17): 배정·보완 요청/답변·반환·제출·확정·종결·재검토 이벤트 + 기한 1영업일 전/경과(DEADLINE_IMMINENT/OVERDUE) + 미배정→관리자(UNASSIGNED) + 제출 뒤 공통 정보 변경→담당자(COMMON_INFO_CHANGED, 제출본은 불변). 별도 트랜잭션으로 저장돼 실패해도 업무는 실패하지 않음. 수신자 본인만 | 200 |
 | `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 서류 유형별·단계별·상태별 신청 수, 단계별 평균 소요 영업일(감사 이력의 첫 전이 시각 기준), 활성 기한 상태·기한 경과 건수, 보완 상태·신청당 보완 횟수, 차수 반환률, 1회 통과율(보완·반환 없이 확정), AI 제안 확인율(AI 값이 수정 없이 확인된 비율, 감사 이력 기준), 규칙 상태. 조회 시 계산·저장 없음, 개인 순위 없음, 비율은 분모 0이면 null | 200 |
-| `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 초안(현재 게시본에서 시작) 조회·저장(데이터 계약 검증: 코드·키 유일, REQUEST 항목 적용 서류, 참조) → 게시하면 새 게시본 버전. 기존 사업 건은 생성 시점 버전 유지 | 200 / 201, 검증 실패 422 |
+| `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 질문·기한 초안 검증, 기본 질문 계약 보호, revision으로 동시 변경 차단. 게시하면 새 버전을 만들고 기존 사업 건·추가 신청은 생성 시점 버전 유지 | 200 / 201, 충돌 409, 검증 실패 400 / 422 |
+| `GET /api/configurations/{id}/comparison` | 저장된 초안과 현재 게시본의 변경 비교. 게시 시 비교한 revision을 전달 | 200, 관리자 아님 403 |
+| `GET /api/publications?page=0&size=20` / `GET /api/publications/{id}/comparison` | 관리자용 게시 이력 페이지, 게시자·메모·직전 버전 및 게시 당시 변경 비교 | 200, 잘못된 페이지 400, 관리자 아님 403 |
 | `GET /api/publications/{id}` | 게시본 하나 | 200 |
+
+질문·기한 정책의 편집·게시와 합성 v1·v2 사용자 흐름은 [기관 설정 검증 기록](docs/CONFIGURATION_PUBLISHING_20261110.md)을 참고한다.
 
 ## 인증 API (F-11)
 

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.configuration.dto.ConfigurationComparisonResponse;
 import kr.securityadvisor.configuration.dto.ConfigurationDraftCommand;
 import kr.securityadvisor.configuration.dto.ConfigurationResponse;
 import kr.securityadvisor.configuration.dto.PublicationResponse;
@@ -38,6 +39,12 @@ public class ConfigurationController {
             @PathVariable Long id,
             @Valid @RequestBody ConfigurationDraftCommand command) {
         return service.saveDraft(member, id, command);
+    }
+
+    /** 게시 확인 화면에 저장된 초안의 변경 내역을 제공한다. */
+    @GetMapping("/{id}/comparison")
+    public ConfigurationComparisonResponse comparison(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
+        return service.comparison(member, id);
     }
 
     @PostMapping("/{id}/publications")
