@@ -10,7 +10,9 @@ import kr.securityadvisor.common.schema.AnswerScope;
 import kr.securityadvisor.common.schema.DocTypeCode;
 import kr.securityadvisor.common.schema.FieldDefinition;
 import kr.securityadvisor.common.schema.FieldSchema;
+import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.request.domain.Answer;
 import kr.securityadvisor.request.domain.BusinessCase;
@@ -53,6 +55,7 @@ public class BusinessCaseService {
      */
     @Transactional
     public BusinessCaseResponse create(MemberPrincipal principal, CreateBusinessCaseRequest request) {
+        principal.requireAnyRole(MemberRole.APPLICANT);
         if (request.docTypes() == null || request.docTypes().isEmpty()) {
             throw new DomainRuleViolationException("서류 유형을 하나 이상 선택해야 합니다");
         }
@@ -143,15 +146,21 @@ public class BusinessCaseService {
     /** 사업 건 상세(공통 답변·하위 신청 요약 포함). */
     public BusinessCaseResponse get(MemberPrincipal principal, Long businessCaseId) {
         BusinessCase businessCase = accessPolicy.viewableCase(principal, businessCaseId);
-        return toResponse(businessCase, securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCaseId));
+        return toResponse(businessCase, visibleRequests(principal, businessCaseId));
     }
 
-    /** 내 사업 건 목록(신청자). 담당자 요청함은 review 컨텍스트가 제공한다. */
+    /** 역할별로 조회 가능한 사업 건과 하위 신청만 반환한다. */
     public PageResponse<BusinessCaseListItem> listMine(MemberPrincipal principal, Pageable pageable) {
         return PageResponse.from(
-                businessCaseRepository.findByApplicantUsername(principal.username(), pageable), businessCase -> {
-                    List<SecurityRequest> requests =
-                            securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCase.getId());
+                businessCaseRepository.findVisible(
+                        principal.username(),
+                        principal.role().name(),
+                        principal.role() == MemberRole.INFRA || principal.role() == MemberRole.SECURITY
+                                ? ReviewField.valueOf(principal.role().name())
+                                : null,
+                        pageable),
+                businessCase -> {
+                    List<SecurityRequest> requests = visibleRequests(principal, businessCase.getId());
                     return BusinessCaseListItem.from(
                             businessCase,
                             ProgressSummary.of(requests),
@@ -174,7 +183,13 @@ public class BusinessCaseService {
                 AuditAction.BUSINESS_CASE_UPDATED,
                 null,
                 "사업 개요 수정");
-        return toResponse(businessCase, securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCaseId));
+        return toResponse(businessCase, visibleRequests(principal, businessCaseId));
+    }
+
+    private List<SecurityRequest> visibleRequests(MemberPrincipal principal, Long caseId) {
+        return securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(caseId).stream()
+                .filter(request -> accessPolicy.canViewRequest(principal, request))
+                .toList();
     }
 
     private void prefillCaseAnswers(BusinessCase businessCase, FieldSchema schema) {

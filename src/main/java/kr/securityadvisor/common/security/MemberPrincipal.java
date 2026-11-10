@@ -11,7 +11,12 @@ import kr.securityadvisor.common.error.ForbiddenException;
  * @param displayName 화면 표시 이름
  * @param role 역할
  */
-public record MemberPrincipal(String username, String displayName, MemberRole role) {
+public record MemberPrincipal(String username, String displayName, MemberRole role, long sessionVersion) {
+
+    /** 초기 계정의 권한 정보. 로그인은 반드시 DB에서 읽은 sessionVersion을 명시한다. */
+    public MemberPrincipal(String username, String displayName, MemberRole role) {
+        this(username, displayName, role, 0);
+    }
 
     public boolean hasRole(MemberRole expected) {
         return role == expected;

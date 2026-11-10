@@ -11,6 +11,8 @@ python3 tools/check_doc_versions.py   # 공식 기준 표·머리말 버전·개
 
 구조·의존 방향·주요 흐름·확장 포인트는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), 프론트 연동 안내는 [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md)를 참고한다. 실제 스택·스키마 결정은 [ADR 0001](docs/adr/0001-stack-and-schema-conventions.md), REST API 결정은 [ADR 0004](docs/adr/0004-restful-api-and-error-model.md)에 있다. 기존 [ADR](docs/adr/)과 [docs/DEVIATIONS.md](docs/DEVIATIONS.md)의 결정·구현 차이 기록은 보존하며, 원본 규칙과 정리되지 않은 차이는 PROJECT_RULES.md 7-1 절차로 반영한다.
 
+담당자는 현재 역할의 활성 배정 신청만 조회하며, 기관 통계는 관리자 전용이다. 계정 비활성화·역할 변경 후 기존 세션은 재로그인이 필요하다. [권한 결정](docs/adr/0010-assigned-access-and-session-revocation.md)과 [도커 검증 결과](docs/ACCESS_SESSION_20261110.md)를 참고한다.
+
 ## 준비물
 
 - JDK 25 (없으면 Gradle toolchain이 자동으로 내려받는다)

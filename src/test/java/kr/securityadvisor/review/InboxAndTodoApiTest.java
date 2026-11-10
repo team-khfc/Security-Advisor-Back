@@ -70,7 +70,7 @@ class InboxAndTodoApiTest {
         assertThat(requested).hasStatus(HttpStatus.CREATED);
         Long securityReviewId = reviewId(requested.getResponse().getContentAsString(), "SECURITY");
 
-        // 요청함: 키워드(제목)로 걸러 한 건, 형제 신청(보안성검토)이 함께 보이고 미해결 보완 0
+        // 요청함: 키워드(제목)로 걸러 한 건, 미배정 형제 신청(보안성검토)은 숨기고 미해결 보완 0
         MvcTestResult inbox = mvc.get()
                 .uri("/api/reviews?keyword={k}", title)
                 .with(authentication(INFRA))
@@ -82,7 +82,7 @@ class InboxAndTodoApiTest {
         assertThat(inbox)
                 .bodyJson()
                 .extractingPath("$[0].siblingRequests[*].securityRequestId")
-                .isEqualTo(List.of(reviewRequestId.intValue()));
+                .isEqualTo(List.of());
         // 분야·서류·상태 필터 — 안 맞으면 비어 있고, 잘못된 상태 이름은 400
         assertThat(mvc.get()
                         .uri("/api/reviews?keyword={k}&field=SECURITY", title)

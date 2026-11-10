@@ -27,7 +27,7 @@ public class LoginAttemptRecorder {
     @Transactional
     public boolean recordFailure(String username, Instant now) {
         return memberRepository
-                .findById(username)
+                .findForUpdate(username)
                 .map(member -> member.recordLoginFailure(now, properties.toPolicy()))
                 .orElse(false);
     }
@@ -35,6 +35,6 @@ public class LoginAttemptRecorder {
     /** 로그인 성공: 실패 횟수·잠금을 초기화한다. */
     @Transactional
     public void recordSuccess(String username) {
-        memberRepository.findById(username).ifPresent(member -> member.recordLoginSuccess());
+        memberRepository.findForUpdate(username).ifPresent(member -> member.recordLoginSuccess());
     }
 }

@@ -15,6 +15,23 @@ import org.junit.jupiter.api.Test;
 /** Member 애그리거트의 불변식 — 회원가입 역할 고정(불변식 32)과 로그인 실패 잠금 규칙. 프레임워크 없이 검증한다. */
 class MemberTest {
 
+    @Test
+    @DisplayName("실제 권한 변경만 세션 세대를 올리고 원복·재활성화로 이전 세대를 되살리지 않는다")
+    void sessionVersionNeverRewinds() {
+        Member member = Member.seed("session-user", "{bcrypt}hash", "합성", MemberRole.INFRA);
+        member.changeRole(MemberRole.INFRA);
+        member.activate();
+        assertThat(member.getSessionVersion()).isZero();
+        member.changeRole(MemberRole.SECURITY);
+        member.changeRole(MemberRole.INFRA);
+        member.deactivate();
+        member.deactivate();
+        member.activate();
+        member.recordLoginSuccess();
+        member.changeEmail("synthetic@example.com");
+        assertThat(member.getSessionVersion()).isEqualTo(4);
+    }
+
     private static final LoginLockPolicy POLICY = new LoginLockPolicy(3, Duration.ofMinutes(15));
     private static final Instant NOW = Instant.parse("2026-11-07T09:00:00Z");
 

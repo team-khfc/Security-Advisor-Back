@@ -71,8 +71,13 @@ public class TodoService {
                 pendingFinal++;
             }
         }
-        long answered =
-                supplementRepository.countByRequestedByAndStatus(principal.username(), SupplementStatus.ANSWERED);
+        List<Long> assignedIds = assignmentService.listMine(principal).stream()
+                .map(AssignmentResponse::securityRequestId)
+                .toList();
+        long answered = assignedIds.isEmpty()
+                ? 0
+                : supplementRepository.countBySecurityRequestIdInAndFieldAndStatus(
+                        assignedIds, ReviewField.valueOf(principal.role().name()), SupplementStatus.ANSWERED);
         return TodoSummary.of(principal.role(), pendingReviews, answered, pendingFinal, 0, 0, 0);
     }
 

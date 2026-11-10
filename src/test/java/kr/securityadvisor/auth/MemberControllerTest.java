@@ -11,6 +11,7 @@ import kr.securityadvisor.auth.service.MemberAdminService;
 import kr.securityadvisor.auth.service.MemberRegistrationService;
 import kr.securityadvisor.common.config.SecurityConfig;
 import kr.securityadvisor.common.error.ConflictException;
+import kr.securityadvisor.common.security.AccountSessionValidator;
 import kr.securityadvisor.common.security.MemberRole;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 class MemberControllerTest {
 
     private static final MemberResponse CREATED = new MemberResponse("newuser", "홍길동", MemberRole.APPLICANT);
+
+    @MockitoBean
+    private AccountSessionValidator sessionValidator;
 
     @Autowired
     private MockMvcTester mvc;

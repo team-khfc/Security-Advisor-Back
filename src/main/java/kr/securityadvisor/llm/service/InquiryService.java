@@ -78,8 +78,8 @@ public class InquiryService {
     /** 대화 생성 — 그 신청의 분야에 배정된 담당자만. */
     public InquiryResponse open(MemberPrincipal principal, Long securityRequestId, InquiryCommand command) {
         ReviewField field = fieldOf(principal);
-        accessPolicy.viewableRequest(principal, securityRequestId);
         reviewerAccessPolicy.requireAssignedReviewer(principal, securityRequestId, field);
+        accessPolicy.viewableRequest(principal, securityRequestId);
         Inquiry inquiry = inquiryRepository.save(
                 Inquiry.open(securityRequestId, principal.username(), field, command == null ? null : command.title()));
         auditRecorder.record(

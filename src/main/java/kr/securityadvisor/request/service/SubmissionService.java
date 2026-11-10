@@ -145,7 +145,7 @@ public class SubmissionService {
     }
 
     /**
-     * 문서함(GET /api/submissions): 역할·권한 범위 내 제출본. 신청자는 자기 사업 건만, 담당자·관리자는 전체.
+     * 문서함(GET /api/submissions): 역할·권한 범위 내 제출본. 신청자는 자기 사업 건, 담당자는 활성 배정, 관리자는 전체.
      * 필터는 서류 유형·신청 상태·최신 개정만. (1차 범위: 메모리 페이징 — 제출본 수가 적은 시연 규모 기준)
      */
     @Transactional(readOnly = true)
@@ -161,6 +161,7 @@ public class SubmissionService {
             latestByRequest.merge(s.getSecurityRequestId(), s.getId(), Math::max);
         }
         return submissions.stream()
+                .filter(s -> accessPolicy.canViewRequest(principal, s.getSecurityRequestId()))
                 .map(s -> {
                     SecurityRequest request = requests.computeIfAbsent(
                             s.getSecurityRequestId(),

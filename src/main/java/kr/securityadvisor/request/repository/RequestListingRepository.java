@@ -39,7 +39,7 @@ WITH visible AS (
        WHERE doc->>'code'=r.doc_type LIMIT 1) t ON true
  WHERE (:role='ADMIN' OR (:role='APPLICANT' AND c.applicant_username=:username)
    OR (:role IN ('INFRA','SECURITY') AND EXISTS (SELECT 1 FROM assignments a
-       WHERE a.security_request_id=r.security_request_id AND a.active AND a.assignee_username=:username)))
+       WHERE a.security_request_id=r.security_request_id AND a.active AND a.field=:role AND a.assignee_username=:username)))
  AND (CAST(:caseId AS bigint) IS NULL OR r.business_case_id=CAST(:caseId AS bigint))
  AND (CAST(:status AS text) IS NULL OR r.status=CAST(:status AS text))
  AND (CAST(:docType AS text) IS NULL OR r.doc_type=CAST(:docType AS text))

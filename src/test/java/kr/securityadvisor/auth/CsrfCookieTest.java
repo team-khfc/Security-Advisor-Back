@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import kr.securityadvisor.auth.controller.AuthController;
 import kr.securityadvisor.auth.service.AuthService;
 import kr.securityadvisor.common.config.SecurityConfig;
+import kr.securityadvisor.common.security.AccountSessionValidator;
 import kr.securityadvisor.common.security.SessionAuthenticator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "securityadvisor.test.context=csrf-cookie")
 class CsrfCookieTest {
+
+    @MockitoBean
+    private AccountSessionValidator sessionValidator;
 
     @Autowired
     private MockMvcTester mvc;

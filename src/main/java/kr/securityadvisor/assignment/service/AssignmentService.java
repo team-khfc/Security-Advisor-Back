@@ -181,6 +181,8 @@ public class AssignmentService {
         return assignmentRepository
                 .findByAssigneeUsernameAndActiveTrueOrderByAssignedAtDesc(principal.username())
                 .stream()
+                .filter(assignment ->
+                        assignment.getField().name().equals(principal.role().name()))
                 .map(AssignmentResponse::from)
                 .toList();
     }

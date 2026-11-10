@@ -155,7 +155,7 @@ public class ReviewService {
     public List<ReviewInboxItem> inbox(MemberPrincipal principal, ReviewInboxFilter filter) {
         ReviewInboxFilter effective = filter == null ? ReviewInboxFilter.NONE : filter;
         return assignmentService.listMine(principal).stream()
-                .map(this::toInboxItem)
+                .map(assignment -> toInboxItem(principal, assignment))
                 .flatMap(Optional::stream)
                 .filter(effective::matches)
                 .toList();
@@ -318,7 +318,7 @@ public class ReviewService {
         }
     }
 
-    private Optional<ReviewInboxItem> toInboxItem(AssignmentResponse assignment) {
+    private Optional<ReviewInboxItem> toInboxItem(MemberPrincipal principal, AssignmentResponse assignment) {
         return reviewRepository
                 .findBySecurityRequestIdAndField(assignment.securityRequestId(), assignment.field())
                 .map(review -> {
@@ -331,6 +331,7 @@ public class ReviewService {
                     List<SecurityRequestSummary> siblings =
                             securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCase.getId()).stream()
                                     .filter(sibling -> !sibling.getId().equals(request.getId()))
+                                    .filter(sibling -> accessPolicy.canViewRequest(principal, sibling))
                                     .map(SecurityRequestSummary::from)
                                     .toList();
                     return new ReviewInboxItem(
