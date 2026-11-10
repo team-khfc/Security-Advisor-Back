@@ -31,6 +31,19 @@ class InfrastructureProposalParserTest {
     }
 
     @Test
+    @DisplayName("서버 사양은 첨부에 명시된 값만 제안하고 추측한 메모리는 비운다")
+    void groundedServerSpecifications() {
+        var rows =
+                parser.parseServers("""
+                {"servers":[{"name":{"value":"합성 웹","sourceTag":"U1","quote":"합성 웹: CPU 4 vCPU"},
+                "cpu":{"value":"4 vCPU","sourceTag":"U1","quote":"합성 웹: CPU 4 vCPU"},
+                "memory":{"value":"16 GB","sourceTag":"U1","quote":"권장 메모리 16 GB"}}]}
+                """, List.of(new InquiryContextService.Source("U1", "합성 기획서", "합성 웹: CPU 4 vCPU")));
+        assertThat(rows.getFirst().fields().get("cpu").value()).isEqualTo("4 vCPU");
+        assertThat(rows.getFirst().fields().get("memory").value()).isEmpty();
+    }
+
+    @Test
     @DisplayName("비정상 모델 출력은 성공으로 가장하지 않는다")
     void malformedOutputFails() {
         assertThatThrownBy(() -> parser.parse("응답 형식 오류", List.of())).isInstanceOf(ServiceUnavailableException.class);

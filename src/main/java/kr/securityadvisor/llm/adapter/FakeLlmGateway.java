@@ -44,7 +44,7 @@ public class FakeLlmGateway implements LlmBackend {
             case INQUIRY ->
                 new LlmResult(
                         prompt.system().contains(InfrastructureProposalService.MARKER)
-                                ? "{\"connections\":[]}"
+                                ? "{\"connections\":[],\"servers\":[]}"
                                 : inquiry(prompt),
                         REFERENCE);
         };

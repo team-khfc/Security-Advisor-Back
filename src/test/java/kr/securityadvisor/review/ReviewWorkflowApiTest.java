@@ -408,7 +408,9 @@ class ReviewWorkflowApiTest {
                 "API 조회",
                 "아웃바운드",
                 "2026-11-11",
-                "2027-11-11");
+                "2027-11-11",
+                null,
+                null);
         var two = new kr.securityadvisor.request.dto.InfrastructurePlanCommand.Connection(
                 "row2",
                 "합성 API",
@@ -422,9 +424,20 @@ class ReviewWorkflowApiTest {
                 "DB 조회",
                 "아웃바운드",
                 "2026-11-11",
-                "2027-11-11");
+                "2027-11-11",
+                null,
+                null);
         var command = new kr.securityadvisor.request.dto.InfrastructurePlanCommand(
-                0L, List.of(one, two), "합성 서버·망 분리 검토", revisions);
+                0L,
+                List.of(one, two),
+                "합성 서버·망 분리 검토",
+                revisions,
+                1,
+                false,
+                false,
+                List.of(),
+                java.util.Map.of(),
+                java.util.Map.of());
         String body = testJson.writeValueAsString(command);
         assertThat(mvc.put()
                         .uri("/api/security-requests/{id}/infrastructure-plan", id)
@@ -529,6 +542,85 @@ class ReviewWorkflowApiTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body.replace("\"expectedRevision\":0", "\"expectedRevision\":9")))
                 .hasStatus(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    @DisplayName("서버 연결·미확인 AI 사양 임시 저장 후 확인 저장해야 협의할 수 있고 문서에 반영된다")
+    void infrastructureServerDraftAndConfirmation() throws Exception {
+        Long id = createFirewallRequest();
+        var reviews = mvc.post()
+                .uri("/api/security-requests/{id}/reviews", id)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":0}")
+                .exchange();
+        assertThat(reviews).hasStatus(HttpStatus.CREATED);
+        var reviewer = new MemberPrincipal("infra", "박인프라", MemberRole.INFRA);
+        var revisions = new java.util.LinkedHashMap<String, Long>();
+        testAnswers
+                .allAnswers(testAccess.viewableRequest(reviewer, id))
+                .forEach(a -> revisions.put(a.fieldKey(), a.revision()));
+        var body = testJson.readTree("""
+                {"expectedRevision":0,"schemaVersion":2,"draft":true,"aiPending":false,"notes":"합성 운영 검토","answerRevisions":{},
+                 "servers":[{"id":"web","name":"합성 웹","purpose":"업무 서비스","environment":"가상","cpu":"4 vCPU","memory":"8 GB","storage":"100 GB","os":"Linux","database":"미해당","address":"192.0.2.10","zone":"DMZ","aiInferred":true,"aiConfirmed":false,"evidence":{"cpu":"합성 첨부: 4 vCPU"}},
+                 {"id":"api","name":"합성 API","purpose":"API 처리","environment":"가상","cpu":"8 vCPU","memory":"16 GB","storage":"200 GB","os":"Linux","database":"미해당","address":"198.51.100.20","zone":"내부망","aiInferred":false,"aiConfirmed":false,"evidence":{}}],
+                 "connections":[{"id":"link","sourceSystem":"","sourceAddress":"","sourceZone":"","destinationSystem":"","destinationAddress":"","destinationZone":"","protocol":"TCP","port":"","purpose":"API 연결","direction":"아웃바운드","startDate":"2026-11-11","endDate":"2027-11-11","sourceServerId":"web","destinationServerId":"api"}],"operations":{},"checklist":{}}
+                """);
+        var command = (tools.jackson.databind.node.ObjectNode) body;
+        command.set("answerRevisions", testJson.valueToTree(revisions));
+        assertThat(saveInfrastructure(id, command))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.connections[0].sourceAddress")
+                .isEqualTo("192.0.2.10");
+        assertThat(requestJson(id)).contains("443");
+        Long review = reviewId(reviews.getResponse().getContentAsString(), "INFRA");
+        assertThat(complete(INFRA, review, INFRA_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        command.put("expectedRevision", 1);
+        command.put("draft", false);
+        assertThat(saveInfrastructure(id, command)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        ((tools.jackson.databind.node.ObjectNode) command.path("servers").get(0)).put("aiConfirmed", true);
+        ((tools.jackson.databind.node.ObjectNode) command.path("connections").get(0)).put("port", "8443");
+        command.set(
+                "operations",
+                testJson.valueToTree(java.util.Map.of(
+                        "network", "DMZ와 내부망 분리", "management", "합성 VPN 관리 접속", "owner", "합성 운영팀", "backup", "매일 백업")));
+        command.set(
+                "checklist",
+                testJson.valueToTree(java.util.Map.of(
+                        "serverEnvironment", true, "network", true, "management", true, "operations", true)));
+        var saved = saveInfrastructure(id, command);
+        assertThat(saved)
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.servers[0].aiConfirmed")
+                .isEqualTo(true);
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/generated-documents", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiSupplement\":false}")
+                        .exchange()
+                        .getResponse()
+                        .getContentAsString())
+                .contains("4 vCPU", "16 GB", "합성 운영팀", "매일 백업", "AI 추론 · 담당자 확인");
+        assertThat(complete(INFRA, review, INFRA_CHECKLIST)).hasStatusOk();
+        command.put("expectedRevision", 2);
+        command.put("draft", true);
+        ((tools.jackson.databind.node.ObjectNode) command.path("connections").get(0)).put("sourceServerId", "missing");
+        assertThat(saveInfrastructure(id, command)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    private MvcTestResult saveInfrastructure(Long id, Object command) {
+        return mvc.put()
+                .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(testJson.writeValueAsString(command))
+                .exchange();
     }
 
     private MvcTestResult complete(Authentication who, Long reviewId, String checklist) throws Exception {

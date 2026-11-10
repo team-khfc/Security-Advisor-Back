@@ -46,14 +46,13 @@ public class FinalDraftGenerationService {
                 .toList();
         var plan = infrastructurePlans.snapshot(requestId);
         var infraFacts = new java.util.ArrayList<String>();
-        for (var row : plan.connections())
-            infraFacts.add("담당자 확인 통신 구간: " + row.sourceSystem() + " (" + row.sourceZone() + ", " + row.sourceAddress()
-                    + ") → " + row.destinationSystem() + " (" + row.destinationZone() + ", " + row.destinationAddress()
-                    + ") · " + row.protocol() + " / " + row.port() + " · " + row.startDate() + " ~ " + row.endDate()
-                    + " · " + row.purpose());
-        if (!plan.notes().isBlank()) infraFacts.add("ICT인프라 검토 사항: " + plan.notes());
+        var infraLines = InfrastructureDocumentSections.from(plan).stream()
+                .flatMap(section -> section.values().stream())
+                .map(v -> v.label() + ": " + v.display() + " (" + v.status() + ")")
+                .toList();
+        if (!plan.draft() && !plan.aiPending()) infraFacts.addAll(infraLines);
         var allLines = new java.util.ArrayList<>(lines);
-        allLines.addAll(infraFacts);
+        allLines.addAll(infraLines);
         var allFacts = new java.util.ArrayList<>(facts);
         allFacts.addAll(infraFacts);
         LlmResult result = gateway.complete(

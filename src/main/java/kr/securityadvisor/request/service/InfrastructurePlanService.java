@@ -50,9 +50,20 @@ public class InfrastructurePlanService {
                 .map(p -> {
                     var c = json.readValue(p.getContent(), InfrastructurePlanCommand.class);
                     return new InfrastructurePlanResponse(
-                            p.getRevision(), c.connections(), c.notes(), p.getUpdatedBy(), p.getUpdatedAt());
+                            p.getRevision(),
+                            c.connections(),
+                            c.notes(),
+                            p.getUpdatedBy(),
+                            p.getUpdatedAt(),
+                            c.schemaVersion(),
+                            c.draft(),
+                            c.aiPending(),
+                            c.servers(),
+                            c.operations(),
+                            c.checklist());
                 })
-                .orElse(new InfrastructurePlanResponse(0, List.of(), "", null, null));
+                .orElse(new InfrastructurePlanResponse(
+                        0, List.of(), "", null, null, 1, false, false, List.of(), Map.of(), Map.of()));
     }
 
     public InfrastructurePlanResponse save(MemberPrincipal actor, Long id, InfrastructurePlanCommand command) {
@@ -66,54 +77,45 @@ public class InfrastructurePlanService {
         var plan = repository.findById(id).orElseGet(() -> InfrastructurePlan.create(id));
         if (plan.getRevision() != command.expectedRevision())
             throw new ConflictException("다른 담당자가 수정했습니다. 최신 검토 정보를 다시 불러온 후 저장해 주세요.");
-        Set<String> ids = new HashSet<>();
-        for (var c : command.connections()) {
-            if (!ids.add(c.id())) throw new DomainRuleViolationException("통신 구간 식별자가 중복되었습니다.");
-            validate("출발지 주소", "IP_ADDRESS", c.sourceAddress());
-            validate("목적지 주소", "IP_ADDRESS", c.destinationAddress());
-            validate("프로토콜", "PROTOCOL", c.protocol());
-            validate("포트", "PORT", c.port());
-            validate("허용 기간", "DATE_RANGE", c.startDate() + " ~ " + c.endDate());
-            if (!Set.of("외부", "DMZ", "내부망", "클라우드", "기타").contains(c.sourceZone())
-                    || !Set.of("외부", "DMZ", "내부망", "클라우드", "기타").contains(c.destinationZone()))
-                throw new DomainRuleViolationException("망 구간을 선택해 주세요.");
-            if (!Set.of("인바운드", "아웃바운드", "양방향").contains(c.direction()))
-                throw new DomainRuleViolationException("통신 방향을 선택해 주세요.");
-        }
+        if (plan.getRevision() > 0 && snapshot(id).schemaVersion() >= 2 && command.schemaVersion() < 2)
+            throw new ConflictException("새 서버 구성 형식으로 다시 불러온 후 저장해 주세요.");
+        command = InfrastructurePlanValidation.normalize(command);
         var business = access.viewableCase(actor, request.getBusinessCaseId());
         entityManager.refresh(business, LockModeType.PESSIMISTIC_WRITE);
         var schema = publications.getFieldSchema(business.getPublicationId());
-        var first = command.connections().getFirst();
-        Map<String, String> values = new LinkedHashMap<>();
-        values.put("system.target_server", first.destinationSystem());
-        values.put("network.source", first.sourceAddress());
-        values.put("network.destination", first.destinationAddress());
-        values.put("network.source_system", first.sourceSystem());
-        values.put("network.destination_system", first.destinationSystem());
-        values.put("firewall.protocol", first.protocol());
-        values.put("firewall.port", first.port());
-        values.put("firewall.period", first.startDate() + " ~ " + first.endDate());
-        values.put("firewall.purpose", first.purpose());
-        values.put("firewall.direction", first.direction());
-        for (var entry : values.entrySet()) {
-            var field = schema.find(entry.getKey()).orElse(null);
-            if (field == null || !field.appliesTo(request.getDocType())) continue;
-            var old = field.scope() == AnswerScope.CASE
-                    ? answerRepository.findByBusinessCaseIdAndScopeAndFieldKey(
-                            business.getId(), AnswerScope.CASE, field.key())
-                    : answerRepository.findBySecurityRequestIdAndFieldKey(id, field.key());
-            if (old.isPresent()
-                    && old.get().hasValue()
-                    && !Objects.equals(
-                            command.answerRevisions().get(field.key()),
-                            old.get().getRevision()))
-                throw new ConflictException("원본 답변이 변경되었습니다. 새로고침한 후 입력을 확인해 주세요.");
-            answers.inputByStaff(
-                    actor,
-                    request,
-                    field.key(),
-                    entry.getValue(),
-                    command.answerRevisions().get(field.key()));
+        if (!command.draft()) {
+            var first = command.connections().getFirst();
+            Map<String, String> values = new LinkedHashMap<>();
+            values.put("system.target_server", first.destinationSystem());
+            values.put("network.source", first.sourceAddress());
+            values.put("network.destination", first.destinationAddress());
+            values.put("network.source_system", first.sourceSystem());
+            values.put("network.destination_system", first.destinationSystem());
+            values.put("firewall.protocol", first.protocol());
+            values.put("firewall.port", first.port());
+            values.put("firewall.period", first.startDate() + " ~ " + first.endDate());
+            values.put("firewall.purpose", first.purpose());
+            values.put("firewall.direction", first.direction());
+            for (var entry : values.entrySet()) {
+                var field = schema.find(entry.getKey()).orElse(null);
+                if (field == null || !field.appliesTo(request.getDocType())) continue;
+                var old = field.scope() == AnswerScope.CASE
+                        ? answerRepository.findByBusinessCaseIdAndScopeAndFieldKey(
+                                business.getId(), AnswerScope.CASE, field.key())
+                        : answerRepository.findBySecurityRequestIdAndFieldKey(id, field.key());
+                if (old.isPresent()
+                        && old.get().hasValue()
+                        && !Objects.equals(
+                                command.answerRevisions().get(field.key()),
+                                old.get().getRevision()))
+                    throw new ConflictException("원본 답변이 변경되었습니다. 새로고침한 후 입력을 확인해 주세요.");
+                answers.inputByStaff(
+                        actor,
+                        request,
+                        field.key(),
+                        entry.getValue(),
+                        command.answerRevisions().get(field.key()));
+            }
         }
         plan.replace(json.writeValueAsString(command), actor.username(), clock.instant());
         repository.saveAndFlush(plan);
@@ -129,12 +131,27 @@ public class InfrastructurePlanService {
                 plan.getRevision(),
                 AuditAction.ANSWER_STAFF_INPUT,
                 null,
-                "ICT인프라 검토 정보 저장 · 통신 구간 " + command.connections().size() + "개");
+                (command.draft() ? "ICT인프라 임시 저장 · 통신 구간 " : "ICT인프라 확인 저장 · 통신 구간 ")
+                        + command.connections().size() + "개");
         return snapshot(id);
     }
 
     public void requireCurrent(SecurityRequest request) {
         var plan = snapshot(request.getId());
+        if (plan.draft() || plan.aiPending())
+            throw new DomainRuleViolationException("ICT인프라 검토 정보가 임시 저장 상태입니다. 필수 정보와 AI 제안을 확인 저장한 후 협의를 완료해 주세요.");
+        if (plan.schemaVersion() >= 2)
+            InfrastructurePlanValidation.normalize(new InfrastructurePlanCommand(
+                    plan.revision(),
+                    plan.connections(),
+                    plan.notes(),
+                    Map.of(),
+                    plan.schemaVersion(),
+                    false,
+                    plan.aiPending(),
+                    plan.servers(),
+                    plan.operations(),
+                    plan.checklist()));
         if (plan.connections().isEmpty()) return;
         var first = plan.connections().getFirst();
         var expected = Map.of(
