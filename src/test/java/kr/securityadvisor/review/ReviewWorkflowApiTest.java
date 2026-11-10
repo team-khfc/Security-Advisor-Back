@@ -612,6 +612,24 @@ class ReviewWorkflowApiTest {
         command.put("draft", true);
         ((tools.jackson.databind.node.ObjectNode) command.path("connections").get(0)).put("sourceServerId", "missing");
         assertThat(saveInfrastructure(id, command)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        // 정보보안이 인프라 완료 뒤 운영 정보를 바꾸면 인프라 재협의 전 보안 완료를 막는다.
+        ((tools.jackson.databind.node.ObjectNode) command.path("connections").get(0)).put("sourceServerId", "web");
+        command.put("draft", false);
+        ((tools.jackson.databind.node.ObjectNode) command.path("operations")).put("backup", "매일 백업 및 월간 복구 점검");
+        testAnswers
+                .allAnswers(testAccess.viewableRequest(reviewer, id))
+                .forEach(a -> revisions.put(a.fieldKey(), a.revision()));
+        command.set("answerRevisions", testJson.valueToTree(revisions));
+        assertThat(saveInfrastructure(id, command)).hasStatusOk();
+        assertThat(mvc.get().uri("/api/reviews/{id}", review).with(authentication(INFRA)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.status")
+                .isEqualTo("RECHECK");
+        Long securityReview = reviewId(reviews.getResponse().getContentAsString(), "SECURITY");
+        assertThat(complete(SECURITY, securityReview, SECURITY_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(complete(INFRA, review, INFRA_CHECKLIST)).hasStatusOk();
+        assertThat(complete(SECURITY, securityReview, SECURITY_CHECKLIST)).hasStatusOk();
     }
 
     private MvcTestResult saveInfrastructure(Long id, Object command) {
