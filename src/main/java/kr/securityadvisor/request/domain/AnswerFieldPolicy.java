@@ -12,6 +12,18 @@ import kr.securityadvisor.common.security.MemberRole;
 public final class AnswerFieldPolicy {
     private AnswerFieldPolicy() {}
 
+    /** 명시적 미해당을 기존 문서 표시 값으로 정규화하되 필수 여부와 모순 입력을 검증한다. */
+    public static String normalize(FieldDefinition field, String value, boolean notApplicable) {
+        if (notApplicable) {
+            if (field.required()) invalid(field, "필수 항목은 미해당으로 저장할 수 없습니다.");
+            if (value != null && !value.isBlank() && !value.strip().equals("미해당"))
+                invalid(field, "미해당 상태와 답변 값을 함께 저장할 수 없습니다.");
+            return "미해당";
+        }
+        validate(field, value);
+        return value.strip();
+    }
+
     /** 입력은 항목 소유 역할만 가능하며 관리자에게 우회 권한을 주지 않는다. */
     public static void requireWrite(FieldDefinition field, MemberRole role) {
         if (role == MemberRole.ADMIN || field.askRole() != role) {
@@ -60,6 +72,7 @@ public final class AnswerFieldPolicy {
                     invalid(field, "실제 달력에 있는 날짜를 입력해 주세요.");
                 }
             }
+            case "IP_ADDRESS", "PORT", "PROTOCOL" -> NetworkAnswerFormat.validate(field, trimmed);
             case "TEXT", "LONG_TEXT" -> {}
             default -> invalid(field, "지원하지 않는 항목 형식입니다.");
         }

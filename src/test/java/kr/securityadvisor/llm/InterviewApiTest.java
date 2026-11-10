@@ -40,6 +40,43 @@ class InterviewApiTest {
     @MockitoSpyBean
     private LlmGateway gateway;
 
+    @MockitoSpyBean
+    private kr.securityadvisor.configuration.service.PublicationService publications;
+
+    @Test
+    @DisplayName("AI 추천도 포트 형식을 검증하며 미해당 제안은 적용 후에도 사람 확인 전 미확정이다")
+    void networkFormatAndNotApplicableProposal() throws Exception {
+        long id = create();
+        var schema = publications.getFieldSchema(1L);
+        var fields = schema.fields().stream()
+                .map(f -> f.key().equals("project.summary")
+                        ? new kr.securityadvisor.common.schema.FieldDefinition(
+                                f.key(), f.label(), f.scope(), f.docTypes(), "PORT", false, f.askRole(), f.hint())
+                        : f)
+                .toList();
+        doReturn(new kr.securityadvisor.common.schema.FieldSchema(schema.deadlinePolicy(), schema.docTypes(), fields))
+                .when(publications)
+                .getFieldSchema(1L);
+        doReturn(new LlmResult("{\"reply\":\"합성 제안\",\"proposedValue\":\"65536\",\"evidence\":[\"F\"]}", "fake/test"))
+                .when(gateway)
+                .complete(any(), any(), any());
+        var invalid = ask(id, "SUGGEST", "project.summary", APPLICANT);
+        assertThat(invalid).bodyJson().extractingPath("$.proposedValue").isNull();
+        assertThat(apply(id, turnId(invalid))).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        doReturn(new LlmResult(
+                        "{\"reply\":\"미해당 여부를 확인해 주세요\",\"proposedValue\":\"미해당\",\"evidence\":[\"F\"]}", "fake/test"))
+                .when(gateway)
+                .complete(any(), any(), any());
+        var proposal = ask(id, "SUGGEST", "project.summary", APPLICANT);
+        assertThat(apply(id, turnId(proposal))).hasStatusOk();
+        assertThat(JsonPath.<List<Boolean>>read(
+                        caseBody(id), "$.caseAnswers[?(@.fieldKey=='project.summary')].notApplicable"))
+                .containsExactly(true);
+        assertThat(JsonPath.<List<Boolean>>read(
+                        caseBody(id), "$.caseAnswers[?(@.fieldKey=='project.summary')].confirmed"))
+                .containsExactly(false);
+    }
+
     private static final Authentication APPLICANT = auth("applicant", MemberRole.APPLICANT);
 
     private static Authentication auth(String username, MemberRole role) {

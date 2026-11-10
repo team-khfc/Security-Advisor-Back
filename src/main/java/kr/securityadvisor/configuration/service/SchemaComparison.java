@@ -112,6 +112,9 @@ public final class SchemaComparison {
             case "BOOLEAN" -> "선택형(예·아니요)";
             case "DATE_RANGE" -> "기간";
             case "NUMBER" -> "숫자";
+            case "IP_ADDRESS" -> "IP 주소 / CIDR";
+            case "PORT" -> "포트 / 범위";
+            case "PROTOCOL" -> "프로토콜";
             default -> field.type();
         };
         return field.label() + "\n저장 키: " + field.key() + "\n응답 형식: " + type + "\n작성 역할: " + role

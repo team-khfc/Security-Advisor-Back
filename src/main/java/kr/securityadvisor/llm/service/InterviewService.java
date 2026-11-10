@@ -51,6 +51,8 @@ public class InterviewService {
             ASK는 질문에 설명만 한다(proposedValue=null). SUGGEST는 현재 항목의 답변 후보를 만든다.
             후보를 작성할 근거가 부족하면 proposedValue=null로 두고 reply에 필요한 추가 정보를 질문한다.
             BOOLEAN 후보는 '예' 또는 '아니요', NUMBER는 숫자, DATE_RANGE는 'YYYY-MM-DD~YYYY-MM-DD', 상시는 'YYYY-MM-DD~'로 쓴다.
+            IP_ADDRESS는 사용자가 제공한 IP/CIDR 리터럴만, PORT는 1~65535 또는 시작-종료 범위, PROTOCOL은 TCP/UDP/ICMP/ICMPV6/ESP/AH/GRE 중 값으로 쓴다. 목록은 쉼표로 구분한다.
+            미해당은 사용자가 해당 없음을 명시한 선택 항목에만 제안한다. 모름·미입력과 혼동하지 않는다.
             사용자가 종료일 없는 상시 운영이라고 명시한 기간만 'YYYY-MM-DD ~ 종료일 없음'으로 쓴다.
             후보는 4000자 이하, 설명은 6000자 이하. 답변을 확정하거나 검토·제출·할당을 수행했다고 말하지 않는다.
             반드시 JSON 하나: {"reply":"설명 또는 추가 질문", "proposedValue":null, "evidence":["F","B"]}.

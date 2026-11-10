@@ -48,6 +48,13 @@ public class Answer extends BaseAuditEntity {
     @Column(columnDefinition = "text")
     private String value;
 
+    @Column(name = "not_applicable", nullable = false)
+    private boolean notApplicable;
+
+    public boolean isNotApplicable() {
+        return notApplicable;
+    }
+
     /** null 이면 "담당자 확인 필요". */
     @Enumerated(EnumType.STRING)
     @Column(name = "value_source", length = 20)
@@ -215,6 +222,7 @@ public class Answer extends BaseAuditEntity {
     public void inputByStaff(String staffUsername, String value, Instant now) {
         requireActor(staffUsername);
         this.value = value;
+        this.notApplicable = "미해당".equals(value.strip());
         this.valueSource = ValueSource.STAFF_INPUT;
         this.evidence = null;
         confirm(staffUsername, now);
@@ -253,6 +261,7 @@ public class Answer extends BaseAuditEntity {
             throw new DomainRuleViolationException("답변 값이 비어 있습니다: " + fieldKey);
         }
         this.value = value.strip();
+        this.notApplicable = "미해당".equals(this.value);
         this.valueSource = ValueSource.USER_ANSWER;
         this.evidence = null;
         this.confirmed = true;
@@ -269,6 +278,7 @@ public class Answer extends BaseAuditEntity {
             throw new DomainRuleViolationException("AI 제안 값에는 근거가 필요합니다: " + fieldKey);
         }
         this.value = value.strip();
+        this.notApplicable = "미해당".equals(this.value);
         this.valueSource = ValueSource.AI_INFERRED;
         this.evidence = evidence.strip();
         this.confirmed = false;

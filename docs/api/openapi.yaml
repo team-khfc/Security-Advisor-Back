@@ -3385,6 +3385,8 @@ components:
         revision:
           type: integer
           format: int64
+        notApplicable:
+          type: boolean
     SecurityRequestResponse:
       type: object
       properties:
@@ -3448,8 +3450,8 @@ components:
         expectedRevision:
           type: integer
           format: int64
-      required:
-      - value
+        notApplicable:
+          type: boolean
     AnswerActionRequest:
       type: object
       properties:
@@ -3532,8 +3534,8 @@ components:
         expectedRevision:
           type: integer
           format: int64
-      required:
-      - value
+        notApplicable:
+          type: boolean
     ReviewRevisionCommand:
       type: object
       properties:
@@ -4370,24 +4372,22 @@ components:
           type: boolean
         container:
           type: boolean
-        number:
+        long:
           type: boolean
-        textual:
-          type: boolean
-          deprecated: true
         double:
           type: boolean
         pojo:
           type: boolean
-        string:
+        textual:
+          type: boolean
+          deprecated: true
+        int:
           type: boolean
         short:
           type: boolean
-        int:
-          type: boolean
-        long:
-          type: boolean
         boolean:
+          type: boolean
+        string:
           type: boolean
         binary:
           type: boolean
@@ -4403,17 +4403,19 @@ components:
           - OBJECT
           - POJO
           - STRING
-        bigDecimal:
+        bigInteger:
           type: boolean
-        valueNode:
+        bigDecimal:
           type: boolean
         floatingPointNumber:
           type: boolean
         integralNumber:
           type: boolean
+        valueNode:
+          type: boolean
         missingNode:
           type: boolean
-        bigInteger:
+        number:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5419,9 +5421,10 @@ components:
         expectedRevision:
           type: integer
           format: int64
+        notApplicable:
+          type: boolean
       required:
       - fieldKey
-      - value
     NotificationReadCommand:
       type: object
       properties:
