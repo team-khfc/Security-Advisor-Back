@@ -25,31 +25,45 @@ public class InfrastructureProposalParser {
             "startDate",
             "endDate");
     private final ObjectMapper json;
+    public static final List<String> SERVER_KEYS =
+            List.of("name", "purpose", "environment", "cpu", "memory", "storage", "os", "database", "address", "zone");
 
     public List<InfrastructureProposalResponse.Connection> parse(
             String text, List<InquiryContextService.Source> sources) {
+        return parseRows(text, sources, "connections", KEYS);
+    }
+
+    public List<InfrastructureProposalResponse.Connection> parseServers(
+            String text, List<InquiryContextService.Source> sources) {
+        return parseRows(text, sources, "servers", SERVER_KEYS);
+    }
+
+    private List<InfrastructureProposalResponse.Connection> parseRows(
+            String text, List<InquiryContextService.Source> sources, String collection, List<String> keys) {
         try {
             if (text == null || text.length() > 100000) throw new IllegalArgumentException();
             int start = text.indexOf('{');
             int end = text.lastIndexOf('}');
             var root = json.readTree(text.substring(start, end + 1));
-            var rows = root.path("connections");
+            var rows = root.path(collection);
             if (!rows.isArray() || rows.size() > 20) throw new IllegalArgumentException();
             Map<String, InquiryContextService.Source> refs = new HashMap<>();
             sources.forEach(s -> refs.put(s.tag(), s));
             List<InfrastructureProposalResponse.Connection> result = new ArrayList<>();
             for (var row : rows) {
                 Map<String, InfrastructureProposalResponse.Field> fields = new LinkedHashMap<>();
-                for (String key : KEYS) {
+                for (String key : keys) {
                     var f = row.path(key);
                     String value = f.path("value").asString("").strip();
                     String quote = f.path("quote").asString("").strip();
                     var source = refs.get(f.path("sourceTag").asString(""));
-                    int limit = key.endsWith("System")
-                            ? 200
-                            : key.equals("purpose")
-                                    ? 1000
-                                    : key.equals("port") ? 500 : key.endsWith("Address") ? 4000 : 20;
+                    int limit = SERVER_KEYS.contains(key)
+                            ? (key.equals("address") ? 4000 : key.equals("purpose") ? 1000 : 200)
+                            : key.endsWith("System")
+                                    ? 200
+                                    : key.equals("purpose")
+                                            ? 1000
+                                            : key.equals("port") ? 500 : key.endsWith("Address") ? 4000 : 20;
                     boolean backed = source != null
                             && !value.isBlank()
                             && value.length() <= limit

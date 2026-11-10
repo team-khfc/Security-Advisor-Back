@@ -3544,10 +3544,20 @@ components:
           minLength: 0
         startDate:
           type: string
-          minLength: 1
+          maxLength: 10
+          minLength: 0
         endDate:
           type: string
-          minLength: 1
+          maxLength: 10
+          minLength: 0
+        sourceServerId:
+          type: string
+          maxLength: 100
+          minLength: 0
+        destinationServerId:
+          type: string
+          maxLength: 100
+          minLength: 0
       required:
       - destinationAddress
       - destinationSystem
@@ -3574,7 +3584,7 @@ components:
           items:
             $ref: "#/components/schemas/Connection"
           maxItems: 50
-          minItems: 1
+          minItems: 0
         notes:
           type: string
           maxLength: 4000
@@ -3584,11 +3594,101 @@ components:
           additionalProperties:
             type: integer
             format: int64
+        schemaVersion:
+          type: integer
+          format: int32
+          maximum: 2
+          minimum: 0
+        draft:
+          type: boolean
+        aiPending:
+          type: boolean
+        servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Server"
+          maxItems: 50
+          minItems: 0
+        operations:
+          type: object
+          additionalProperties:
+            type: string
+        checklist:
+          type: object
+          additionalProperties:
+            type: boolean
       required:
       - answerRevisions
       - connections
       - expectedRevision
       - notes
+    Server:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          minLength: 0
+        name:
+          type: string
+          maxLength: 200
+          minLength: 0
+        purpose:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        environment:
+          type: string
+          maxLength: 30
+          minLength: 0
+        cpu:
+          type: string
+          maxLength: 200
+          minLength: 0
+        memory:
+          type: string
+          maxLength: 200
+          minLength: 0
+        storage:
+          type: string
+          maxLength: 200
+          minLength: 0
+        os:
+          type: string
+          maxLength: 200
+          minLength: 0
+        database:
+          type: string
+          maxLength: 200
+          minLength: 0
+        address:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        zone:
+          type: string
+          maxLength: 30
+          minLength: 0
+        aiInferred:
+          type: boolean
+        aiConfirmed:
+          type: boolean
+        evidence:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - address
+      - cpu
+      - database
+      - environment
+      - id
+      - memory
+      - name
+      - os
+      - purpose
+      - storage
+      - zone
     InfrastructurePlanResponse:
       type: object
       properties:
@@ -3606,6 +3706,25 @@ components:
         updatedAt:
           type: string
           format: date-time
+        schemaVersion:
+          type: integer
+          format: int32
+        draft:
+          type: boolean
+        aiPending:
+          type: boolean
+        servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Server"
+        operations:
+          type: object
+          additionalProperties:
+            type: string
+        checklist:
+          type: object
+          additionalProperties:
+            type: boolean
     ClosureCommand:
       type: object
       properties:
@@ -4551,14 +4670,6 @@ components:
           type: boolean
         container:
           type: boolean
-        missingNode:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        bigInteger:
-          type: boolean
         nodeType:
           type: string
           enum:
@@ -4573,28 +4684,36 @@ components:
           - STRING
         integralNumber:
           type: boolean
+        missingNode:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        bigInteger:
+          type: boolean
         valueNode:
           type: boolean
-        number:
+        floatingPointNumber:
           type: boolean
         string:
           type: boolean
-        short:
-          type: boolean
         int:
           type: boolean
+        pojo:
+          type: boolean
+        long:
+          type: boolean
+        double:
+          type: boolean
         binary:
+          type: boolean
+        short:
           type: boolean
         textual:
           type: boolean
           deprecated: true
-        pojo:
-          type: boolean
-        double:
-          type: boolean
-        long:
-          type: boolean
         boolean:
+          type: boolean
+        number:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4839,6 +4958,9 @@ components:
           type: string
           maxLength: 6000
           minLength: 0
+        target:
+          type: string
+          pattern: NETWORK|SERVERS
       required:
       - expectedRevision
       - explanation
@@ -4858,6 +4980,10 @@ components:
             type: string
         modelReference:
           type: string
+        servers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
     GenerateDocumentCommand:
       type: object
       properties:
