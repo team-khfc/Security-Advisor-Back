@@ -17,6 +17,7 @@ import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
 import kr.securityadvisor.auth.service.MemberDirectory;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
+import kr.securityadvisor.common.schema.ReassignmentReason;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
@@ -38,6 +39,7 @@ public class AssignmentService {
     private final AssignmentRepository assignmentRepository;
     private final ReviewerPoolRepository reviewerPoolRepository;
     private final MemberDirectory memberDirectory;
+    private final ReviewerAvailability availability;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
 
@@ -64,13 +66,12 @@ public class AssignmentService {
                     .isPresent()) {
                 continue;
             }
-            Optional<String> candidate = preferredSibling(siblingRequestIds, field)
+            Optional<String> candidate = preferredSibling(siblingRequestIds, field, applicantUsername)
                     .or(() -> reviewerPoolRepository
                             .findByFieldAndDefaultReviewerTrueAndActiveTrue(field)
-                            .map(pool -> pool.getMemberUsername()))
-                    .filter(username -> !username.equals(applicantUsername))
-                    // 담당자 목록에 남아 있어도 계정이 비활성이거나 역할이 바뀌었으면 배정하지 않는다(F-11 역할 변경 반영).
-                    .filter(username -> memberDirectory.isActiveWithRole(username, field.role()));
+                            .map(pool -> pool.getMemberUsername())
+                            .filter(username -> !username.equals(applicantUsername))
+                            .filter(username -> availability.reason(username, field) == null));
             if (candidate.isEmpty()) {
                 unassigned.add(field);
                 auditRecorder.record(
@@ -146,7 +147,7 @@ public class AssignmentService {
     @Transactional(readOnly = true)
     public List<AssignmentResponse> listForRequest(Long securityRequestId) {
         return assignmentRepository.findBySecurityRequestIdOrderByAssignedAtAscIdAsc(securityRequestId).stream()
-                .map(AssignmentResponse::from)
+                .map(this::response)
                 .toList();
     }
 
@@ -183,16 +184,33 @@ public class AssignmentService {
                 .stream()
                 .filter(assignment ->
                         assignment.getField().name().equals(principal.role().name()))
-                .map(AssignmentResponse::from)
+                .map(this::response)
                 .toList();
     }
 
-    private Optional<String> preferredSibling(List<Long> siblingRequestIds, ReviewField field) {
+    /** 기존 배정 행을 삭제하거나 자동 변경하지 않고 현재 인계가 필요한 이유만 판정한다. */
+    @Transactional(readOnly = true)
+    public ReassignmentReason reassignmentReason(Long requestId, ReviewField field) {
+        return availability.reason(activeAssignee(requestId, field).orElse(null), field);
+    }
+
+    private AssignmentResponse response(Assignment assignment) {
+        return AssignmentResponse.from(
+                assignment,
+                assignment.isActive()
+                        ? availability.reason(assignment.getAssigneeUsername(), assignment.getField())
+                        : null);
+    }
+
+    private Optional<String> preferredSibling(
+            List<Long> siblingRequestIds, ReviewField field, String applicantUsername) {
         if (siblingRequestIds == null || siblingRequestIds.isEmpty()) {
             return Optional.empty();
         }
         return assignmentRepository.findBySecurityRequestIdInAndFieldAndActiveTrue(siblingRequestIds, field).stream()
                 .map(Assignment::getAssigneeUsername)
+                .filter(username -> !username.equals(applicantUsername))
+                .filter(username -> availability.reason(username, field) == null)
                 .findFirst();
     }
 }

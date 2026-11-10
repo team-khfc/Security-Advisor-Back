@@ -114,9 +114,9 @@ public class TodoService {
 
     private TodoSummary forAdmin(MemberPrincipal principal) {
         long unassigned = securityRequestRepository.findAll().stream()
-                .filter(request -> request.getStage() == 2 && !request.isTerminal())
-                .filter(request -> !assignmentService.hasActiveAssignment(request.getId(), ReviewField.INFRA)
-                        || !assignmentService.hasActiveAssignment(request.getId(), ReviewField.SECURITY))
+                .filter(request -> request.getStage() >= 2 && !request.isTerminal())
+                .filter(request -> requiredReviewFields.of(request).stream()
+                        .anyMatch(field -> assignmentService.reassignmentReason(request.getId(), field) != null))
                 .count();
         return TodoSummary.of(principal.role(), 0, 0, 0, 0, 0, unassigned);
     }

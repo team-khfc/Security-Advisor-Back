@@ -3,6 +3,7 @@ package kr.securityadvisor.auth.service;
 import java.util.List;
 import kr.securityadvisor.auth.repository.MemberRepository;
 import kr.securityadvisor.common.error.DomainRuleViolationException;
+import kr.securityadvisor.common.schema.ReassignmentReason;
 import kr.securityadvisor.common.security.MemberRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,14 @@ public class MemberDirectory {
                 .findById(username)
                 .filter(member -> member.isActive() && member.getEmail() != null)
                 .map(member -> member.getEmail());
+    }
+
+    /** 배정 업무를 수행할 수 없는 계정 상태만 공개하며 계정 엔티티·민감 정보는 반환하지 않는다. */
+    @Transactional(readOnly = true)
+    public ReassignmentReason reviewerUnavailableReason(String username, MemberRole role) {
+        var member = memberRepository.findById(username).orElse(null);
+        if (member == null || !member.isActive()) return ReassignmentReason.ACCOUNT_INACTIVE;
+        return member.getRole() == role ? null : ReassignmentReason.ROLE_CHANGED;
     }
 
     /** 활성 계정이고 역할이 맞으면 true(자동 배정이 담당자 목록의 사람을 다시 확인할 때). */
