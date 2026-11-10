@@ -110,7 +110,7 @@ public class PrivateContext extends BaseTimeEntity {
 
     public void requireRevision(long expectedRevision) {
         if (expectedRevision != revision) {
-            throw new ConflictException("비공개 컨텍스트가 다른 곳에서 수정되었습니다(revision " + revision + ")");
+            throw new ConflictException("비공개 정보가 다른 곳에서 수정되었습니다(수정본 " + revision + ")");
         }
     }
 

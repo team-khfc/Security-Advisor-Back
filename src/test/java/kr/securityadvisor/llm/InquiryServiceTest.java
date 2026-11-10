@@ -43,6 +43,7 @@ import kr.securityadvisor.llm.service.InternalInfoGuard;
 import kr.securityadvisor.llm.service.LlmGateway;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
+import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.service.AnswerService;
@@ -89,6 +90,8 @@ class InquiryServiceTest {
         ReflectionTestUtils.setField(request, "id", 2L);
         when(inquiries.findById(3L)).thenReturn(Optional.of(inquiry));
         when(access.viewableRequest(member, 2L)).thenReturn(request);
+        when(access.viewableCase(member, 4L))
+                .thenReturn(BusinessCase.create("applicant", "합성 사업", "합성", "합성부", 1L, 42L));
         when(context.collect(eq(member), eq(request), anyList(), anyString()))
                 .thenReturn(List.of(
                         new InquiryContextService.Source("A1", "목적지 · 수정본 5 · 확인됨", "10.2.3.4"),
@@ -117,6 +120,8 @@ class InquiryServiceTest {
         ArgumentCaptor<LlmPrompt> prompt = ArgumentCaptor.forClass(LlmPrompt.class);
         verify(gateway).complete(eq(LlmPurpose.INQUIRY), prompt.capture(), any());
         assertThat(prompt.getValue().system()).contains("[U8]", "[D9]", "미확정");
+        verify(knowledge).search("자료를 확인해 줘", 3, 42L);
+        verify(facts).matchIn(eq(member), anyList(), eq(42L));
     }
 
     @Test

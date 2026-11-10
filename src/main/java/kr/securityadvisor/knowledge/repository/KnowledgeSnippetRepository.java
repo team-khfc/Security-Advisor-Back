@@ -11,6 +11,11 @@ public interface KnowledgeSnippetRepository extends JpaRepository<KnowledgeSnipp
 
     List<KnowledgeSnippet> findAllByOrderByIdAsc();
 
+    @Query(
+            "select s from KnowledgeSnippet s where :q = '' or lower(s.sourceTitle) like lower(concat('%', :q, '%')) or lower(s.body) like lower(concat('%', :q, '%')) order by s.id")
+    org.springframework.data.domain.Page<KnowledgeSnippet> searchDraft(
+            @Param("q") String query, org.springframework.data.domain.Pageable pageable);
+
     /** 항목 키로 1차 필터(사람 태깅), 서류 유형 일치(빈 문자열이면 유형 무관), 활성만. 질의 텍스트가 있으면 FTS 순위, 없으면 ID 순. */
     @Query(value = """
             SELECT s.* FROM knowledge_snippets s

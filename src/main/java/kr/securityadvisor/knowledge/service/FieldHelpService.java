@@ -17,6 +17,7 @@ public class FieldHelpService {
 
     private final PublicationService publicationService;
     private final KnowledgeSearch knowledgeSearch;
+    private final KnowledgePublicationService knowledgePublications;
 
     /**
      * @param publicationId 게시본(없으면 현재 게시본)
@@ -25,6 +26,11 @@ public class FieldHelpService {
      * @throws NotFoundException 게시본에 없는 항목(404)
      */
     public FieldHelpResponse help(String fieldKey, Long publicationId, DocTypeCode docType, String queryText) {
+        return help(fieldKey, publicationId, docType, queryText, null);
+    }
+
+    public FieldHelpResponse help(
+            String fieldKey, Long publicationId, DocTypeCode docType, String queryText, Long knowledgePublicationId) {
         Long resolved = publicationId == null ? publicationService.currentPublicationId() : publicationId;
         FieldDefinition field = publicationService
                 .getFieldSchema(resolved)
@@ -36,6 +42,10 @@ public class FieldHelpService {
                 field.required(),
                 field.askRole() == null ? null : field.askRole().name(),
                 field.hint(),
-                knowledgeSearch.forField(fieldKey, docType, queryText));
+                knowledgeSearch.forField(
+                        fieldKey,
+                        docType,
+                        queryText,
+                        knowledgePublicationId == null ? knowledgePublications.currentId() : knowledgePublicationId));
     }
 }

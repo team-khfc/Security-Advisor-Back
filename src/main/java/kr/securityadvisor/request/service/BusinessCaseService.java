@@ -44,6 +44,7 @@ public class BusinessCaseService {
     private final SecurityRequestRepository securityRequestRepository;
     private final AnswerRepository answerRepository;
     private final PublicationService publicationService;
+    private final kr.securityadvisor.knowledge.service.KnowledgePublicationService knowledgePublications;
     private final RequestAccessPolicy accessPolicy;
     private final AuditRecorder auditRecorder;
 
@@ -71,7 +72,12 @@ public class BusinessCaseService {
         }
 
         BusinessCase businessCase = businessCaseRepository.save(BusinessCase.create(
-                principal.username(), request.title(), request.summary(), request.department(), publicationId));
+                principal.username(),
+                request.title(),
+                request.summary(),
+                request.department(),
+                publicationId,
+                knowledgePublications.currentId()));
         Long caseId = businessCase.getId();
 
         List<SecurityRequest> requests = request.docTypes().stream()

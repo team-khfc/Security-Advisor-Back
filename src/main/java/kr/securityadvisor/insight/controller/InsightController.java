@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 업무 지표 API(F-16). 읽기 전용, 담당자·관리자만. */
+/** 업무 지표 API(F-16). 읽기 전용, 기관 관리자만. */
 @RestController
 @RequiredArgsConstructor
 public class InsightController {

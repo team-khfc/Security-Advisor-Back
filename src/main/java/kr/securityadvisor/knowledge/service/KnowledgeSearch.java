@@ -3,10 +3,7 @@ package kr.securityadvisor.knowledge.service;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import kr.securityadvisor.common.json.JsonCodec;
 import kr.securityadvisor.common.schema.DocTypeCode;
-import kr.securityadvisor.knowledge.domain.KnowledgeSnippet;
-import kr.securityadvisor.knowledge.repository.KnowledgeSnippetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +19,19 @@ public class KnowledgeSearch {
 
     private static final int DEFAULT_LIMIT = 3;
 
-    private final KnowledgeSnippetRepository repository;
-    private final JsonCodec json;
+    private final kr.securityadvisor.knowledge.repository.PublishedKnowledgeSearch repository;
+    private final KnowledgePublicationService publications;
 
     /** 한 항목에 적용되는 지식. docType 이 null 이면 유형 무관. queryText(사용자 답변·요약)가 있으면 그 단어로 순위를 매긴다. */
     public List<SnippetHit> forField(String fieldKey, DocTypeCode docType, String queryText) {
+        return forField(fieldKey, docType, queryText, publications.currentId());
+    }
+
+    public List<SnippetHit> forField(
+            String fieldKey, DocTypeCode docType, String queryText, Long knowledgePublicationId) {
         return repository
-                .findForField(
+                .forField(
+                        knowledgePublicationId,
                         fieldKey,
                         docType == null ? "" : docType.code(),
                         queryText == null ? "" : normalize(queryText),
@@ -40,6 +43,10 @@ public class KnowledgeSearch {
 
     /** 자유 질의: 단어마다 접두 매칭(한국어 조사 흡수), AND 로 묶고 결과가 없으면 OR 로 완화한다. */
     public List<SnippetHit> search(String queryText, int limit) {
+        return search(queryText, limit, publications.currentId());
+    }
+
+    public List<SnippetHit> search(String queryText, int limit, Long knowledgePublicationId) {
         List<String> terms = Arrays.stream(normalize(queryText).split("\\s+"))
                 .filter(t -> t.length() >= 2)
                 .limit(8)
@@ -47,17 +54,19 @@ public class KnowledgeSearch {
         if (terms.isEmpty()) {
             return List.of();
         }
-        List<KnowledgeSnippet> hits =
-                repository.search(terms.stream().map(t -> t + ":*").collect(Collectors.joining(" & ")), limit);
+        List<kr.securityadvisor.knowledge.dto.KnowledgeSnippetResponse> hits = repository.search(
+                knowledgePublicationId, terms.stream().map(t -> t + ":*").collect(Collectors.joining(" & ")), limit);
         if (hits.isEmpty() && terms.size() > 1) {
-            hits = repository.search(terms.stream().map(t -> t + ":*").collect(Collectors.joining(" | ")), limit);
+            hits = repository.search(
+                    knowledgePublicationId,
+                    terms.stream().map(t -> t + ":*").collect(Collectors.joining(" | ")),
+                    limit);
         }
         return hits.stream().map(this::toHit).toList();
     }
 
-    SnippetHit toHit(KnowledgeSnippet snippet) {
-        return new SnippetHit(
-                snippet.getId(), snippet.citation(), snippet.getBody(), json.readStrings(snippet.getFieldKeys()));
+    SnippetHit toHit(kr.securityadvisor.knowledge.dto.KnowledgeSnippetResponse snippet) {
+        return new SnippetHit(snippet.knowledgeSnippetId(), snippet.citation(), snippet.body(), snippet.fieldKeys());
     }
 
     /** tsquery 구문 문자를 제거해 입력이 검색식으로 해석되지 않게 한다. */

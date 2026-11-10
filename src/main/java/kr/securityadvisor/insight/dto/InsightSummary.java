@@ -43,4 +43,5 @@ public record InsightSummary(
         Double aiProposalConfirmRate,
         Map<String, Long> firewallRules,
         Double averageReviewDays,
-        long completedReviewCount) {}
+        long completedReviewCount,
+        java.time.Instant calculatedAt) {}
