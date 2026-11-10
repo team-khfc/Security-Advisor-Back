@@ -1,8 +1,9 @@
 # Security-Advisor-Back — AI 에이전트 작업 메모
 
-보안길잡이(SecurityAdvisor) 백엔드. **처음이면 `docs/ARCHITECTURE.md` 부터 읽는다**(컨텍스트 지도·의존 방향·주요 흐름·새 기능 체크리스트).
-그다음 `README.md`(API 표·ERD·실행), `docs/adr/`(결정 이유), `docs/DEVIATIONS.md`(명세와 다른 점), `docs/api/openapi.yaml`(생성된 API 계약).
-팀 규칙의 원본은 AGENTS.md·FUNCTIONAL_SPEC.md 등 — 저장소 루트에 사본이 있으면 그것을, 없으면 Claude 프로젝트 "보안길잡이"의 문서를 본다.
+보안길잡이(SecurityAdvisor) 백엔드. **처음이면 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) 5장의 공식 기준 버전 표부터 읽고** 참조 문서의 머리말 버전·개정일을 확인한다.
+그다음 [claude/INSTRUCTIONS.md](claude/INSTRUCTIONS.md)의 참조 순서에 따라 FUNCTIONAL_SPEC.md·AGENTS.md 등 원본 규칙을 읽고, `python3 tools/check_doc_versions.py`로 버전·날짜·경로를 확인한다.
+규칙 확인 후 `docs/ARCHITECTURE.md`(컨텍스트 지도·주요 흐름), `README.md`(API 표·ERD·실행), `docs/adr/`(결정 이유), `docs/DEVIATIONS.md`(명세와 다른 점), `docs/api/openapi.yaml`(생성된 API 계약)을 읽는다.
+문서 동기화 출처는 `docs/SOURCE_PROVENANCE.md`에 있다. 기존 ADR·DEVIATIONS 기록을 보존하고, 원본 규칙과 구현이 다른 항목은 차이를 먼저 보고한 뒤 PROJECT_RULES.md 7-1의 개정 절차로 정리한다.
 
 ## 반드시 지킬 것
 

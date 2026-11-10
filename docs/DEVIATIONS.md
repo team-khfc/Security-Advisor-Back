@@ -2,6 +2,8 @@
 
 이 저장소의 구현이 팀 규칙 문서(PROJECT_CONTEXT·FUNCTIONAL_SPEC·AGENTS 등)와 **의도적으로 다른 부분**과, 규칙 문서에 **아직 없는 결정**을 적어 둔다. 규칙 문서 개정(PROJECT_RULES 7-1 절차)이 끝나면 해당 항목을 지운다. 이 세션의 작성 계정은 팀 Claude 프로젝트 문서 쓰기 권한이 없어 여기 먼저 기록했다.
 
+> 2026-11-10 기준 문서 동기화 점검: 아래 #3의 기본 키 이름 규칙은 AGENTS.md v1.17 5장·PROJECT_CONTEXT.md v3.5 7장에 이미 반영되어 있다. #7의 Java 25 역시 같은 공식본과 일치한다. 두 항목은 결정 이력으로 보존하며, #3 및 문서 끝의 이름 규칙 보강 요청은 당시의 기록으로 읽는다. 나머지 항목의 개정 대기 상태와 결정·근거는 이번 동기화로 변경하지 않는다.
+
 | # | 내용 | 다른 규칙 문서 | 반영할 곳 | 결정·근거 |
 |---|---|---|---|---|
 | 1 | **서류 유형을 게시본 데이터(`docTypes`)로 정의** — `DocType` enum 제거, `DocTypeCode` 문자열 값 객체, `security_requests.doc_type` CHECK 없음. 운영자가 코드 배포 없이 서류를 추가할 수 있는 구조 | FUNCTIONAL_SPEC 2장 용어표 "DocType: FIREWALL / SECURITY_REVIEW"(enum 전제), 8-1 `security_requests.doc_type`; PROJECT_RULES 4장 "11.11까지 새 기능 추가 금지"(F-08 성격의 구조 선반영); INSTRUCTIONS "1차 범위 서류 2종 고정" | FUNCTIONAL_SPEC 2장·8-1, PROJECT_CONTEXT 7장 확정 결정, AGENTS 5장 유비쿼터스 언어(DocTypeCode) | 2026-11-07 팀장 승인. 추후 변경 비용이 너무 커 동결 전 구조만 선반영. 상세 ADR 0005. 1차 범위 2종은 seed 데이터로 유지 |
