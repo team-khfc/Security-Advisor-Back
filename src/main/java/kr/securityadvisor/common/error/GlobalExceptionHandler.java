@@ -75,6 +75,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "충돌이 발생했습니다", e.getMessage());
     }
 
+    /** 충돌한 입력은 클라이언트에 보존하고 최신 초안 조회 후 명시적으로 다시 편집한다. */
+    @ExceptionHandler(RevisionConflictException.class)
+    public ProblemDetail handleRevisionConflict(RevisionConflictException e) {
+        ProblemDetail detail = problem(HttpStatus.CONFLICT, "다른 수정이 있습니다", e.getMessage());
+        detail.setProperty("currentRevision", e.getCurrentRevision());
+        detail.setProperty("code", "REVISION_CONFLICT");
+        return detail;
+    }
+
     @ExceptionHandler(ServiceUnavailableException.class)
     public ProblemDetail handleLlmUnavailable(ServiceUnavailableException e) {
         return problem(HttpStatus.SERVICE_UNAVAILABLE, "AI 모델을 사용할 수 없습니다", e.getMessage());

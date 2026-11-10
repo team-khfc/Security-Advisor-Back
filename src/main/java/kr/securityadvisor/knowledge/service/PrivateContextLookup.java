@@ -3,91 +3,99 @@ package kr.securityadvisor.knowledge.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.service.AuditRecorder;
-import kr.securityadvisor.common.json.JsonCodec;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
-import kr.securityadvisor.knowledge.domain.PrivateContext;
-import kr.securityadvisor.knowledge.repository.PrivateContextRepository;
+import kr.securityadvisor.knowledge.dto.PrivateContextResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 기관 사실 조회(원칙 3). 서버가 호출자의 역할로 걸러 뽑은 행만 AI 에 넘긴다 — 모델이 검색하지 않는다.
- * 신청자는 항상 빈 결과를 받는다.
- */
+/** 사업에 고정된 사실을 조회하되 현재 게시본에서 철회한 열람 권한은 과거 사본에도 적용한다. */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class PrivateContextLookup {
-
-    private final PrivateContextRepository repository;
-    private final JsonCodec json;
+    private final KnowledgePublicationService publications;
     private final AuditRecorder auditRecorder;
 
-    /** 텍스트(질문·답변 값)에 이름이나 별칭이 포함된 활성 행 중 호출자 역할에 보이는 것. */
     public List<FactRecord> matchIn(MemberPrincipal principal, List<String> texts) {
-        if (principal.hasRole(MemberRole.APPLICANT) || texts == null || texts.isEmpty()) {
-            return List.of();
-        }
-        String haystack = String.join("\n", texts).toLowerCase(Locale.ROOT);
-        List<FactRecord> matched = new ArrayList<>();
-        for (PrivateContext context : visibleTo(principal)) {
-            List<String> names = new ArrayList<>(json.readStrings(context.getAliases()));
-            names.add(context.getName());
-            boolean hit = names.stream()
-                    .filter(n -> n != null && !n.isBlank())
-                    .anyMatch(n -> haystack.contains(n.toLowerCase(Locale.ROOT)));
-            if (hit) {
-                matched.add(toFact(context));
-            }
-        }
-        return matched;
+        return matchIn(principal, texts, publications.currentId());
     }
 
-    /** 이름·별칭 부분 일치 검색(담당자 입력 자동완성용). */
+    public List<FactRecord> matchIn(MemberPrincipal principal, List<String> texts, Long publicationId) {
+        if (principal.hasRole(MemberRole.APPLICANT) || texts == null || texts.isEmpty()) return List.of();
+        String haystack = String.join("\n", texts).toLowerCase(Locale.ROOT);
+        return visibleTo(principal, publicationId).stream()
+                .filter(context -> {
+                    List<String> names = new ArrayList<>(context.aliases());
+                    names.add(context.name());
+                    return names.stream()
+                            .filter(n -> n != null && !n.isBlank())
+                            .anyMatch(n -> haystack.contains(n.toLowerCase(Locale.ROOT)));
+                })
+                .map(this::toFact)
+                .toList();
+    }
+
     public List<FactRecord> suggest(MemberPrincipal principal, String query) {
-        if (principal.hasRole(MemberRole.APPLICANT)) {
-            return List.of();
-        }
+        return suggest(principal, query, publications.currentId());
+    }
+
+    public List<FactRecord> suggest(MemberPrincipal principal, String query, Long publicationId) {
+        if (principal.hasRole(MemberRole.APPLICANT)) return List.of();
         String q = query == null ? "" : query.strip().toLowerCase(Locale.ROOT);
-        List<FactRecord> facts = visibleTo(principal).stream()
+        return visibleTo(principal, publicationId).stream()
                 .filter(context -> q.isEmpty()
-                        || context.getName().toLowerCase(Locale.ROOT).contains(q)
-                        || json.readStrings(context.getAliases()).stream()
+                        || context.name().toLowerCase(Locale.ROOT).contains(q)
+                        || context.aliases().stream()
                                 .anyMatch(a -> a.toLowerCase(Locale.ROOT).contains(q)))
                 .map(this::toFact)
                 .toList();
-        // 검색어·값은 남기지 않고 건수만(F-14, 불변식 25)
+    }
+
+    public List<String> knownValues(MemberPrincipal principal) {
+        return knownValues(principal, publications.currentId());
+    }
+
+    public List<String> knownValues(MemberPrincipal principal, Long publicationId) {
+        return visibleTo(principal, publicationId).stream()
+                .flatMap(context -> context.attributes().values().stream())
+                .toList();
+    }
+
+    private List<PrivateContextResponse> visibleTo(MemberPrincipal principal, Long publicationId) {
+        if (principal.hasRole(MemberRole.APPLICANT)) return List.of();
+        String role = principal.role().name();
+        Map<Long, PrivateContextResponse> latest =
+                publications.snapshot(publications.currentId()).privateContexts().stream()
+                        .collect(Collectors.toMap(PrivateContextResponse::privateContextId, Function.identity()));
+        List<PrivateContextResponse> visible = publications.snapshot(publicationId).privateContexts().stream()
+                .filter(context -> {
+                    PrivateContextResponse current = latest.get(context.privateContextId());
+                    return context.active()
+                            && current != null
+                            && current.active()
+                            && (principal.hasRole(MemberRole.ADMIN)
+                                    || (context.visibleRoles().contains(role)
+                                            && current.visibleRoles().contains(role)));
+                })
+                .toList();
         auditRecorder.recordAccess(
                 principal,
                 AuditTargetType.PRIVATE_CONTEXT,
                 "*",
                 AuditAction.PRIVATE_CONTEXT_VIEWED,
-                "비공개 컨텍스트 검색 " + facts.size() + "건" + (q.isEmpty() ? "" : " (검색어 " + q.length() + "자)"));
-        return facts;
+                "게시본 " + publicationId + " 비공개 정보 조회 " + visible.size() + "건 — 원문은 기록하지 않음");
+        return visible;
     }
 
-    /** 모델 출력 검증용: 호출자에게 보이는 모든 사실 값(IP·대역 등). */
-    public List<String> knownValues(MemberPrincipal principal) {
-        return visibleTo(principal).stream()
-                .flatMap(context -> json.readStringMap(context.getAttributes()).values().stream())
-                .toList();
-    }
-
-    private List<PrivateContext> visibleTo(MemberPrincipal principal) {
-        String role = principal.role().name();
-        return repository.findByActiveTrueOrderByIdAsc().stream()
-                .filter(context -> principal.hasRole(MemberRole.ADMIN)
-                        || json.readStrings(context.getVisibleRoles()).contains(role))
-                .toList();
-    }
-
-    FactRecord toFact(PrivateContext context) {
-        return new FactRecord(
-                context.getId(), context.getKind(), context.getName(), json.readStringMap(context.getAttributes()));
+    private FactRecord toFact(PrivateContextResponse context) {
+        return new FactRecord(context.privateContextId(), context.kind(), context.name(), context.attributes());
     }
 }

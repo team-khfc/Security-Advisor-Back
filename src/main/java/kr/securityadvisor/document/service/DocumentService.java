@@ -1,7 +1,10 @@
 package kr.securityadvisor.document.service;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,7 @@ import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.document.domain.DocumentKind;
 import kr.securityadvisor.document.domain.GeneratedDocument;
 import kr.securityadvisor.document.dto.DocumentSection;
+import kr.securityadvisor.document.dto.DocumentValue;
 import kr.securityadvisor.document.dto.GenerateDocumentCommand;
 import kr.securityadvisor.document.dto.GeneratedDocumentResponse;
 import kr.securityadvisor.document.repository.GeneratedDocumentRepository;
@@ -36,6 +40,7 @@ import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.domain.Submission;
 import kr.securityadvisor.request.service.AnswerService;
+import kr.securityadvisor.request.service.FinalDraftService;
 import kr.securityadvisor.request.service.RequestAccessPolicy;
 import kr.securityadvisor.request.service.SubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +71,7 @@ public class DocumentService {
     private final PublicationService publicationService;
     private final AnswerService answerService;
     private final SubmissionService submissionService;
+    private final FinalDraftService finalDraftService;
     private final DocumentRenderer renderer;
     private final LlmGateway llmGateway;
     private final InternalInfoGuard guard;
@@ -75,10 +81,13 @@ public class DocumentService {
     private final ObjectMapper objectMapper;
     private final DocumentExporters exporters;
     private final Clock clock;
+    private final EntityManager entityManager;
 
     public GeneratedDocumentResponse generate(
             MemberPrincipal principal, Long securityRequestId, GenerateDocumentCommand command) {
         SecurityRequest request = accessPolicy.viewableRequest(principal, securityRequestId);
+        // 두 다운로드가 동시에 문서를 생성해도 같은 버전 번호를 할당하지 않는다.
+        entityManager.refresh(request, LockModeType.PESSIMISTIC_WRITE);
         BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
         FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
         String docTypeName = schema.findDocType(request.getDocType())
@@ -86,6 +95,7 @@ public class DocumentService {
                 .orElse(request.getDocType().code());
 
         Long submissionId = command == null ? null : command.submissionId();
+        String caseTitle = businessCase.getTitle();
         DocumentKind kind;
         Map<String, DocumentRenderer.Source> sources;
         if (submissionId == null) {
@@ -100,9 +110,14 @@ public class DocumentService {
                     request.getStatus() == RequestStatus.CONFIRMED && submissionService.isLatest(submission);
             kind = confirmed ? DocumentKind.CONFIRMED : DocumentKind.SUBMITTED;
             sources = fromSnapshot(submission.getSnapshot());
+            caseTitle = objectMapper
+                    .readTree(submission.getSnapshot())
+                    .path("caseTitle")
+                    .asString(caseTitle);
         }
 
-        List<DocumentSection> sections = renderer.sections(schema, request, sources);
+        List<DocumentSection> sections =
+                withFinalDraft(renderer.sections(schema, request, sources), principal, request, submissionId);
         Instant now = clock.instant();
         String aiSupplement = null;
         String modelReference = null;
@@ -112,7 +127,8 @@ public class DocumentService {
                     LlmPrompt.of(SYSTEM, List.of(), List.of(), valuesText(sections)),
                     LlmCallContext.of(principal, AuditTargetType.SECURITY_REQUEST, securityRequestId));
             aiSupplement = result.text();
-            for (String token : guard.findUnbacked(aiSupplement, knownValues(principal, sources))) {
+            for (String token : guard.findUnbacked(
+                    aiSupplement, knownValues(principal, sources, businessCase.getKnowledgePublicationId()))) {
                 aiSupplement = aiSupplement.replace(token, "[근거 없는 내부 정보 — 담당자 확인 필요]");
             }
             modelReference = result.modelReference();
@@ -120,7 +136,7 @@ public class DocumentService {
         String markdown = renderer.markdown(
                 installation.displayName(),
                 docTypeName,
-                businessCase.getTitle(),
+                caseTitle,
                 kind,
                 request,
                 sections,
@@ -132,7 +148,7 @@ public class DocumentService {
                 submissionId,
                 kind,
                 repository.countBySecurityRequestId(securityRequestId) + 1,
-                docTypeName + " — " + businessCase.getTitle(),
+                docTypeName + " — " + caseTitle,
                 objectMapper.writeValueAsString(sections),
                 markdown,
                 aiSupplement,
@@ -209,6 +225,7 @@ public class DocumentService {
     public DocumentData previewData(MemberPrincipal principal, Long securityRequestId, Long submissionId) {
         SecurityRequest request = accessPolicy.viewableRequest(principal, securityRequestId);
         BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
+        String caseTitle = businessCase.getTitle();
         FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
         DocumentKind kind;
         Map<String, DocumentRenderer.Source> sources;
@@ -224,8 +241,13 @@ public class DocumentService {
                     ? DocumentKind.CONFIRMED
                     : DocumentKind.SUBMITTED;
             sources = fromSnapshot(submission.getSnapshot());
+            caseTitle = objectMapper
+                    .readTree(submission.getSnapshot())
+                    .path("caseTitle")
+                    .asString(caseTitle);
         }
-        List<DocumentSection> sections = renderer.sections(schema, request, sources);
+        List<DocumentSection> sections =
+                withFinalDraft(renderer.sections(schema, request, sources), principal, request, submissionId);
         return new DocumentData(
                 securityRequestId,
                 submissionId,
@@ -234,7 +256,7 @@ public class DocumentService {
                 schema.findDocType(request.getDocType())
                         .map(d -> d.name())
                         .orElse(request.getDocType().code()),
-                businessCase.getTitle(),
+                caseTitle,
                 sections,
                 renderer.unconfirmedCount(sections),
                 clock.instant());
@@ -270,6 +292,52 @@ public class DocumentService {
                 .orElseThrow(() -> new NotFoundException("서류를 찾을 수 없습니다: " + documentId));
         accessPolicy.viewableRequest(principal, d.getSecurityRequestId());
         return d;
+    }
+
+    /** 제출 이후에는 현재 초안을 읽지 않고 제출 시 보존한 서술만 출력한다. */
+    private List<DocumentSection> withFinalDraft(
+            List<DocumentSection> sections, MemberPrincipal principal, SecurityRequest request, Long submissionId) {
+        String text;
+        String source;
+        String confirmation;
+        boolean confirmed;
+        boolean stale = false;
+        if (submissionId != null) {
+            JsonNode draft = objectMapper
+                    .readTree(submissionService.requireSubmission(submissionId).getSnapshot())
+                    .path("finalDraft");
+            if (draft.isMissingNode() || draft.isNull()) return sections;
+            text = draft.path("text").asString();
+            source = draft.path("valueSource").asString();
+            confirmed = !draft.path("confirmedAt").isNull()
+                    && !draft.path("confirmedAt").isMissingNode();
+            confirmation = "사용자 확인 · " + draft.path("confirmedBy").asString() + " · "
+                    + draft.path("confirmedAt").asString();
+        } else {
+            var draft = finalDraftService.current(principal, request.getId());
+            if (draft == null) return sections;
+            text = draft.text();
+            source = draft.valueSource();
+            stale = draft.stale();
+            confirmed = draft.confirmed() && !stale;
+            confirmation = confirmed
+                    ? "사용자 확인 · " + draft.confirmedBy() + " · " + draft.confirmedAt()
+                    : stale ? "원본 변경 · 재확인 필요" : "미확정 · 사용자 확인 필요";
+        }
+        List<DocumentSection> result = new ArrayList<>(sections);
+        result.add(new DocumentSection(
+                "최종 보고서",
+                List.of(new DocumentValue(
+                        "report.finalSummary",
+                        "최종 서술",
+                        "REQUEST",
+                        text,
+                        source,
+                        confirmed,
+                        stale,
+                        text,
+                        confirmation))));
+        return result;
     }
 
     private Map<String, DocumentRenderer.Source> fromCurrentAnswers(SecurityRequest request) {
@@ -316,8 +384,10 @@ public class DocumentService {
         return sb.toString();
     }
 
-    private List<String> knownValues(MemberPrincipal principal, Map<String, DocumentRenderer.Source> sources) {
-        List<String> known = new java.util.ArrayList<>(privateContextLookup.knownValues(principal));
+    private List<String> knownValues(
+            MemberPrincipal principal, Map<String, DocumentRenderer.Source> sources, Long knowledgePublicationId) {
+        List<String> known =
+                new java.util.ArrayList<>(privateContextLookup.knownValues(principal, knowledgePublicationId));
         sources.values().stream()
                 .map(DocumentRenderer.Source::value)
                 .filter(v -> v != null)

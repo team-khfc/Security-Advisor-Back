@@ -110,13 +110,14 @@ public class FirewallRuleService {
                 .toList();
     }
 
-    /** 규칙 목록: 신청자는 자기 사업 건, 담당자·관리자는 전체. effectiveStatus 로 필터(선택). */
+    /** 규칙 목록: 신청자는 자기 사업 건, 담당자는 활성 배정, 관리자는 전체. effectiveStatus 로 필터(선택). */
     @Transactional(readOnly = true)
     public List<FirewallRuleResponse> list(MemberPrincipal principal, String effectiveStatus) {
         List<FirewallRule> rules = principal.hasRole(MemberRole.APPLICANT)
                 ? repository.findAllForApplicant(principal.username())
                 : repository.findAllByOrderByIdDesc();
         return rules.stream()
+                .filter(rule -> accessPolicy.canViewRequest(principal, rule.getSecurityRequestId()))
                 .map(this::toResponse)
                 .filter(r -> effectiveStatus == null
                         || effectiveStatus.isBlank()
@@ -129,6 +130,7 @@ public class FirewallRuleService {
             MemberPrincipal principal, Long ruleId, RuleApplicationCommand command) {
         principal.requireAnyRole(MemberRole.INFRA);
         FirewallRule rule = requireRule(ruleId);
+        accessPolicy.viewableRequest(principal, rule.getSecurityRequestId());
         rule.requireRevision(command.expectedRevision());
         Instant now = clock.instant();
         AuditAction action;
@@ -154,6 +156,7 @@ public class FirewallRuleService {
     public FirewallRuleResponse revoke(MemberPrincipal principal, Long ruleId, RuleRevocationCommand command) {
         principal.requireAnyRole(MemberRole.INFRA);
         FirewallRule rule = requireRule(ruleId);
+        accessPolicy.viewableRequest(principal, rule.getSecurityRequestId());
         rule.requireRevision(command.expectedRevision());
         rule.revoke(principal.username(), command.reason(), clock.instant());
         auditRecorder.record(

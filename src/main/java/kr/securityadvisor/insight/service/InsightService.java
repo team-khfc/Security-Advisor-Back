@@ -64,6 +64,7 @@ public class InsightService {
             AuditAction.ANSWER_STAFF_INPUT);
 
     private final SecurityRequestRepository securityRequestRepository;
+    private final kr.securityadvisor.request.repository.BusinessCaseRepository businessCaseRepository;
     private final DeadlineRepository deadlineRepository;
     private final SupplementRepository supplementRepository;
     private final AuditEventRepository auditEventRepository;
@@ -72,7 +73,7 @@ public class InsightService {
     private final Clock clock;
 
     public InsightSummary summary(MemberPrincipal principal) {
-        principal.requireAnyRole(MemberRole.ADMIN, MemberRole.SECURITY, MemberRole.INFRA);
+        principal.requireAnyRole(MemberRole.ADMIN);
         List<SecurityRequest> requests = securityRequestRepository.findAll();
 
         Map<String, Long> byDocType = new TreeMap<>();
@@ -86,13 +87,29 @@ public class InsightService {
             }
         }
 
-        DeadlinePolicy policy = publicationService
-                .getFieldSchema(publicationService.currentPublicationId())
-                .deadlinePolicy();
-        BusinessCalendar calendar = new BusinessCalendar(policy.holidays());
+        Map<Long, DeadlinePolicy> byPublication = new HashMap<>();
+        Map<Long, DeadlinePolicy> byCase = new HashMap<>();
+        businessCaseRepository
+                .findAll()
+                .forEach(c -> byCase.put(
+                        c.getId(),
+                        byPublication.computeIfAbsent(
+                                c.getPublicationId(),
+                                id -> publicationService.getFieldSchema(id).deadlinePolicy())));
+        Map<Long, DeadlinePolicy> requestPolicies = new HashMap<>();
+        Map<String, BusinessCalendar> calendars = new HashMap<>();
+        for (SecurityRequest request : requests) {
+            DeadlinePolicy policy =
+                    java.util.Objects.requireNonNull(byCase.get(request.getBusinessCaseId()), "신청의 기준 사업 건이 없습니다");
+            requestPolicies.put(request.getId(), policy);
+            calendars.put(request.getId().toString(), new BusinessCalendar(policy.holidays()));
+        }
         LocalDate today = LocalDate.ofInstant(clock.instant(), KOREA);
         Map<String, Long> deadlines = new LinkedHashMap<>(Map.of("ON_TRACK", 0L, "IMMINENT", 0L, "OVERDUE", 0L));
         for (Deadline d : deadlineRepository.findByActiveTrue()) {
+            DeadlinePolicy policy = requestPolicies.get(d.getSecurityRequestId());
+            if (policy == null) continue;
+            BusinessCalendar calendar = calendars.get(d.getSecurityRequestId().toString());
             deadlines.merge(
                     d.statusOn(today, calendar, policy.imminentBusinessDays()).name(), 1L, Long::sum);
         }
@@ -111,7 +128,7 @@ public class InsightService {
             rules.merge(r.effectiveStatus(), 1L, Long::sum);
         }
 
-        StageTimeline timeline = stageTimeline(calendar);
+        StageTimeline timeline = stageTimeline(calendars);
         long reviewed = timeline.firstAt(AuditAction.REVIEW_REQUESTED).size();
         long confirmed = timeline.firstAt(AuditAction.REQUEST_CONFIRMED).size();
         long firstPass = timeline.firstAt(AuditAction.REQUEST_CONFIRMED).keySet().stream()
@@ -142,11 +159,12 @@ public class InsightService {
                 ratio(ai.confirmedUnchanged, ai.confirmedUnchanged + ai.modified, 3),
                 rules,
                 timeline.averageReviewCalendarDays,
-                timeline.completedCount.getOrDefault("2", 0L));
+                timeline.completedCount.getOrDefault("2", 0L),
+                clock.instant());
     }
 
     /** 신청별 단계 전이 시각(첫 발생)과 단계별 평균 소요 영업일. */
-    private StageTimeline stageTimeline(BusinessCalendar calendar) {
+    private StageTimeline stageTimeline(Map<String, BusinessCalendar> calendars) {
         StageTimeline t = new StageTimeline();
         for (AuditEvent e : auditEventRepository.findByTargetTypeAndActionInOrderByOccurredAtAscIdAsc(
                 AuditTargetType.SECURITY_REQUEST, STAGE_ACTIONS)) {
@@ -168,7 +186,8 @@ public class InsightService {
             double calendarDays = 0;
             for (Map.Entry<String, Instant> end : t.firstAt(leg.to()).entrySet()) {
                 Instant start = t.firstAt(leg.from()).get(end.getKey());
-                if (start == null || end.getValue().isBefore(start)) {
+                BusinessCalendar calendar = calendars.get(end.getKey());
+                if (start == null || calendar == null || end.getValue().isBefore(start)) {
                     continue;
                 }
                 count++;

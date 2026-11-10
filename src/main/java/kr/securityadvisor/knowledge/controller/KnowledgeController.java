@@ -49,6 +49,7 @@ public class KnowledgeController {
     public FieldHelpResponse fieldHelp(
             @PathVariable String fieldKey,
             @RequestParam(required = false) Long publicationId,
+            @RequestParam(required = false) Long knowledgePublicationId,
             @RequestParam(required = false) String docType,
             @RequestParam(required = false) String q) {
         DocTypeCode docTypeCode;
@@ -57,12 +58,17 @@ public class KnowledgeController {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException("docType 값이 올바르지 않습니다: " + docType);
         }
-        return fieldHelpService.help(fieldKey, publicationId, docTypeCode, q);
+        return fieldHelpService.help(fieldKey, publicationId, docTypeCode, q, knowledgePublicationId);
     }
 
     @GetMapping("/api/knowledge-snippets/search")
-    public List<SnippetHit> search(@RequestParam String q, @RequestParam(defaultValue = "5") int limit) {
-        return knowledgeSearch.search(q, Math.min(Math.max(limit, 1), 20));
+    public List<SnippetHit> search(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(required = false) Long knowledgePublicationId) {
+        return knowledgePublicationId == null
+                ? knowledgeSearch.search(q, Math.min(Math.max(limit, 1), 20))
+                : knowledgeSearch.search(q, Math.min(Math.max(limit, 1), 20), knowledgePublicationId);
     }
 
     @PostMapping("/api/knowledge-snippets")
@@ -83,8 +89,13 @@ public class KnowledgeController {
 
     /** 담당자 입력 자동완성 — 호출자 역할에 보이는 행만. 신청자는 항상 빈 목록. */
     @GetMapping("/api/private-contexts/suggestions")
-    public List<FactRecord> suggest(@CurrentMember MemberPrincipal member, @RequestParam(required = false) String q) {
-        return privateContextLookup.suggest(member, q);
+    public List<FactRecord> suggest(
+            @CurrentMember MemberPrincipal member,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Long knowledgePublicationId) {
+        return knowledgePublicationId == null
+                ? privateContextLookup.suggest(member, q)
+                : privateContextLookup.suggest(member, q, knowledgePublicationId);
     }
 
     @GetMapping("/api/private-contexts")

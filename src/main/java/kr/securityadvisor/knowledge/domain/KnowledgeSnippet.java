@@ -83,7 +83,7 @@ public class KnowledgeSnippet extends BaseTimeEntity {
         requireText(sourceLocator, "출처 위치");
         requireText(body, "본문");
         if (!hasFieldKeys) {
-            throw new DomainRuleViolationException("스니펫에는 적용 항목 키가 하나 이상 필요합니다");
+            throw new DomainRuleViolationException("공개 지식에는 적용 질문이 하나 이상 필요합니다");
         }
         return new KnowledgeSnippet(
                 sourceTitle.strip(),
@@ -108,7 +108,7 @@ public class KnowledgeSnippet extends BaseTimeEntity {
         requireText(sourceLocator, "출처 위치");
         requireText(body, "본문");
         if (!hasFieldKeys) {
-            throw new DomainRuleViolationException("스니펫에는 적용 항목 키가 하나 이상 필요합니다");
+            throw new DomainRuleViolationException("공개 지식에는 적용 질문이 하나 이상 필요합니다");
         }
         this.sourceTitle = sourceTitle.strip();
         this.sourceVersion = sourceVersion.strip();
@@ -121,7 +121,7 @@ public class KnowledgeSnippet extends BaseTimeEntity {
 
     public void requireRevision(long expectedRevision) {
         if (expectedRevision != revision) {
-            throw new ConflictException("스니펫이 다른 곳에서 수정되었습니다(revision " + revision + ")");
+            throw new ConflictException("공개 지식이 다른 곳에서 수정되었습니다(수정본 " + revision + ")");
         }
     }
 

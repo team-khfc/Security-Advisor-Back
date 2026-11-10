@@ -6,6 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.securityadvisor.llm.domain.LlmPurpose;
 import kr.securityadvisor.llm.service.DocTypeSuggestionService;
+import kr.securityadvisor.llm.service.InterviewService;
 import kr.securityadvisor.llm.service.LlmBackend;
 import kr.securityadvisor.llm.service.LlmPrompt;
 import kr.securityadvisor.llm.service.LlmResult;
@@ -33,12 +34,22 @@ public class FakeLlmGateway implements LlmBackend {
                 new LlmResult(
                         prompt.system().contains(DocTypeSuggestionService.MARKER)
                                 ? docTypeSuggestions(prompt)
-                                : proposals(prompt),
+                                : prompt.system().contains(InterviewService.MARKER)
+                                        ? interview(prompt)
+                                        : proposals(prompt),
                         REFERENCE);
             case SUMMARY -> new LlmResult("합성 요약: 입력 문서의 핵심을 요약한 것으로 가정한 고정 응답입니다.", REFERENCE);
             case DOCUMENT -> new LlmResult("합성 초안: 확정된 값으로 채운 서류 초안으로 가정한 고정 응답입니다.", REFERENCE);
             case INQUIRY -> new LlmResult(inquiry(prompt), REFERENCE);
         };
+    }
+
+    private static String interview(LlmPrompt prompt) {
+        String value = prompt.user().contains("\"mode\":\"ASK\"") ? "null" : "\"합성 사업 개요 추천답변입니다.\"";
+        if (!"null".equals(value) && prompt.knowledgeLines().stream().anyMatch(line -> line.contains("형식: BOOLEAN")))
+            value = "\"예\"";
+        return "{\"reply\":\"합성 AI 설명입니다. 사업에서 알고 있는 사실을 확인해 입력해 주세요.\",\"proposedValue\":" + value
+                + ",\"evidence\":[\"F\",\"B\"]}";
     }
 
     /** 목록의 모든 코드를 "합성 근거"와 함께 제안한다(첫 번째는 HIGH, 나머지 MEDIUM). */

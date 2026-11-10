@@ -31,16 +31,21 @@ public class KnowledgeAdminService {
     private final PrivateContextRepository privateContextRepository;
     private final JsonCodec json;
     private final AuditRecorder auditRecorder;
+    private final KnowledgeValidator validator;
+    private final kr.securityadvisor.knowledge.repository.KnowledgeDraftRepository drafts;
+    private final KnowledgePublicationService publications;
 
     @Transactional(readOnly = true)
     public List<KnowledgeSnippetResponse> listSnippets() {
-        return snippetRepository.findAllByOrderByIdAsc().stream()
-                .map(this::toResponse)
+        return publications.snapshot(publications.currentId()).snippets().stream()
+                .filter(KnowledgeSnippetResponse::active)
                 .toList();
     }
 
     public KnowledgeSnippetResponse createSnippet(MemberPrincipal principal, KnowledgeSnippetCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
+        var draft = drafts.lockCurrent();
+        validator.snippet(command);
         List<String> fieldKeys = distinct(command.fieldKeys());
         KnowledgeSnippet snippet = snippetRepository.save(KnowledgeSnippet.create(
                 command.sourceTitle(),
@@ -50,6 +55,18 @@ public class KnowledgeAdminService {
                 !fieldKeys.isEmpty(),
                 json.writeStrings(distinct(command.docTypes())),
                 command.body()));
+        if (Boolean.FALSE.equals(command.active()))
+            snippet.update(
+                    command.sourceTitle(),
+                    command.sourceVersion(),
+                    command.sourceLocator(),
+                    json.writeStrings(fieldKeys),
+                    true,
+                    json.writeStrings(distinct(command.docTypes())),
+                    command.body(),
+                    false);
+        draft.changed(principal.username());
+        snippetRepository.flush();
         audit(
                 principal,
                 AuditTargetType.KNOWLEDGE_SNIPPET,
@@ -62,6 +79,8 @@ public class KnowledgeAdminService {
 
     public KnowledgeSnippetResponse updateSnippet(MemberPrincipal principal, Long id, KnowledgeSnippetCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
+        var draft = drafts.lockCurrent();
+        validator.snippet(command);
         KnowledgeSnippet snippet =
                 snippetRepository.findById(id).orElseThrow(() -> new NotFoundException("스니펫을 찾을 수 없습니다: " + id));
         if (command.expectedRevision() == null) {
@@ -78,6 +97,8 @@ public class KnowledgeAdminService {
                 json.writeStrings(distinct(command.docTypes())),
                 command.body(),
                 command.active() == null || command.active());
+        draft.changed(principal.username());
+        snippetRepository.flush();
         audit(
                 principal,
                 AuditTargetType.KNOWLEDGE_SNIPPET,
@@ -106,6 +127,8 @@ public class KnowledgeAdminService {
 
     public PrivateContextResponse createPrivateContext(MemberPrincipal principal, PrivateContextCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
+        var draft = drafts.lockCurrent();
+        validator.context(command);
         List<String> roles = distinct(command.visibleRoles());
         PrivateContext context = privateContextRepository.save(PrivateContext.create(
                 command.kind(),
@@ -115,6 +138,18 @@ public class KnowledgeAdminService {
                 json.writeStrings(roles),
                 roles.contains(MemberRole.APPLICANT.name()),
                 command.note()));
+        if (Boolean.FALSE.equals(command.active()))
+            context.update(
+                    command.kind(),
+                    command.name(),
+                    json.writeStrings(distinct(command.aliases())),
+                    json.writeStringMap(command.attributes()),
+                    json.writeStrings(roles),
+                    false,
+                    command.note(),
+                    false);
+        draft.changed(principal.username());
+        privateContextRepository.flush();
         audit(
                 principal,
                 AuditTargetType.PRIVATE_CONTEXT,
@@ -128,6 +163,8 @@ public class KnowledgeAdminService {
     public PrivateContextResponse updatePrivateContext(
             MemberPrincipal principal, Long id, PrivateContextCommand command) {
         principal.requireAnyRole(MemberRole.ADMIN);
+        var draft = drafts.lockCurrent();
+        validator.context(command);
         PrivateContext context = privateContextRepository
                 .findById(id)
                 .orElseThrow(() -> new NotFoundException("비공개 컨텍스트를 찾을 수 없습니다: " + id));
@@ -145,6 +182,8 @@ public class KnowledgeAdminService {
                 roles.contains(MemberRole.APPLICANT.name()),
                 command.note(),
                 command.active() == null || command.active());
+        draft.changed(principal.username());
+        privateContextRepository.flush();
         audit(
                 principal,
                 AuditTargetType.PRIVATE_CONTEXT,

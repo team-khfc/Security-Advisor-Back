@@ -14,9 +14,11 @@ import kr.securityadvisor.auth.service.AuthService;
 import kr.securityadvisor.common.config.SecurityConfig;
 import kr.securityadvisor.common.error.TooManyRequestsException;
 import kr.securityadvisor.common.error.UnauthorizedException;
+import kr.securityadvisor.common.security.AccountSessionValidator;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.common.security.SessionAuthenticator;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,14 @@ class AuthControllerTest {
 
     @MockitoBean
     private SessionAuthenticator sessionAuthenticator;
+
+    @MockitoBean
+    private AccountSessionValidator sessionValidator;
+
+    @BeforeEach
+    void validAccountSession() {
+        given(sessionValidator.isValid(any())).willReturn(true);
+    }
 
     @Test
     @DisplayName("로그인 성공 시 200 과 사용자 정보를 반환한다 (익명 접근 허용 경로)")

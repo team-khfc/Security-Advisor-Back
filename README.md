@@ -1,9 +1,19 @@
 # Security-Advisor-Back
 
 보안길잡이(SecurityAdvisor) 백엔드 — Spring Boot 4.1 · Java 25 · PostgreSQL 17 · Flyway · Gradle(Kotlin DSL) · Lombok(허용 목록만, `lombok.config`로 강제).
-규칙·구조·명령은 팀 Claude 프로젝트의 AGENTS.md를 따른다(저장소 루트 사본은 추후 추가).
+작업 전 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) 5장의 **공식 기준 버전 표**와 참조 문서의 머리말 버전·개정일을 확인한다. 문서별 참조 순서는 [claude/INSTRUCTIONS.md](claude/INSTRUCTIONS.md)를 따른다.
 
-구조·의존 방향·주요 흐름·확장 포인트는 **`docs/ARCHITECTURE.md`**, 프론트 연동 안내는 **`docs/FRONTEND_HANDOFF.md`**, 결정 기록은 `docs/adr/`, 명세와 다른 점은 `docs/DEVIATIONS.md`.
+업무 규칙은 [FUNCTIONAL_SPEC.md](FUNCTIONAL_SPEC.md), 개발 실행 규칙은 [AGENTS.md](AGENTS.md), 문서 개정 절차는 [PROJECT_RULES.md](PROJECT_RULES.md) 7-1장, 협업·수용 기준은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다. 코드 작성은 [CODING_STYLE.md](CODING_STYLE.md)와 [SECURE_CODING.md](SECURE_CODING.md), 화면 기준은 [design.md](design.md)를 함께 확인한다. 동기화에 사용한 원본과 남은 차이는 [문서 출처 기록](docs/SOURCE_PROVENANCE.md)에 정리한다.
+
+```bash
+python3 tools/check_doc_versions.py   # 공식 기준 표·머리말 버전·개정일·문서 경로 검사
+```
+
+구조·의존 방향·주요 흐름·확장 포인트는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), 프론트 연동 안내는 [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md)를 참고한다. 실제 스택·스키마 결정은 [ADR 0001](docs/adr/0001-stack-and-schema-conventions.md), REST API 결정은 [ADR 0004](docs/adr/0004-restful-api-and-error-model.md)에 있다. 기존 [ADR](docs/adr/)과 [docs/DEVIATIONS.md](docs/DEVIATIONS.md)의 결정·구현 차이 기록은 보존하며, 원본 규칙과 정리되지 않은 차이는 PROJECT_RULES.md 7-1 절차로 반영한다.
+
+담당자는 현재 역할의 활성 배정 신청만 조회하며, 기관 통계는 관리자 전용이다. 계정 비활성화·역할 변경 후 기존 세션은 재로그인이 필요하다. [권한 결정](docs/adr/0010-assigned-access-and-session-revocation.md)과 [도커 검증 결과](docs/ACCESS_SESSION_20261110.md)를 참고한다.
+
+계정·역할·분야 등록이 바뀌면 진행 중 신청에 재배정 필요를 표시하고, 관리자가 사유를 남겨 후임에게 인계한다. 담당자 등록과 기본 지정, 자동 배정의 부적격 후보 처리 및 검증 결과는 [업무 인계 기록](docs/ASSIGNMENT_HANDOFF_20261110.md)에 정리한다.
 
 ## 준비물
 
@@ -31,7 +41,7 @@ docker compose --profile ollama up -d --build   # 공개 모델(Ollama) 도 함�
 docker compose down -v          # 시연 데이터 초기화
 ```
 
-완성본·제출용 실행은 Security-Advisor 저장소의 compose(Back + Front + DB)가 맡는다. CI(`.github/workflows/check.yml`)는 push·PR 마다 `./gradlew check` 를 돌린다.
+완성본·제출용 실행은 Security-Advisor 저장소의 compose(Back + Front + DB)가 맡는다. CI(`.github/workflows/check.yml`)는 push·PR 마다 `python3 tools/check_doc_versions.py`와 `./gradlew check` 를 돌린다.
 API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.md`).
 
 ## 사업 건·신청 API (F-01·F-03·F-05 일부)
@@ -115,7 +125,16 @@ API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.m
 
 - 부족하면 4→3 차수 반환(`POST …/stage-returns`)으로 돌려보내고, 다시 제출하면 새 개정본(`sequenceNo` 증가)이 된다. 이전 제출본은 불변·조회만.
 - 서류 확정 ≠ 방화벽 적용. 방화벽 규칙 생성(불변식 26)·적용 기록은 policy 컨텍스트(F-15)에서 추가한다 — 미구현.
-- 3단계 AI 최종 초안(F-06·F-07 의 AI 보완)과 서류 렌더링·다운로드(document 컨텍스트)는 미구현. 문서함은 제출본(스냅샷) 단위로만 동작한다.
+- 3단계 최종 보고서는 AI 생성 또는 직접 작성 → 수정·확인 → 제출 순서로 처리한다. 한 번 생성한 초안은 최신 원본 기준으로 확인되어야 제출할 수 있다. 제출본에는 최종 서술·AI 원문·출처·모델·확인자를 답변과 함께 보존한다. 서술 없는 기존 API 신청은 답변만 제출하는 호환 경로를 유지한다(ADR 0008).
+
+| 최종 초안 API | 설명 | 결과 |
+|---|---|---|
+| `GET /api/security-requests/{id}/final-draft` | 현재 최종 초안·확인·원본 변경 상태 | 200, 미작성 204 |
+| `POST /api/security-requests/{id}/final-draft-generations` | `{expectedRevision}`으로 AI 최종 서술 생성, 미확정 | 201, 모델 불가 503, 원본/초안 경합 409 |
+| `POST /api/security-requests/{id}/final-drafts` | `{text, expectedRevision}`으로 직접 작성, 미확정 | 201 |
+| `PUT /api/final-drafts/{id}/confirmation` | `{text, expectedRevision}`으로 본문 수정·확인. 생성은 신청 revision, 확인은 초안 revision 사용 | 200, 권한 없음 403/404, 단계 오류 422, 원본 변경·이전 초안·버전 충돌 409 |
+
+생성·확인은 신청자 본인과 3단계 최종 검토에서만 허용한다. 현재 답변이 바뀌면 기존 확인은 무효화되며, 제출본과 과거 PDF는 보존된다. PDF는 `generated-documents`에 `submissionId`를 지정해 만들고 `download?format=PDF`로 받는다.
 
 ## AI·지식 API (F-03 AI 제안 · F-09 지식 기반 · F-10 LLM 구성)
 
@@ -158,8 +177,12 @@ AI 계층은 `llm.service.LlmGateway` 인터페이스 뒤의 Spring AI 2.0 구�
 | `GET /api/notification-channels` | **외부 알림 채널 상태**(관리자): EMAIL(SMTP 릴레이, 계정별 수신 주소)·WEBHOOK(메신저 incoming webhook). 환경변수(`SMTP_*`, `NOTIFY_WEBHOOK_URL`)가 비어 있으면 꺼짐. 화면 안 알림 저장 뒤 비동기 전달, 실패해도 업무·화면 알림 영향 없음, 본문에 값 없음 | 200 |
 | `GET /api/notifications?unreadOnly=` / `GET …/unread-count` / `PATCH /api/notifications/{id}` `{"read":true}` | **알림**(F-17): 배정·보완 요청/답변·반환·제출·확정·종결·재검토 이벤트 + 기한 1영업일 전/경과(DEADLINE_IMMINENT/OVERDUE) + 미배정→관리자(UNASSIGNED) + 제출 뒤 공통 정보 변경→담당자(COMMON_INFO_CHANGED, 제출본은 불변). 별도 트랜잭션으로 저장돼 실패해도 업무는 실패하지 않음. 수신자 본인만 | 200 |
 | `GET /api/insights/summary` | **업무 지표**(F-16, 담당자·관리자): 서류 유형별·단계별·상태별 신청 수, 단계별 평균 소요 영업일(감사 이력의 첫 전이 시각 기준), 활성 기한 상태·기한 경과 건수, 보완 상태·신청당 보완 횟수, 차수 반환률, 1회 통과율(보완·반환 없이 확정), AI 제안 확인율(AI 값이 수정 없이 확인된 비율, 감사 이력 기준), 규칙 상태. 조회 시 계산·저장 없음, 개인 순위 없음, 비율은 분모 0이면 null | 200 |
-| `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 초안(현재 게시본에서 시작) 조회·저장(데이터 계약 검증: 코드·키 유일, REQUEST 항목 적용 서류, 참조) → 게시하면 새 게시본 버전. 기존 사업 건은 생성 시점 버전 유지 | 200 / 201, 검증 실패 422 |
+| `GET /api/configurations/current` / `PUT /api/configurations/{id}` / `POST …/publications` | **설정 편집·게시**(F-08, 관리자): 질문·기한 초안 검증, 기본 질문 계약 보호, revision으로 동시 변경 차단. 게시하면 새 버전을 만들고 기존 사업 건·추가 신청은 생성 시점 버전 유지 | 200 / 201, 충돌 409, 검증 실패 400 / 422 |
+| `GET /api/configurations/{id}/comparison` | 저장된 초안과 현재 게시본의 변경 비교. 게시 시 비교한 revision을 전달 | 200, 관리자 아님 403 |
+| `GET /api/publications?page=0&size=20` / `GET /api/publications/{id}/comparison` | 관리자용 게시 이력 페이지, 게시자·메모·직전 버전 및 게시 당시 변경 비교 | 200, 잘못된 페이지 400, 관리자 아님 403 |
 | `GET /api/publications/{id}` | 게시본 하나 | 200 |
+
+질문·기한 정책의 편집·게시와 합성 v1·v2 사용자 흐름은 [기관 설정 검증 기록](docs/CONFIGURATION_PUBLISHING_20261110.md)을 참고한다.
 
 ## 인증 API (F-11)
 
@@ -218,6 +241,7 @@ erDiagram
     business_cases ||--o{ answers : "scope=CASE (security_request_id NULL)"
     security_requests ||--o{ answers : "scope=REQUEST"
     security_requests ||--o{ submissions : "sequence_no 증가"
+    security_requests ||--o{ final_drafts : "최종 서술 생성·확인 이력"
     submissions ||--o{ final_confirmations : "분야별 1건, INFRA 선행"
     submissions ||--o{ firewall_rules : "FIREWALL 확정 시 생성"
     security_requests ||--o{ inquiries : "담당자별 대화"
@@ -317,6 +341,21 @@ erDiagram
         varchar(50) resolved_by
         timestamptz resolved_at
         bigint      revision
+    }
+    final_drafts {
+        bigint      final_draft_id PK
+        bigint      security_request_id
+        varchar(64) source_fingerprint
+        text        original_text "AI 원문 또는 최초 작성문"
+        text        text "사용자 확인 본문"
+        varchar(30) value_source "AI_INFERRED | USER_ANSWER"
+        varchar(200) model_reference
+        varchar(50) confirmed_by
+        timestamptz confirmed_at
+        boolean     invalidated
+        bigint      revision
+        timestamptz created_at
+        timestamptz updated_at
     }
     final_confirmations {
         bigint      final_confirmation_id PK

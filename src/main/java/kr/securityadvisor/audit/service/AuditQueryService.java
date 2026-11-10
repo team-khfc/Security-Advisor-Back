@@ -1,49 +1,36 @@
 package kr.securityadvisor.audit.service;
 
 import java.util.List;
+import kr.securityadvisor.audit.domain.AuditAction;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
-import kr.securityadvisor.audit.repository.AuditEventRepository;
-import kr.securityadvisor.common.dto.PageResponse;
+import kr.securityadvisor.audit.dto.AuditListQuery;
+import kr.securityadvisor.audit.dto.AuditListResponse;
+import kr.securityadvisor.audit.repository.AuditListingRepository;
 import kr.securityadvisor.common.error.BadRequestException;
 import kr.securityadvisor.common.security.MemberPrincipal;
-import kr.securityadvisor.common.security.MemberRole;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 감사 이력 조회. 권한별 범위(3-3장): 관리자 전체, 그 외는 대상별 조회를 호출 컨텍스트가 접근 검사 후 요청한다. */
+/** 관리자 전체·담당자 배정 신청·신청자 본인 업무 이력의 조회 경계. */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuditQueryService {
-
-    private final AuditEventRepository auditEventRepository;
-
-    /** 특정 대상의 이력(시간순). 호출자가 대상 접근 권한을 먼저 검사한다. */
-    public List<AuditEventResponse> forTarget(AuditTargetType targetType, String targetId) {
-        return auditEventRepository.findByTargetTypeAndTargetIdOrderByOccurredAtAscIdAsc(targetType, targetId).stream()
-                .map(AuditEventResponse::from)
-                .toList();
+    private final AuditListingRepository listingRepository;
+    /** 기존 신청별 배열 계약에도 동일한 권한 범위를 적용한다. */
+    public List<AuditEventResponse> forTarget(MemberPrincipal member, AuditTargetType type, String id) {
+        return listingRepository.forTarget(member, type.name(), id);
     }
-
-    /** 기관 관리자 전용 전체 조회(대상 필터 선택). */
-    public PageResponse<AuditEventResponse> search(
-            MemberPrincipal principal, String targetType, String targetId, Pageable pageable) {
-        principal.requireAnyRole(MemberRole.ADMIN);
-        if (targetType != null && targetId != null) {
-            AuditTargetType type;
-            try {
-                type = AuditTargetType.valueOf(targetType);
-            } catch (IllegalArgumentException e) {
-                throw new BadRequestException("알 수 없는 대상 유형입니다: " + targetType);
-            }
-            return PageResponse.from(
-                    auditEventRepository.findByTargetTypeAndTargetId(type, targetId, pageable),
-                    AuditEventResponse::from);
+    /** 권한 필터가 검색·전체 건수·페이지에 동일하게 적용된다. */
+    public AuditListResponse search(MemberPrincipal member, AuditListQuery filter) {
+        try {
+            if (filter.targetType() != null) AuditTargetType.valueOf(filter.targetType());
+            if (filter.action() != null) AuditAction.valueOf(filter.action());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("이력 대상이나 업무 구분이 올바르지 않습니다");
         }
-        return PageResponse.from(
-                auditEventRepository.findAllByOrderByOccurredAtDescIdDesc(pageable), AuditEventResponse::from);
+        return listingRepository.search(member, filter);
     }
 }

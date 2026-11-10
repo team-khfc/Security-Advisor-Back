@@ -33,6 +33,7 @@ public class MemberAdminService {
     private final MemberRepository memberRepository;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     /** 계정 목록(아이디순). role 을 주면 그 역할만. */
     @Transactional(readOnly = true)
@@ -63,7 +64,9 @@ public class MemberAdminService {
         if (admin.username().equals(username)) {
             throw new DomainRuleViolationException("자기 자신의 역할은 바꿀 수 없습니다 — 다른 기관 관리자가 변경해야 합니다");
         }
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         MemberRole before = member.getRole();
         if (before == MemberRole.ADMIN
                 && command.role() != MemberRole.ADMIN
@@ -72,6 +75,8 @@ public class MemberAdminService {
             throw new DomainRuleViolationException("마지막 활성 기관 관리자의 역할은 바꿀 수 없습니다");
         }
         if (member.changeRole(command.role())) {
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    username, java.util.UUID.randomUUID().toString()));
             auditRecorder.record(
                     admin,
                     AuditTargetType.MEMBER,
@@ -91,7 +96,9 @@ public class MemberAdminService {
     @Transactional
     public MemberDetail setActivation(MemberPrincipal admin, String username, ActivationCommand command) {
         admin.requireAnyRole(MemberRole.ADMIN);
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         if (member.isActive() == command.active()) {
             return MemberDetail.from(member, clock.instant());
         }
@@ -104,6 +111,8 @@ public class MemberAdminService {
                 throw new DomainRuleViolationException("마지막 활성 기관 관리자는 비활성화할 수 없습니다");
             }
             member.deactivate();
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    username, java.util.UUID.randomUUID().toString()));
         } else {
             member.activate();
         }
@@ -134,7 +143,9 @@ public class MemberAdminService {
         if (!actor.username().equals(username)) {
             actor.requireAnyRole(MemberRole.ADMIN);
         }
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         boolean had = member.getEmail() != null;
         member.changeEmail(command.email());
         auditRecorder.record(

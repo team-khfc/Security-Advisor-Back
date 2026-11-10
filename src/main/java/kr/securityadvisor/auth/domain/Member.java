@@ -51,6 +51,10 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean active;
 
+    /** 역할·활성 상태가 바뀌면 증가한다. 이전 역할로 돌아와도 옛 세션은 되살아나지 않는다. */
+    @Column(name = "session_version", nullable = false)
+    private long sessionVersion;
+
     @Column(name = "failed_login_count", nullable = false)
     private int failedLoginCount;
 
@@ -127,6 +131,10 @@ public class Member extends BaseTimeEntity {
         return active;
     }
 
+    public long getSessionVersion() {
+        return sessionVersion;
+    }
+
     public int getFailedLoginCount() {
         return failedLoginCount;
     }
@@ -172,11 +180,13 @@ public class Member extends BaseTimeEntity {
 
     /** 계정을 비활성화한다. 다시 로그인할 수 없지만 기존 이력은 남는다. */
     public void deactivate() {
+        if (this.active) this.sessionVersion++;
         this.active = false;
     }
 
     /** 비활성 계정을 다시 활성화한다. 잠금·실패 횟수는 초기화한다. */
     public void activate() {
+        if (!this.active) this.sessionVersion++;
         this.active = true;
         this.failedLoginCount = 0;
         this.lockedUntil = null;
@@ -196,6 +206,7 @@ public class Member extends BaseTimeEntity {
             return false;
         }
         this.role = newRole;
+        this.sessionVersion++;
         return true;
     }
 }

@@ -1,8 +1,8 @@
 package kr.securityadvisor.notification.controller;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
+import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.notification.dto.NotificationReadCommand;
@@ -26,9 +26,12 @@ public class NotificationController {
     private final NotificationService service;
 
     @GetMapping
-    public List<NotificationResponse> list(
-            @CurrentMember MemberPrincipal member, @RequestParam(defaultValue = "false") boolean unreadOnly) {
-        return service.list(member, unreadOnly);
+    public PageResponse<NotificationResponse> list(
+            @CurrentMember MemberPrincipal member,
+            @RequestParam(defaultValue = "false") boolean unreadOnly,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return service.list(member, unreadOnly, page, size);
     }
 
     @GetMapping("/unread-count")

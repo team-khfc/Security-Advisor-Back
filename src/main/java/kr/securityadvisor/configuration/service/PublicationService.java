@@ -1,11 +1,20 @@
 package kr.securityadvisor.configuration.service;
 
+import java.util.List;
+import kr.securityadvisor.common.dto.PageResponse;
+import kr.securityadvisor.common.error.BadRequestException;
 import kr.securityadvisor.common.error.NotFoundException;
 import kr.securityadvisor.common.schema.FieldSchema;
+import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.common.security.MemberRole;
 import kr.securityadvisor.configuration.domain.Publication;
+import kr.securityadvisor.configuration.dto.ConfigurationComparisonResponse;
 import kr.securityadvisor.configuration.dto.PublicationResponse;
+import kr.securityadvisor.configuration.dto.PublicationSummaryResponse;
 import kr.securityadvisor.configuration.repository.PublicationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -28,6 +37,30 @@ public class PublicationService {
      */
     public PublicationResponse getCurrent() {
         return toResponse(currentPublication());
+    }
+
+    /** 게시 이력은 관리자에게만 제공하며 가장 최근 버전부터 페이지로 조회한다. */
+    public PageResponse<PublicationSummaryResponse> history(MemberPrincipal principal, int page, int size) {
+        principal.requireAnyRole(MemberRole.ADMIN);
+        if (page < 0 || size < 1 || size > 100) throw new BadRequestException("페이지는 0 이상, 크기는 1~100이어야 합니다");
+        return PageResponse.from(
+                publicationRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "version"))),
+                PublicationSummaryResponse::from);
+    }
+
+    /** 게시 당시의 직전 게시본과 비교한다. 초안 수정은 이 결과에 영향을 주지 않는다. */
+    public ConfigurationComparisonResponse comparison(MemberPrincipal principal, Long id) {
+        principal.requireAnyRole(MemberRole.ADMIN);
+        Publication target =
+                publicationRepository.findById(id).orElseThrow(() -> new NotFoundException("게시본을 찾을 수 없습니다"));
+        Integer previous = target.getPreviousVersion();
+        if (previous == null)
+            return new ConfigurationComparisonResponse(target.getVersion(), target.getVersion(), null, List.of());
+        Publication base = publicationRepository
+                .findByVersion(previous)
+                .orElseThrow(() -> new NotFoundException("기준 게시본을 찾을 수 없습니다"));
+        return new ConfigurationComparisonResponse(
+                previous, target.getVersion(), null, SchemaComparison.compare(parse(base), parse(target)));
     }
 
     /** 새 사업 건에 고정할 현재 게시본 ID. */

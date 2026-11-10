@@ -168,13 +168,13 @@ class DeadlineReminderApiTest {
 
     private int countNotifications(Authentication who, String kind, Long requestId) throws Exception {
         String body = mvc.get()
-                .uri("/api/notifications")
+                .uri("/api/notifications?size=100")
                 .with(authentication(who))
                 .exchange()
                 .getResponse()
                 .getContentAsString();
-        List<Object> hits = JsonPath.read(
-                body, "$[?(@.kind=='" + kind + "' && @.link=='/api/security-requests/" + requestId + "/deadlines')]");
+        List<Object> hits =
+                JsonPath.read(body, "$.content[?(@.kind=='" + kind + "' && @.link=='/requests/" + requestId + "')]");
         return hits.size();
     }
 

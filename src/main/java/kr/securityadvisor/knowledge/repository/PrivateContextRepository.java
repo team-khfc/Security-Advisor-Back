@@ -10,4 +10,10 @@ public interface PrivateContextRepository extends JpaRepository<PrivateContext, 
     List<PrivateContext> findByActiveTrueOrderByIdAsc();
 
     List<PrivateContext> findAllByOrderByIdAsc();
+
+    @org.springframework.data.jpa.repository.Query(
+            "select c from PrivateContext c where :q = '' or lower(c.name) like lower(concat('%', :q, '%')) order by c.id")
+    org.springframework.data.domain.Page<PrivateContext> searchDraft(
+            @org.springframework.data.repository.query.Param("q") String query,
+            org.springframework.data.domain.Pageable pageable);
 }

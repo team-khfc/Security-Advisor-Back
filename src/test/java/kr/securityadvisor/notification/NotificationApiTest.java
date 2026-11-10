@@ -39,6 +39,9 @@ class NotificationApiTest {
     @Autowired
     private MockMvcTester mvc;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
     @Test
     @DisplayName("배정 알림 → 미읽음 수 → 읽음 처리(PATCH) → 남의 알림은 404")
     void assignedNotification() throws Exception {
@@ -68,7 +71,7 @@ class NotificationApiTest {
         assertThat(mine).hasStatusOk();
         List<Integer> ids = JsonPath.read(
                 mine.getResponse().getContentAsString(),
-                "$[?(@.kind=='ASSIGNED' && @.link=='/api/security-requests/" + requestId + "')].notificationId");
+                "$.content[?(@.kind=='ASSIGNED' && @.link=='/requests/" + requestId + "')].notificationId");
         assertThat(ids).hasSize(1);
         assertThat(mvc.get().uri("/api/notifications/unread-count").with(authentication(INFRA)))
                 .hasStatusOk()
@@ -102,11 +105,15 @@ class NotificationApiTest {
     }
 
     @Test
-    @DisplayName("기본 담당자 본인이 신청자면 그 분야는 미배정 → 기관 관리자에게 UNASSIGNED 알림(링크는 배정 자원)")
+    @DisplayName("신청자로 역할이 바뀐 이전 기본 담당자 분야는 미배정 → 기관 관리자에게 UNASSIGNED 알림(링크는 배정 자원)")
+    @org.springframework.transaction.annotation.Transactional
     void unassignedNotifiesAdmin() throws Exception {
+        // 신청자로 역할이 바뀐 이전 기본 담당자를 준비한다. 오래된 후보·자기 배정은 허용하지 않는다.
+        jdbc.update("UPDATE members SET role='APPLICANT' WHERE username='infra'");
+        Authentication requester = auth("infra", "합성 신청자", MemberRole.APPLICANT);
         MvcTestResult created = mvc.post()
                 .uri("/api/business-cases")
-                .with(authentication(INFRA))
+                .with(authentication(requester))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
@@ -117,7 +124,7 @@ class NotificationApiTest {
                 .longValue();
         MvcTestResult requested = mvc.post()
                 .uri("/api/security-requests/{id}/reviews", requestId)
-                .with(authentication(INFRA))
+                .with(authentication(requester))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"expectedRevision\":0}")
@@ -127,11 +134,13 @@ class NotificationApiTest {
                 .bodyJson()
                 .extractingPath("$.assignments.unassigned")
                 .isEqualTo(List.of("INFRA"));
-        assertThat(mvc.get().uri("/api/notifications").with(authentication(ADMIN)))
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
+        jdbc.update("UPDATE members SET role='INFRA' WHERE username='infra'");
+        assertThat(mvc.get().uri("/api/notifications?size=100").with(authentication(ADMIN)))
                 .hasStatusOk()
                 .bodyJson()
-                .extractingPath(
-                        "$[?(@.kind=='UNASSIGNED' && @.link=='/api/security-requests/" + requestId + "/assignments')]")
+                .extractingPath("$.content[?(@.kind=='UNASSIGNED' && @.link=='/requests/" + requestId + "')]")
                 .asArray()
                 .hasSize(1);
     }

@@ -90,6 +90,7 @@ public class AuthService {
     }
 
     private static MemberPrincipal toPrincipal(Member member) {
-        return new MemberPrincipal(member.getUsername(), member.getDisplayName(), member.getRole());
+        return new MemberPrincipal(
+                member.getUsername(), member.getDisplayName(), member.getRole(), member.getSessionVersion());
     }
 }

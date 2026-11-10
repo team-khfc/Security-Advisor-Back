@@ -1,5 +1,6 @@
 package kr.securityadvisor.document.controller;
 
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -9,10 +10,14 @@ import kr.securityadvisor.common.schema.ExportFormat;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.document.dto.GenerateDocumentCommand;
+import kr.securityadvisor.document.dto.GenerateFinalDraftCommand;
 import kr.securityadvisor.document.dto.GeneratedDocumentResponse;
 import kr.securityadvisor.document.service.DocumentService;
+import kr.securityadvisor.document.service.FinalDraftGenerationService;
+import kr.securityadvisor.request.dto.FinalDraftResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 서류 API(F-06·F-07 문서함 다운로드). 생성은 신청의 하위 자원, 다운로드는 서류의 표현(.md). */
@@ -28,6 +34,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class GeneratedDocumentController {
 
     private final DocumentService documentService;
+    private final FinalDraftGenerationService finalDraftGeneration;
+
+    /** 제출 가능한 최종 서술을 만들되 사람 확인은 별도 요청으로 받는다. */
+    @PostMapping("/api/security-requests/{id}/final-draft-generations")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ResponseEntity<FinalDraftResponse> generateFinalDraft(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody GenerateFinalDraftCommand command) {
+        FinalDraftResponse draft = finalDraftGeneration.generate(member, id, command.expectedRevision());
+        return ResponseEntity.created(URI.create("/api/security-requests/" + id + "/final-draft"))
+                .body(draft);
+    }
 
     @PostMapping("/api/security-requests/{id}/generated-documents")
     public ResponseEntity<GeneratedDocumentResponse> generate(

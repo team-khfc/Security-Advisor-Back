@@ -41,6 +41,9 @@ public class BusinessCase extends BaseAuditEntity {
     @Column(name = "publication_id", nullable = false)
     private Long publicationId;
 
+    @Column(name = "knowledge_publication_id", nullable = false, updatable = false)
+    private Long knowledgePublicationId = 1L;
+
     @Version
     @Column(nullable = false)
     private long revision;
@@ -68,6 +71,23 @@ public class BusinessCase extends BaseAuditEntity {
             throw new DomainRuleViolationException("사업명은 필수입니다");
         }
         return new BusinessCase(applicantUsername, title.strip(), summary, department, publicationId);
+    }
+
+    /** 기관 설정과 별도로 생성 당시 지식 게시본을 고정한다. */
+    public static BusinessCase create(
+            String username,
+            String title,
+            String summary,
+            String department,
+            Long publicationId,
+            Long knowledgePublicationId) {
+        BusinessCase result = create(username, title, summary, department, publicationId);
+        result.knowledgePublicationId = java.util.Objects.requireNonNull(knowledgePublicationId);
+        return result;
+    }
+
+    public Long getKnowledgePublicationId() {
+        return knowledgePublicationId;
     }
 
     public Long getId() {

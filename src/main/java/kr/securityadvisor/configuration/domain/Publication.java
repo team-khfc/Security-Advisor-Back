@@ -35,13 +35,23 @@ public class Publication extends BaseTimeEntity {
     @Column(name = "published_at", nullable = false)
     private Instant publishedAt;
 
+    @Column(name = "published_by", length = 50)
+    private String publishedBy;
+
+    @Column(length = 500)
+    private String note;
+
+    @Column(name = "previous_version")
+    private Integer previousVersion;
+
     /** JPA 전용 기본 생성자. */
     protected Publication() {}
 
     private Publication(int version, String fieldSchemaJson, Instant publishedAt) {
         this.version = version;
         this.fieldSchemaJson = fieldSchemaJson;
-        this.publishedAt = publishedAt;
+        // PostgreSQL 시각 정밀도와 생성 응답을 맞춰 게시 직후와 이후 조회가 같게 한다.
+        this.publishedAt = publishedAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
     }
 
     /** 초안 게시(F-08). 게시본은 생성 후 바뀌지 않는다. */
@@ -54,6 +64,28 @@ public class Publication extends BaseTimeEntity {
 
     public Long getId() {
         return id;
+    }
+
+    /** 게시 당시 관리자·메모·비교 기준을 스냅샷으로 남긴다. */
+    public static Publication publish(
+            int version, String schema, Instant at, String actor, String note, int previousVersion) {
+        Publication publication = publish(version, schema, at);
+        publication.publishedBy = actor;
+        publication.note = note;
+        publication.previousVersion = previousVersion;
+        return publication;
+    }
+
+    public String getPublishedBy() {
+        return publishedBy;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public Integer getPreviousVersion() {
+        return previousVersion;
     }
 
     public int getVersion() {

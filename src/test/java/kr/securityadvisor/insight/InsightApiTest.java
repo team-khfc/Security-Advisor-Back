@@ -24,7 +24,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.test.web.servlet.assertj.MvcTestResult;
 
-/** F-16: 지표는 담당자·관리자만 읽고, 저장 상태 없이 계산되며 개인 순위 항목이 없다. */
+/** F-16: 지표는 관리자만 읽고, 저장 상태 없이 계산되며 개인 순위 항목이 없다. */
 @Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
 @SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
 @AutoConfigureMockMvc
@@ -40,13 +40,19 @@ class InsightApiTest {
     private MockMvcTester mvc;
 
     @Test
-    @DisplayName("요약 지표 조회: 신청자 403, 담당자 200(집계 키 존재, 개인별 키 없음)")
+    @DisplayName("요약 지표 조회: 신청자·담당자 403, 관리자 200(개인별 키 없음)")
     void summary() throws Exception {
         assertThat(mvc.get().uri("/api/insights/summary").with(authentication(APPLICANT)))
                 .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.get().uri("/api/insights/summary").with(authentication(SECURITY)))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.get()
+                        .uri("/api/insights/summary")
+                        .with(authentication(auth("infra", "합성 인프라", MemberRole.INFRA))))
+                .hasStatus(HttpStatus.FORBIDDEN);
         MvcTestResult result = mvc.get()
                 .uri("/api/insights/summary")
-                .with(authentication(SECURITY))
+                .with(authentication(ADMIN))
                 .exchange();
         assertThat(result).hasStatusOk();
         assertThat(result)

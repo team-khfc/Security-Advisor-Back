@@ -36,7 +36,9 @@ public class ReviewerPoolService {
     private final ReviewerPoolRepository reviewerPoolRepository;
     private final AssignmentRepository assignmentRepository;
     private final MemberDirectory memberDirectory;
+    private final ReviewerAvailability availability;
     private final AuditRecorder auditRecorder;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     /** 목록(분야·ID순). field 를 주면 그 분야만. 비활성 등록도 함께 돌려준다(active 로 구분). */
     @Transactional(readOnly = true)
@@ -45,7 +47,7 @@ public class ReviewerPoolService {
         List<ReviewerPool> pools = field == null
                 ? reviewerPoolRepository.findAllByOrderByFieldAscIdAsc()
                 : reviewerPoolRepository.findByFieldOrderByIdAsc(field);
-        return pools.stream().map(ReviewerPoolResponse::from).toList();
+        return pools.stream().map(this::response).toList();
     }
 
     /**
@@ -77,7 +79,7 @@ public class ReviewerPoolService {
         if (command.defaultReviewer()) {
             makeDefault(admin, pool);
         }
-        return ReviewerPoolResponse.from(pool);
+        return response(pool);
     }
 
     /** 기본 담당자 지정(PUT …/{id}/default). 이전 기본 담당자는 해제된다. 멱등. */
@@ -87,10 +89,12 @@ public class ReviewerPoolService {
         if (!pool.isActive()) {
             throw new DomainRuleViolationException("비활성 담당자는 기본 담당자로 지정할 수 없습니다");
         }
+        memberDirectory.requireActiveWithRole(
+                pool.getMemberUsername(), pool.getField().role());
         if (!pool.isDefaultReviewer()) {
             makeDefault(admin, pool);
         }
-        return ReviewerPoolResponse.from(pool);
+        return response(pool);
     }
 
     /**
@@ -115,7 +119,7 @@ public class ReviewerPoolService {
                         command.reason(),
                         pool.getField() + " 담당자 재활성화: " + pool.getMemberUsername());
             }
-            return new ReviewerPoolDeactivationResult(ReviewerPoolResponse.from(pool), List.of());
+            return new ReviewerPoolDeactivationResult(response(pool), List.of());
         }
         List<Long> needReassignment =
                 assignmentRepository
@@ -128,6 +132,8 @@ public class ReviewerPoolService {
         if (pool.isActive()) {
             boolean wasDefault = pool.isDefaultReviewer();
             pool.deactivate();
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    pool.getMemberUsername(), java.util.UUID.randomUUID().toString()));
             auditRecorder.record(
                     admin,
                     AuditTargetType.REVIEWER_POOL,
@@ -139,7 +145,7 @@ public class ReviewerPoolService {
                             + (wasDefault ? " (기본 담당자 해제 — 새 기본 담당자 지정 필요)" : "")
                             + (needReassignment.isEmpty() ? "" : " — 재배정 필요 신청 " + needReassignment));
         }
-        return new ReviewerPoolDeactivationResult(ReviewerPoolResponse.from(pool), needReassignment);
+        return new ReviewerPoolDeactivationResult(response(pool), needReassignment);
     }
 
     private void makeDefault(MemberPrincipal admin, ReviewerPool pool) {
@@ -159,6 +165,10 @@ public class ReviewerPoolService {
                 pool.getField() + " 기본 담당자: "
                         + previous.map(ReviewerPool::getMemberUsername).orElse("(없음)") + " → "
                         + pool.getMemberUsername());
+    }
+
+    private ReviewerPoolResponse response(ReviewerPool pool) {
+        return ReviewerPoolResponse.from(pool, availability.reason(pool.getMemberUsername(), pool.getField()));
     }
 
     private ReviewerPool requirePool(Long poolId) {

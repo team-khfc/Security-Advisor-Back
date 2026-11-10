@@ -18,7 +18,9 @@ public record SecurityRequestListItem(
         RequestStatus status,
         String statusLabel,
         long revision,
-        Instant updatedAt) {
+        Instant updatedAt,
+        Instant createdAt,
+        RequestOverview overview) {
 
     public static SecurityRequestListItem from(SecurityRequest request, BusinessCase businessCase) {
         return new SecurityRequestListItem(
@@ -32,6 +34,8 @@ public record SecurityRequestListItem(
                 request.getStatus(),
                 request.getStatus().label(),
                 request.getRevision(),
-                request.getUpdatedAt());
+                request.getUpdatedAt(),
+                request.getCreatedAt(),
+                null);
     }
 }

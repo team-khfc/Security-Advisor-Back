@@ -1,11 +1,11 @@
 package kr.securityadvisor.request.controller;
 
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import kr.securityadvisor.assignment.dto.AssignmentResponse;
 import kr.securityadvisor.assignment.dto.ReassignRequest;
 import kr.securityadvisor.audit.dto.AuditEventResponse;
-import kr.securityadvisor.common.dto.PageResponse;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.request.dto.AnswerActionRequest;
@@ -13,14 +13,13 @@ import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.AnswerUpdateRequest;
 import kr.securityadvisor.request.dto.DeadlineResponse;
-import kr.securityadvisor.request.dto.SecurityRequestListItem;
+import kr.securityadvisor.request.dto.RequestListQuery;
+import kr.securityadvisor.request.dto.RequestListResponse;
 import kr.securityadvisor.request.dto.SecurityRequestResponse;
 import kr.securityadvisor.request.dto.WithdrawRequest;
 import kr.securityadvisor.request.service.AnswerService;
 import kr.securityadvisor.request.service.SecurityRequestService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -50,15 +49,37 @@ public class SecurityRequestController {
         return securityRequestService.get(member, id);
     }
 
-    /** 서류별 항목 답변 저장(사용자 답변). */
-    /** 역할별 내 신청 목록: 신청자는 자기 사업 건의 신청, 담당자는 내게 활성 배정된 신청, 관리자는 전체. status·docType 필터(선택). */
+    /** 역할별 신청 검색. 날짜는 한국표준시의 생성일이며 정렬은 ID로 동률을 해소한다. */
     @GetMapping
-    public PageResponse<SecurityRequestListItem> list(
+    public RequestListResponse list(
             @CurrentMember MemberPrincipal member,
+            @RequestParam(required = false) String query,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String docType,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return securityRequestService.list(member, status, docType, pageable);
+            @RequestParam(required = false) Long businessCaseId,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(defaultValue = "all") String inbox,
+            @RequestParam(defaultValue = "all") String documentKind,
+            @RequestParam(defaultValue = "all") String supplementState,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return securityRequestService.list(
+                member,
+                new RequestListQuery(
+                        query,
+                        status,
+                        docType,
+                        businessCaseId,
+                        from,
+                        to,
+                        inbox,
+                        documentKind,
+                        supplementState,
+                        sort,
+                        page,
+                        size));
     }
 
     /** 서류별 답변 일괄 저장(PATCH). 항목마다 PUT 과 같은 규칙, 한 트랜잭션. */

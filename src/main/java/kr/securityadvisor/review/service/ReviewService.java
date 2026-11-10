@@ -155,7 +155,7 @@ public class ReviewService {
     public List<ReviewInboxItem> inbox(MemberPrincipal principal, ReviewInboxFilter filter) {
         ReviewInboxFilter effective = filter == null ? ReviewInboxFilter.NONE : filter;
         return assignmentService.listMine(principal).stream()
-                .map(this::toInboxItem)
+                .map(assignment -> toInboxItem(principal, assignment))
                 .flatMap(Optional::stream)
                 .filter(effective::matches)
                 .toList();
@@ -232,6 +232,15 @@ public class ReviewService {
 
         if (reviews.stream().allMatch(Review::isCompleted)) {
             request.completeReviews(true);
+            notifier.notify(
+                    businessCaseRepository
+                            .findById(request.getBusinessCaseId())
+                            .orElseThrow()
+                            .getApplicantUsername(),
+                    "request:" + request.getId() + ":reviews-completed:" + request.getRevision(),
+                    NotificationKind.REVIEW_COMPLETED,
+                    "신청 #" + request.getId() + " 담당자 협의가 완료되었습니다. 최종 초안을 확인해 주세요",
+                    "/requests/" + request.getId());
             deadlineService.endActive(principal, request.getId(), DeadlineKind.REVIEW, now, "협의 완료");
             audit(principal, request, AuditAction.STAGE_ADVANCED, null, "2단계 협의 중 → 3단계 최종 검토 중 (필요한 분야 협의 완료)");
         }
@@ -318,7 +327,7 @@ public class ReviewService {
         }
     }
 
-    private Optional<ReviewInboxItem> toInboxItem(AssignmentResponse assignment) {
+    private Optional<ReviewInboxItem> toInboxItem(MemberPrincipal principal, AssignmentResponse assignment) {
         return reviewRepository
                 .findBySecurityRequestIdAndField(assignment.securityRequestId(), assignment.field())
                 .map(review -> {
@@ -331,6 +340,7 @@ public class ReviewService {
                     List<SecurityRequestSummary> siblings =
                             securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(businessCase.getId()).stream()
                                     .filter(sibling -> !sibling.getId().equals(request.getId()))
+                                    .filter(sibling -> accessPolicy.canViewRequest(principal, sibling))
                                     .map(SecurityRequestSummary::from)
                                     .toList();
                     return new ReviewInboxItem(

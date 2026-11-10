@@ -122,6 +122,13 @@ class AiProposalApiTest {
                 .exchange();
         List<String> actions = JsonPath.read(trail.getResponse().getContentAsString(), "$[*].action");
         assertThat(actions).contains("ANSWER_AI_PROPOSED");
+        assertThat(actions).doesNotContain("LLM_CALLED");
+        trail = mvc.get()
+                .uri("/api/security-requests/{id}/audit-events", requestId)
+                .with(authentication(auth("admin", "합성 관리자", MemberRole.ADMIN)))
+                .exchange();
+        assertThat(trail).hasStatusOk();
+        actions = JsonPath.read(trail.getResponse().getContentAsString(), "$[*].action");
         // F-14: AI 호출마다 구성·용도·소요 시간이 남고 프롬프트·응답 원문은 남지 않는다
         assertThat(actions).contains("LLM_CALLED");
         List<String> llmSummaries =
