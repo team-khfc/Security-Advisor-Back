@@ -45,11 +45,12 @@ public class SpringAiLlmGateway implements LlmBackend {
                 configuration.getId() + ":" + configuration.getRevision(),
                 key -> build(configuration, selected.apiKey()));
         try {
-            String text = client.prompt().messages(messagesOf(prompt)).call().content();
-            if (text == null || text.isBlank()) {
-                throw new ServiceUnavailableException("모델이 빈 응답을 반환했습니다: " + configuration.reference());
-            }
-            return new LlmResult(text, configuration.reference(), configuration.getId());
+            var response = client.prompt().messages(messagesOf(prompt)).call().chatResponse();
+            var generation = response == null ? null : response.getResult();
+            String text = generation == null ? null : generation.getOutput().getText();
+            String finishReason =
+                    generation == null ? null : generation.getMetadata().getFinishReason();
+            return validatedResult(text, finishReason, configuration.reference(), configuration.getId());
         } catch (ServiceUnavailableException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -58,6 +59,17 @@ public class SpringAiLlmGateway implements LlmBackend {
                     "LLM 호출 실패 {} ({})", configuration.reference(), e.getClass().getSimpleName());
             throw new ServiceUnavailableException("LLM 호출에 실패했습니다: " + configuration.reference(), e);
         }
+    }
+
+    /** 공급자가 출력 한도로 중단한 부분 응답은 어떤 업무에서도 완성본으로 저장하지 않는다. */
+    static LlmResult validatedResult(String text, String finishReason, String reference, Long configurationId) {
+        if ("length".equalsIgnoreCase(finishReason) || "max_tokens".equalsIgnoreCase(finishReason)) {
+            log.warn("LLM 응답 거부 {} reason=OUTPUT_LIMIT", reference);
+            throw new ServiceUnavailableException(
+                    "모델 응답이 출력 한도에서 중단되어 저장하지 않았습니다. 관리자에게 해당 용도 모델의 최대 토큰 설정을 확인해 달라고 요청해 주세요. 추론 토큰도 출력 한도에 포함됩니다.");
+        }
+        if (text == null || text.isBlank()) throw new ServiceUnavailableException("모델이 빈 응답을 반환했습니다: " + reference);
+        return new LlmResult(text, reference, configurationId);
     }
 
     private static ChatClient build(LlmConfiguration configuration, String apiKey) {
