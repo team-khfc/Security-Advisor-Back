@@ -1,11 +1,17 @@
 ﻿<#
 .SYNOPSIS
-  공개 지식 조각(JSON)을 보안길잡이 서버에 일괄 등록한다 (POST /api/knowledge-snippets, ADMIN).
+  공개 지식 조각(JSON)을 보안길잡이 서버의 지식 초안에 일괄 등록하고 게시한다 (ADMIN).
 
 .DESCRIPTION
+  지식은 초안 → 게시 2단계다(ADR 0012). 등록은 초안에 들어가고, 게시해야 AI 검색·도움말에 쓰인다.
+  사업 건은 만들 때의 지식 게시본에 고정되므로 게시 뒤에 만든 사업 건부터 새 지식이 적용된다.
+
   - 비밀번호는 실행 중에 입력받는다(스크립트·명령줄·기록에 남기지 않는다).
-  - 이미 같은 출처(제목·판본·위치)가 있으면 건너뛴다 → 여러 번 실행해도 중복되지 않는다.
+  - 초안에 같은 출처(제목·판본·위치)가 있으면 건너뛴다 → 여러 번 실행해도 중복되지 않는다.
+  - fieldKeys 가 "general" 인 조각은 서버가 받지 않으므로(실제 질문 키만 허용) 기본으로 건너뛴다.
+    -GeneralFieldKey <질문 키> 를 주면 그 키로 바꿔 등록한다(그 질문의 AI 제안 후보에 섞이니 주의).
   - -DeactivateSynthetic 을 주면 제목에 "(합성 예시)" 가 있는 기존 조각을 비활성화한다.
+  - -NoPublish 를 주면 초안에만 넣고 게시하지 않는다.
   - -DryRun 을 주면 서버를 바꾸지 않고 등록될 건수만 보여준다.
 
 .EXAMPLE
@@ -21,7 +27,9 @@ param(
         (Join-Path $PSScriptRoot '..\docs\knowledge\knowledge_snippets_nis_guideline.json'),
         (Join-Path $PSScriptRoot '..\docs\knowledge\knowledge_snippets_public.json')
     ),
+    [string]$GeneralFieldKey = '',
     [switch]$DeactivateSynthetic,
+    [switch]$NoPublish,
     [switch]$DryRun
 )
 
@@ -86,12 +94,20 @@ if ($me.role -ne 'ADMIN') { throw "기관 관리자(ADMIN) 계정이 필요합�
 Invoke-Api GET '/api/auth/me' | Out-Null   # 로그인 뒤 바뀐 CSRF 쿠키 갱신
 Write-Host "로그인: $($me.displayName) ($($me.role))"
 
-# 3) 기존 조각 목록
-$listed = Invoke-Api GET '/api/knowledge-snippets'
-$existing = @($listed | Where-Object { $_ })
+# 3) 초안의 기존 조각 목록(페이지 단위, 최대 100건씩)
+$existing = @()
+$pageNo = 0
+while ($true) {
+    $pageData = Invoke-Api GET "/api/knowledge-drafts/current/snippets?page=$pageNo&size=100"
+    $rows = @($pageData.content | Where-Object { $_ })
+    $existing += $rows
+    if ($rows.Count -lt 100 -or $existing.Count -ge $pageData.totalElements) { break }
+    $pageNo++
+}
 $known = @{}
 foreach ($s in $existing) { $known[(Get-Key $s)] = $true }
-Write-Host "기존 조각 $($existing.Count)건"
+Write-Host "초안의 기존 조각 $($existing.Count)건"
+$changed = 0
 
 # 4) 합성 예시 비활성화(선택)
 if ($DeactivateSynthetic) {
@@ -104,13 +120,13 @@ if ($DeactivateSynthetic) {
             fieldKeys = @($s.fieldKeys); docTypes = @($s.docTypes); body = $s.body
             active = $false; expectedRevision = $s.revision
         }
-        try { Invoke-Api PUT "/api/knowledge-snippets/$($s.knowledgeSnippetId)" $body | Out-Null }
+        try { Invoke-Api PUT "/api/knowledge-snippets/$($s.knowledgeSnippetId)" $body | Out-Null; $changed++ }
         catch { Write-Warning "비활성화 실패 #$($s.knowledgeSnippetId): $(Get-ErrorText $_)" }
     }
 }
 
 # 5) 등록
-$created = 0; $skipped = 0; $failed = 0
+$created = 0; $skipped = 0; $failed = 0; $generalSkipped = 0
 foreach ($file in $Files) {
     $path = (Resolve-Path $file).Path
     $parsed = ConvertFrom-Json -InputObject ([System.IO.File]::ReadAllText($path, $utf8))
@@ -119,14 +135,19 @@ foreach ($file in $Files) {
     foreach ($item in $items) {
         $key = Get-Key $item
         if ($known.ContainsKey($key)) { $skipped++; continue }
+        $keys = @($item.fieldKeys)
+        if ($keys -contains 'general') {
+            if (-not $GeneralFieldKey) { $generalSkipped++; continue }
+            $keys = @($keys | ForEach-Object { if ($_ -eq 'general') { $GeneralFieldKey } else { $_ } } | Select-Object -Unique)
+        }
         if ($DryRun) { $created++; $known[$key] = $true; continue }
         $body = @{
             sourceTitle = $item.sourceTitle; sourceVersion = $item.sourceVersion; sourceLocator = $item.sourceLocator
-            fieldKeys = @($item.fieldKeys); docTypes = @($item.docTypes); body = $item.body; active = $true
+            fieldKeys = $keys; docTypes = @($item.docTypes); body = $item.body; active = $true
         }
         try {
             Invoke-Api POST '/api/knowledge-snippets' $body | Out-Null
-            $created++; $known[$key] = $true
+            $created++; $changed++; $known[$key] = $true
         } catch {
             $failed++
             Write-Warning "실패 [$($item.sourceLocator)]: $(Get-ErrorText $_)"
@@ -135,8 +156,28 @@ foreach ($file in $Files) {
 }
 
 $label = if ($DryRun) { '등록 예정' } else { '등록' }
-Write-Host "`n$label $created건, 건너뜀(이미 있음) $skipped건, 실패 $failed건"
+Write-Host "`n$label $created건, 건너뜀(이미 있음) $skipped건, 건너뜀(general 태그) $generalSkipped건, 실패 $failed건"
 
-# 6) 로그아웃
+# 6) 게시 — 초안을 게시해야 AI 검색·도움말에 쓰인다
+if ($DryRun) {
+    Write-Host '(DryRun) 서버는 바뀌지 않았습니다.'
+} elseif ($NoPublish) {
+    Write-Host '초안에만 넣었습니다. 게시는 관리 화면 또는 POST /api/knowledge-drafts/current/publications 로 합니다.'
+} elseif ($changed -eq 0) {
+    Write-Host '초안에 바뀐 내용이 없어 게시하지 않았습니다.'
+} elseif ($failed -gt 0) {
+    Write-Warning '실패한 건이 있어 게시하지 않았습니다. 원인을 고친 뒤 다시 실행하세요.'
+} else {
+    try {
+        $draft = Invoke-Api GET '/api/knowledge-drafts/current'
+        $published = Invoke-Api POST '/api/knowledge-drafts/current/publications' @{ expectedRevision = $draft.revision }
+        Write-Host "지식 게시본 v$($published.version) 게시 완료. 이후 만드는 사업 건부터 적용됩니다."
+    } catch {
+        $failed++
+        Write-Warning "게시 실패: $(Get-ErrorText $_)"
+    }
+}
+
+# 7) 로그아웃
 try { Invoke-Api POST '/api/auth/logout' | Out-Null } catch { }
 if ($failed -gt 0) { exit 1 }
