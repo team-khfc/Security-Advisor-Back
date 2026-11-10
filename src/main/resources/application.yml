@@ -70,6 +70,7 @@ securityadvisor:
     # 업로드 파일 저장 폴더(서버 생성 파일명 UUID). Docker 에서는 볼륨으로 마운트
     dir: ${STORAGE_DIR:./storage}
   llm:
+    allowed-key-envs: ${LLM_ALLOWED_KEY_ENVS:OPENAI_API_KEY,OPENROUTER_API_KEY,OLLAMA_API_KEY}
     # live: llm_configurations 의 활성 구성으로 실제 모델 호출 / fake: 네트워크 없이 고정 응답(테스트·오프라인 시연)
     mode: ${LLM_MODE:live}
     # 등록 가능한 엔드포인트 호스트 허용 목록(SSRF 방지, F-10). 쉼표 구분
