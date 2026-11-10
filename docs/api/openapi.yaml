@@ -1263,6 +1263,31 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/GeneratedDocumentResponse"
+  /api/security-requests/{id}/consultation-summaries:
+    post:
+      tags:
+      - consultation-summary-controller
+      operationId: generate_2
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Command"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConsultationSummary"
   /api/security-requests/{id}/assignments:
     get:
       tags:
@@ -2488,6 +2513,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/DeadlineResponse"
+  /api/security-requests/{id}/consultation-comparison:
+    get:
+      tags:
+      - consultation-comparison-controller
+      operationId: get_5
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConsultationOverview"
   /api/security-requests/{id}/audit-events:
     get:
       tags:
@@ -2556,7 +2600,7 @@ paths:
     get:
       tags:
       - review-action-controller
-      operationId: get_5
+      operationId: get_6
       parameters:
       - name: id
         in: path
@@ -2602,7 +2646,7 @@ paths:
     get:
       tags:
       - publication-controller
-      operationId: get_6
+      operationId: get_7
       parameters:
       - name: id
         in: path
@@ -2740,7 +2784,7 @@ paths:
     get:
       tags:
       - member-controller
-      operationId: get_7
+      operationId: get_8
       parameters:
       - name: username
         in: path
@@ -2758,7 +2802,7 @@ paths:
     get:
       tags:
       - llm-connection-test-controller
-      operationId: get_8
+      operationId: get_9
       parameters:
       - name: id
         in: path
@@ -3036,7 +3080,7 @@ paths:
     get:
       tags:
       - installation-controller
-      operationId: get_9
+      operationId: get_10
       responses:
         "200":
           description: OK
@@ -3062,7 +3106,7 @@ paths:
     get:
       tags:
       - generated-document-controller
-      operationId: get_10
+      operationId: get_11
       parameters:
       - name: id
         in: path
@@ -3291,7 +3335,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: get_11
+      operationId: get_12
       parameters:
       - name: id
         in: path
@@ -4670,27 +4714,6 @@ components:
           type: boolean
         container:
           type: boolean
-        number:
-          type: boolean
-        double:
-          type: boolean
-        int:
-          type: boolean
-        string:
-          type: boolean
-        long:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
-          type: boolean
-        boolean:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        binary:
-          type: boolean
         nodeType:
           type: string
           enum:
@@ -4705,15 +4728,36 @@ components:
           - STRING
         missingNode:
           type: boolean
-        bigInteger:
+        valueNode:
           type: boolean
         integralNumber:
-          type: boolean
-        valueNode:
           type: boolean
         floatingPointNumber:
           type: boolean
         bigDecimal:
+          type: boolean
+        bigInteger:
+          type: boolean
+        number:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        string:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        double:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5074,6 +5118,38 @@ components:
           minimum: 0
       required:
       - expectedRevision
+    Command:
+      type: object
+      properties:
+        expectedFingerprint:
+          type: string
+          maxLength: 64
+          minLength: 0
+      required:
+      - expectedFingerprint
+    ConsultationSummary:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        model:
+          type: string
+        at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsultationSummaryItem"
+    ConsultationSummaryItem:
+      type: object
+      properties:
+        text:
+          type: string
+        evidenceIds:
+          type: array
+          items:
+            type: string
     ReassignRequest:
       type: object
       properties:
@@ -6091,6 +6167,70 @@ components:
         generatedAt:
           type: string
           format: date-time
+    ConsultationChange:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+        actorName:
+          type: string
+        actorRole:
+          type: string
+        at:
+          type: string
+          format: date-time
+        before:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ConsultationField"
+        after:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ConsultationField"
+    ConsultationField:
+      type: object
+      properties:
+        label:
+          type: string
+        group:
+          type: string
+        value:
+          type: string
+        confirmed:
+          type: boolean
+        evidence:
+          type: string
+    ConsultationOverview:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        baselineAvailable:
+          type: boolean
+        baselineAt:
+          type: string
+          format: date-time
+        caseTitle:
+          type: string
+        department:
+          type: string
+        baseline:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ConsultationField"
+        current:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ConsultationField"
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConsultationChange"
+        summary:
+          $ref: "#/components/schemas/ConsultationSummary"
     AuditEventResponse:
       type: object
       properties:

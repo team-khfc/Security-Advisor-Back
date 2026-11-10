@@ -77,6 +77,7 @@ public class ReviewService {
     private final Clock clock;
     private final jakarta.persistence.EntityManager entityManager;
     private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
+    private final kr.securityadvisor.request.service.ConsultationComparisonService consultationComparison;
 
     /**
      * 신청자의 협의 요청: 1단계 작성 중 → 2단계 협의 중.
@@ -91,6 +92,7 @@ public class ReviewService {
 
         Set<ReviewField> fields = reviewFieldsOf(businessCase, request);
         request.requestReview();
+        consultationComparison.baseline(principal, securityRequestId);
 
         List<ReviewResponse> reviews = fields.stream()
                 .sorted()
