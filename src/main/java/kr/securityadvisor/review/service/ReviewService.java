@@ -286,6 +286,12 @@ public class ReviewService {
         for (Review review : reviewRepository.findBySecurityRequestIdInOrderByIdAsc(inReview)) {
             if (review.isCompleted()) {
                 review.markRecheck();
+                boolean infrastructureHandoff = event.actor().role() == MemberRole.SECURITY
+                        && event.fieldKey().equals("infrastructure.plan")
+                        && review.getField() == ReviewField.INFRA;
+                String reason = infrastructureHandoff
+                        ? "정보보안 담당자가 서버·네트워크·운영 정보를 수정하여 ICT인프라 재협의가 필요합니다"
+                        : "답변이 바뀌어 " + review.getField() + " 협의 재검토가 필요합니다";
                 notifier.notify(
                         assignmentService.listForRequest(review.getSecurityRequestId()).stream()
                                 .filter(a -> a.active() && a.field() == review.getField())
@@ -294,7 +300,7 @@ public class ReviewService {
                         "request:" + review.getSecurityRequestId() + ":recheck:" + review.getField() + ":"
                                 + event.fieldKey() + ":" + java.util.UUID.randomUUID(),
                         NotificationKind.REVIEW_RECHECK,
-                        "신청 #" + review.getSecurityRequestId() + " 답변이 바뀌어 " + review.getField() + " 협의 재검토가 필요합니다",
+                        "신청 #" + review.getSecurityRequestId() + " " + reason,
                         "/api/security-requests/" + review.getSecurityRequestId());
                 auditRecorder.record(
                         event.actor(),
@@ -303,7 +309,7 @@ public class ReviewService {
                         null,
                         AuditAction.REVIEW_RECHECK,
                         null,
-                        review.getField() + " 협의 재검토 — 답변 " + event.fieldKey() + " 변경 (협의 " + review.getId() + ")");
+                        reason + " — 항목 " + event.fieldKey() + " (협의 " + review.getId() + ")");
             }
         }
     }

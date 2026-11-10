@@ -68,9 +68,10 @@ public class InfrastructurePlanService {
 
     public InfrastructurePlanResponse save(MemberPrincipal actor, Long id, InfrastructurePlanCommand command) {
         var request = access.viewableRequest(actor, id);
-        actor.requireAnyRole(MemberRole.INFRA);
-        if (!assignments.isActiveAssignee(id, ReviewField.INFRA, actor.username()))
-            throw new ForbiddenException("배정된 ICT인프라 담당자만 수정할 수 있습니다.");
+        actor.requireAnyRole(MemberRole.INFRA, MemberRole.SECURITY);
+        if (!assignments.isActiveAssignee(
+                id, actor.role() == MemberRole.INFRA ? ReviewField.INFRA : ReviewField.SECURITY, actor.username()))
+            throw new ForbiddenException("배정된 ICT인프라·정보보안 담당자만 수정할 수 있습니다.");
         entityManager.refresh(request, LockModeType.PESSIMISTIC_WRITE);
         if (request.getStage() != 2 || request.isTerminal())
             throw new DomainRuleViolationException("ICT인프라 검토 정보는 담당자 협의 단계에서만 수정할 수 있습니다.");
@@ -109,7 +110,7 @@ public class InfrastructurePlanService {
                                 command.answerRevisions().get(field.key()),
                                 old.get().getRevision()))
                     throw new ConflictException("원본 답변이 변경되었습니다. 새로고침한 후 입력을 확인해 주세요.");
-                answers.inputByStaff(
+                answers.inputInfrastructureByStaff(
                         actor,
                         request,
                         field.key(),
