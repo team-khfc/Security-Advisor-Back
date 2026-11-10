@@ -3014,6 +3014,16 @@ components:
           type: boolean
         active:
           type: boolean
+        eligible:
+          type: boolean
+        unavailableReason:
+          type: string
+          enum:
+          - UNASSIGNED
+          - ACCOUNT_INACTIVE
+          - ROLE_CHANGED
+          - NOT_REGISTERED
+          - POOL_INACTIVE
     ReviewerPoolActivationCommand:
       type: object
       properties:
@@ -3762,7 +3772,23 @@ components:
           type: boolean
         float:
           type: boolean
+        container:
+          type: boolean
+        number:
+          type: boolean
+        string:
+          type: boolean
+        missingNode:
+          type: boolean
         floatingPointNumber:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        integralNumber:
+          type: boolean
+        bigInteger:
+          type: boolean
+        valueNode:
           type: boolean
         nodeType:
           type: string
@@ -3776,39 +3802,23 @@ components:
           - OBJECT
           - POJO
           - STRING
-        valueNode:
+        boolean:
           type: boolean
-        integralNumber:
-          type: boolean
-        bigInteger:
-          type: boolean
-        missingNode:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        container:
-          type: boolean
-        number:
-          type: boolean
-        string:
-          type: boolean
-        pojo:
+        double:
           type: boolean
         int:
           type: boolean
         long:
           type: boolean
-        double:
+        binary:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
           type: boolean
         textual:
           type: boolean
           deprecated: true
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        short:
-          type: boolean
         embeddedValue:
           type: boolean
     SubmissionResponse:
@@ -3928,6 +3938,14 @@ components:
         deactivatedAt:
           type: string
           format: date-time
+        reassignmentReason:
+          type: string
+          enum:
+          - UNASSIGNED
+          - ACCOUNT_INACTIVE
+          - ROLE_CHANGED
+          - NOT_REGISTERED
+          - POOL_INACTIVE
     AssignmentSummary:
       type: object
       properties:
@@ -4797,6 +4815,14 @@ components:
           type: boolean
         confirmed:
           type: boolean
+        reassignmentReason:
+          type: string
+          enum:
+          - UNASSIGNED
+          - ACCOUNT_INACTIVE
+          - ROLE_CHANGED
+          - NOT_REGISTERED
+          - POOL_INACTIVE
     RequestListResponse:
       type: object
       properties:

@@ -54,10 +54,19 @@ WITH visible AS (
 ), enriched AS (
  SELECT v.*, (SELECT jsonb_agg(jsonb_build_object('field', f.field,
        'assigneeUsername', a.assignee_username, 'reviewStatus', rv.status,
-       'allocated', rv.allocated_at IS NOT NULL, 'confirmed', fc.final_confirmation_id IS NOT NULL)
+       'allocated', rv.allocated_at IS NOT NULL, 'confirmed', fc.final_confirmation_id IS NOT NULL,
+       'reassignmentReason', CASE
+         WHEN v.stage<2 OR v.status IN ('CONFIRMED','CLOSED','WITHDRAWN') THEN NULL
+         WHEN a.assignee_username IS NULL THEN 'UNASSIGNED'
+         WHEN m.username IS NULL OR NOT m.active THEN 'ACCOUNT_INACTIVE'
+         WHEN m.role<>f.field THEN 'ROLE_CHANGED'
+         WHEN rp.reviewer_pool_id IS NULL THEN 'NOT_REGISTERED'
+         WHEN NOT rp.active THEN 'POOL_INACTIVE' ELSE NULL END)
        ORDER BY f.field)
    FROM jsonb_array_elements_text(v.required_fields) f(field)
    LEFT JOIN assignments a ON a.security_request_id=v.security_request_id AND a.field=f.field AND a.active
+   LEFT JOIN members m ON m.username=a.assignee_username
+   LEFT JOIN reviewer_pools rp ON rp.member_username=a.assignee_username AND rp.field=f.field
    LEFT JOIN reviews rv ON rv.security_request_id=v.security_request_id AND rv.field=f.field
    LEFT JOIN final_confirmations fc ON fc.submission_id=v.submission_id AND fc.field=f.field) AS fields,
    EXISTS(SELECT 1 FROM answers a WHERE (a.security_request_id=v.security_request_id
@@ -70,7 +79,7 @@ WITH visible AS (
  SELECT e.*, (e.status NOT IN ('CONFIRMED','CLOSED','WITHDRAWN') AND CASE
    WHEN :role='APPLICANT' THEN e.status IN ('DRAFTING','SUPPLEMENT_REQUESTED','FINAL_REVIEW')
    WHEN :role='ADMIN' THEN e.stage>=2 AND EXISTS (SELECT 1 FROM jsonb_array_elements(e.fields) f
-          WHERE f->>'assigneeUsername' IS NULL)
+          WHERE f->>'reassignmentReason' IS NOT NULL)
    ELSE EXISTS (SELECT 1 FROM jsonb_array_elements(e.fields) f
        WHERE f->>'field'=:role AND f->>'assigneeUsername'=:username AND (
          (e.stage=2 AND COALESCE(f->>'reviewStatus','WAITING')<>'COMPLETED'

@@ -13,6 +13,8 @@ python3 tools/check_doc_versions.py   # 공식 기준 표·머리말 버전·개
 
 담당자는 현재 역할의 활성 배정 신청만 조회하며, 기관 통계는 관리자 전용이다. 계정 비활성화·역할 변경 후 기존 세션은 재로그인이 필요하다. [권한 결정](docs/adr/0010-assigned-access-and-session-revocation.md)과 [도커 검증 결과](docs/ACCESS_SESSION_20261110.md)를 참고한다.
 
+계정·역할·분야 등록이 바뀌면 진행 중 신청에 재배정 필요를 표시하고, 관리자가 사유를 남겨 후임에게 인계한다. 담당자 등록과 기본 지정, 자동 배정의 부적격 후보 처리 및 검증 결과는 [업무 인계 기록](docs/ASSIGNMENT_HANDOFF_20261110.md)에 정리한다.
+
 ## 준비물
 
 - JDK 25 (없으면 Gradle toolchain이 자동으로 내려받는다)

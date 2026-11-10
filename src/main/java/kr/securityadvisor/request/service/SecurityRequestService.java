@@ -105,6 +105,9 @@ public class SecurityRequestService {
     @Transactional
     public AssignmentResponse reassign(MemberPrincipal admin, Long securityRequestId, ReassignRequest request) {
         SecurityRequest securityRequest = accessPolicy.viewableRequest(admin, securityRequestId);
+        if (securityRequest.isTerminal()) {
+            throw new kr.securityadvisor.common.error.DomainRuleViolationException("종료된 신청의 담당자는 변경할 수 없습니다");
+        }
         BusinessCase businessCase = accessPolicy.viewableCase(admin, securityRequest.getBusinessCaseId());
         return assignmentService.reassign(admin, securityRequestId, businessCase.getApplicantUsername(), request);
     }
