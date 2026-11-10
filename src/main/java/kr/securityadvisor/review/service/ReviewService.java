@@ -232,6 +232,15 @@ public class ReviewService {
 
         if (reviews.stream().allMatch(Review::isCompleted)) {
             request.completeReviews(true);
+            notifier.notify(
+                    businessCaseRepository
+                            .findById(request.getBusinessCaseId())
+                            .orElseThrow()
+                            .getApplicantUsername(),
+                    "request:" + request.getId() + ":reviews-completed:" + request.getRevision(),
+                    NotificationKind.REVIEW_COMPLETED,
+                    "신청 #" + request.getId() + " 담당자 협의가 완료되었습니다. 최종 초안을 확인해 주세요",
+                    "/requests/" + request.getId());
             deadlineService.endActive(principal, request.getId(), DeadlineKind.REVIEW, now, "협의 완료");
             audit(principal, request, AuditAction.STAGE_ADVANCED, null, "2단계 협의 중 → 3단계 최종 검토 중 (필요한 분야 협의 완료)");
         }

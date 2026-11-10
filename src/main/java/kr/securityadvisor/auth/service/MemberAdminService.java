@@ -33,6 +33,7 @@ public class MemberAdminService {
     private final MemberRepository memberRepository;
     private final AuditRecorder auditRecorder;
     private final Clock clock;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     /** 계정 목록(아이디순). role 을 주면 그 역할만. */
     @Transactional(readOnly = true)
@@ -74,6 +75,8 @@ public class MemberAdminService {
             throw new DomainRuleViolationException("마지막 활성 기관 관리자의 역할은 바꿀 수 없습니다");
         }
         if (member.changeRole(command.role())) {
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    username, java.util.UUID.randomUUID().toString()));
             auditRecorder.record(
                     admin,
                     AuditTargetType.MEMBER,
@@ -108,6 +111,8 @@ public class MemberAdminService {
                 throw new DomainRuleViolationException("마지막 활성 기관 관리자는 비활성화할 수 없습니다");
             }
             member.deactivate();
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    username, java.util.UUID.randomUUID().toString()));
         } else {
             member.activate();
         }

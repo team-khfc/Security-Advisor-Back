@@ -47,6 +47,7 @@ public class SupplementService {
     private final Notifier notifier;
     private final ReviewJson json;
     private final Clock clock;
+    private final kr.securityadvisor.assignment.service.AssignmentService assignmentService;
 
     /** 담당자의 보완 요청(POST /api/reviews/{id}/supplements). 2단계 협의 중 또는 3단계 최종 검토 중인 신청에서, 그 분야 배정자만. */
     public SupplementResponse request(MemberPrincipal principal, Long reviewId, SupplementRequestCommand command) {
@@ -126,7 +127,8 @@ public class SupplementService {
                 null,
                 supplement.getField() + " 보완 답변 (보완 " + supplementId + ")");
         notifier.notify(
-                supplement.getRequestedBy(),
+                assignmentService.eligibleAssignee(request.getId(), supplement.getField()).stream()
+                        .toList(),
                 "supplement:" + supplementId + ":answered",
                 NotificationKind.SUPPLEMENT_ANSWERED,
                 "신청 #" + request.getId() + " 보완 답변이 등록되었습니다",

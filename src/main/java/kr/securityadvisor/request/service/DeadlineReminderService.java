@@ -54,7 +54,7 @@ public class DeadlineReminderService {
 
     /** 스케줄러가 부르는 기본 실행(오늘 기준). */
     public DeadlineReminderRunResult runToday() {
-        return run(LocalDate.ofInstant(clock.instant(), KOREA));
+        return run(LocalDate.ofInstant(clock.instant(), KOREA), null);
     }
 
     /** 기관 관리자의 수동 실행. 기준일을 주면 그 날짜 기준으로 계산한다(시연·검증용). */
@@ -63,15 +63,16 @@ public class DeadlineReminderService {
         LocalDate asOf = command == null || command.asOf() == null
                 ? LocalDate.ofInstant(clock.instant(), KOREA)
                 : command.asOf();
-        return run(asOf);
+        return run(asOf, command == null ? null : command.securityRequestId());
     }
 
-    private DeadlineReminderRunResult run(LocalDate asOf) {
+    private DeadlineReminderRunResult run(LocalDate asOf, Long onlyRequestId) {
         Map<Long, BusinessCalendar> calendars = new HashMap<>();
         int scanned = 0;
         int imminent = 0;
         int overdue = 0;
         for (Deadline deadline : deadlineRepository.findByActiveTrue()) {
+            if (onlyRequestId != null && !onlyRequestId.equals(deadline.getSecurityRequestId())) continue;
             SecurityRequest request = securityRequestRepository
                     .findById(deadline.getSecurityRequestId())
                     .orElse(null);
@@ -130,12 +131,12 @@ public class DeadlineReminderService {
         switch (deadline.getKind()) {
             case REVIEW ->
                 assignmentService
-                        .activeAssignee(request.getId(), deadline.getField())
+                        .eligibleAssignee(request.getId(), deadline.getField())
                         .ifPresent(recipients::add);
             case SUPPLEMENT_RESPONSE -> recipients.add(businessCase.getApplicantUsername());
             case FINAL_CONFIRMATION -> {
                 for (ReviewField field : ReviewField.values()) {
-                    assignmentService.activeAssignee(request.getId(), field).ifPresent(recipients::add);
+                    assignmentService.eligibleAssignee(request.getId(), field).ifPresent(recipients::add);
                 }
             }
         }
@@ -144,7 +145,7 @@ public class DeadlineReminderService {
 
     private static String label(Deadline deadline) {
         return switch (deadline.getKind()) {
-            case REVIEW -> deadline.getField() + " 협의 기한";
+            case REVIEW -> (deadline.getField() == ReviewField.INFRA ? "ICT인프라" : "정보보안") + " 협의 기한";
             case SUPPLEMENT_RESPONSE -> "보완 응답 기한";
             case FINAL_CONFIRMATION -> "최종 확정 기한";
         };

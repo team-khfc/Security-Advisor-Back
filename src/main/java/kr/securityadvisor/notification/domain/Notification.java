@@ -38,6 +38,19 @@ public class Notification extends BaseTimeEntity {
     @Column(length = 300)
     private String link;
 
+    @Column(name = "security_request_id")
+    private Long securityRequestId;
+
+    @Column(name = "recipient_role", length = 20)
+    private String recipientRole;
+
+    /** 발송 순간의 대상과 역할을 기록한다. 이후 조회에서도 현재 권한을 다시 검사한다. */
+    public void bindAudience(Long requestId, String role) {
+        this.securityRequestId = requestId;
+        this.recipientRole = role;
+        this.link = "/requests/" + requestId;
+    }
+
     @Column(name = "read_at")
     private Instant readAt;
 
@@ -73,7 +86,8 @@ public class Notification extends BaseTimeEntity {
 
     public void markRead(Instant now) {
         if (readAt == null) {
-            readAt = now;
+            // PostgreSQL TIMESTAMPTZ의 마이크로초 정밀도와 첫 응답을 맞춰 재요청도 같은 시각을 반환한다.
+            readAt = now.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         }
     }
 
