@@ -53,6 +53,7 @@ public class AnswerService {
     private final AuditRecorder auditRecorder;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final kr.securityadvisor.assignment.service.AssignmentService infrastructureAssignments;
 
     /** 답변 변경 기록(F-14). 값 자체는 남기지 않고 항목·출처만 남긴다(기관 사실 값 보호, 불변식 25). */
     private void audit(MemberPrincipal actor, Answer answer, AuditAction action, String what) {
@@ -208,10 +209,49 @@ public class AnswerService {
             String rawValue,
             Long expectedRevision,
             boolean notApplicable) {
+        return inputStaffValue(staff, securityRequest, fieldKey, rawValue, expectedRevision, notApplicable, false);
+    }
+
+    /** 구성 편집에서만 공유하는 항목. 일반 답변의 분야별 작성 권한은 유지한다. */
+    public AnswerResponse inputInfrastructureByStaff(
+            MemberPrincipal staff, SecurityRequest request, String key, String value, Long revision) {
+        staff.requireAnyRole(
+                kr.securityadvisor.common.security.MemberRole.INFRA,
+                kr.securityadvisor.common.security.MemberRole.SECURITY);
+        if (request.getStage() != 2
+                || !java.util.Set.of(
+                                "system.target_server",
+                                "network.source",
+                                "network.destination",
+                                "network.source_system",
+                                "network.destination_system",
+                                "firewall.protocol",
+                                "firewall.port",
+                                "firewall.period",
+                                "firewall.purpose",
+                                "firewall.direction")
+                        .contains(key))
+            throw new kr.securityadvisor.common.error.ForbiddenException("공유 구성 항목만 수정할 수 있습니다.");
+        var reviewField = staff.role() == kr.securityadvisor.common.security.MemberRole.INFRA
+                ? kr.securityadvisor.common.schema.ReviewField.INFRA
+                : kr.securityadvisor.common.schema.ReviewField.SECURITY;
+        if (!infrastructureAssignments.isActiveAssignee(request.getId(), reviewField, staff.username()))
+            throw new kr.securityadvisor.common.error.ForbiddenException("배정된 담당자만 구성 정보를 수정할 수 있습니다.");
+        return inputStaffValue(staff, request, key, value, revision, false, true);
+    }
+
+    private AnswerResponse inputStaffValue(
+            MemberPrincipal staff,
+            SecurityRequest securityRequest,
+            String fieldKey,
+            String rawValue,
+            Long expectedRevision,
+            boolean notApplicable,
+            boolean sharedInfrastructure) {
         BusinessCase businessCase = accessPolicy.viewableCase(staff, securityRequest.getBusinessCaseId());
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
-        AnswerFieldPolicy.requireWrite(field, staff.role());
+        if (!sharedInfrastructure) AnswerFieldPolicy.requireWrite(field, staff.role());
         String value = AnswerFieldPolicy.normalize(field, rawValue, notApplicable);
         Answer answer = findForField(businessCase, securityRequest, field)
                 .map(existing -> {

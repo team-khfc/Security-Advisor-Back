@@ -3,7 +3,6 @@ package kr.securityadvisor.llm.service;
 import java.util.*;
 import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.common.error.*;
-import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.*;
 import kr.securityadvisor.llm.domain.LlmPurpose;
 import kr.securityadvisor.llm.dto.*;
@@ -32,8 +31,8 @@ public class InfrastructureProposalService {
     /** 저장된 망 구성 revision이 다른 요청은 모델 호출 전에 거부한다. */
     public InfrastructureProposalResponse generate(
             MemberPrincipal actor, Long id, InfrastructureProposalCommand command) {
-        actor.requireAnyRole(MemberRole.INFRA);
-        reviewers.requireAssignedReviewer(actor, id, ReviewField.INFRA);
+        actor.requireAnyRole(MemberRole.INFRA, MemberRole.SECURITY);
+        reviewers.requireAnyAssignedReviewer(actor, id);
         var request = access.viewableRequest(actor, id);
         if (request.getStage() != 2 || request.isTerminal())
             throw new DomainRuleViolationException("담당자 협의 단계에서만 망 구성 초안을 작성할 수 있습니다.");
@@ -46,7 +45,7 @@ public class InfrastructureProposalService {
                 .stream()
                 .filter(s -> !s.tag().startsWith("D"))
                 .toList());
-        sources.add(new InquiryContextService.Source("H", "ICT인프라 담당자 추가 설명", command.explanation()));
+        sources.add(new InquiryContextService.Source("H", "검토 담당자 추가 설명", command.explanation()));
         if (!plan.connections().isEmpty())
             sources.add(new InquiryContextService.Source(
                     "C", "현재 저장된 망 구성 · 수정본 " + plan.revision(), json.writeValueAsString(plan.connections())));

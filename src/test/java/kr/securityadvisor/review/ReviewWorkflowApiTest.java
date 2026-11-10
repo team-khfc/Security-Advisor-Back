@@ -441,7 +441,7 @@ class ReviewWorkflowApiTest {
         String body = testJson.writeValueAsString(command);
         assertThat(mvc.put()
                         .uri("/api/security-requests/{id}/infrastructure-plan", id)
-                        .with(authentication(SECURITY))
+                        .with(authentication(APPLICANT))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -455,7 +455,7 @@ class ReviewWorkflowApiTest {
                 .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         var saved = mvc.put()
                 .uri("/api/security-requests/{id}/infrastructure-plan", id)
-                .with(authentication(INFRA))
+                .with(authentication(SECURITY))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body)
@@ -499,7 +499,7 @@ class ReviewWorkflowApiTest {
     }
 
     @Test
-    @DisplayName("망 구성 AI 제안은 배정된 인프라만 요청하고 기존 저장값을 변경하지 않는다")
+    @DisplayName("망 구성 AI 제안은 배정된 검토 담당자만 요청하고 기존 저장값을 변경하지 않는다")
     void infrastructureProposalAccess() throws Exception {
         Long id = createFirewallRequest();
         assertThat(mvc.post()
@@ -510,7 +510,7 @@ class ReviewWorkflowApiTest {
                         .content("{\"expectedRevision\":0}"))
                 .hasStatus(HttpStatus.CREATED);
         String body = "{\"expectedRevision\":0,\"explanation\":\"합성 자료에는 아직 IP 정보가 없습니다.\"}";
-        for (var actor : List.of(SECURITY, APPLICANT, ADMIN))
+        for (var actor : List.of(APPLICANT, ADMIN))
             assertThat(mvc.post()
                             .uri("/api/security-requests/{id}/infrastructure-proposals", id)
                             .with(authentication(actor))
@@ -520,7 +520,7 @@ class ReviewWorkflowApiTest {
                     .hasStatus(HttpStatus.FORBIDDEN);
         assertThat(mvc.post()
                         .uri("/api/security-requests/{id}/infrastructure-proposals", id)
-                        .with(authentication(INFRA))
+                        .with(authentication(SECURITY))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -530,24 +530,25 @@ class ReviewWorkflowApiTest {
                 .isEqualTo(0);
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/infrastructure-plan", id)
-                        .with(authentication(INFRA)))
+                        .with(authentication(SECURITY)))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.revision")
                 .isEqualTo(0);
         assertThat(mvc.post()
                         .uri("/api/security-requests/{id}/infrastructure-proposals", id)
-                        .with(authentication(INFRA))
+                        .with(authentication(SECURITY))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body.replace("\"expectedRevision\":0", "\"expectedRevision\":9")))
                 .hasStatus(HttpStatus.CONFLICT);
     }
 
-    @Test
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"FIREWALL", "SECURITY_REVIEW"})
     @DisplayName("서버 연결·미확인 AI 사양 임시 저장 후 확인 저장해야 협의할 수 있고 문서에 반영된다")
-    void infrastructureServerDraftAndConfirmation() throws Exception {
-        Long id = createFirewallRequest();
+    void infrastructureServerDraftAndConfirmation(String docType) throws Exception {
+        Long id = createReviewRequest(docType);
         var reviews = mvc.post()
                 .uri("/api/security-requests/{id}/reviews", id)
                 .with(authentication(APPLICANT))
@@ -574,7 +575,7 @@ class ReviewWorkflowApiTest {
                 .bodyJson()
                 .extractingPath("$.connections[0].sourceAddress")
                 .isEqualTo("192.0.2.10");
-        assertThat(requestJson(id)).contains("443");
+        if (docType.equals("FIREWALL")) assertThat(requestJson(id)).contains("443");
         Long review = reviewId(reviews.getResponse().getContentAsString(), "INFRA");
         assertThat(complete(INFRA, review, INFRA_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         command.put("expectedRevision", 1);
@@ -616,7 +617,7 @@ class ReviewWorkflowApiTest {
     private MvcTestResult saveInfrastructure(Long id, Object command) {
         return mvc.put()
                 .uri("/api/security-requests/{id}/infrastructure-plan", id)
-                .with(authentication(INFRA))
+                .with(authentication(SECURITY))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(testJson.writeValueAsString(command))
@@ -693,20 +694,26 @@ class ReviewWorkflowApiTest {
     }
 
     private Long createFirewallRequest() throws Exception {
+        return createReviewRequest("FIREWALL");
+    }
+
+    private Long createReviewRequest(String docType) throws Exception {
         MvcTestResult created = mvc.post()
                 .uri("/api/business-cases")
                 .with(authentication(APPLICANT))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                        "{\"title\":\"검토 흐름 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\"FIREWALL\"]}")
+                .content("{\"title\":\"검토 흐름 테스트\",\"summary\":\"개요\",\"department\":\"정보화부\",\"docTypes\":[\""
+                        + docType + "\"]}")
                 .exchange();
         assertThat(created).hasStatus(HttpStatus.CREATED);
         Long requestId = ((Number)
                         JsonPath.read(created.getResponse().getContentAsString(), "$.requests[0].securityRequestId"))
                 .longValue();
-        answerAsApplicantNew(requestId, "firewall.port", "443");
-        answerAsApplicantNew(requestId, "firewall.purpose", "초안 목적");
+        if (docType.equals("FIREWALL")) {
+            answerAsApplicantNew(requestId, "firewall.port", "443");
+            answerAsApplicantNew(requestId, "firewall.purpose", "초안 목적");
+        }
         return requestId;
     }
 
