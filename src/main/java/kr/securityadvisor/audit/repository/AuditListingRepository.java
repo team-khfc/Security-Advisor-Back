@@ -26,7 +26,7 @@ public class AuditListingRepository {
          OR (e.target_type='BUSINESS_CASE' AND e.target_id=CAST(c.business_case_id AS text)))
      AND ((:role='APPLICANT' AND c.applicant_username=:username)
        OR (:role IN ('INFRA','SECURITY') AND EXISTS (SELECT 1 FROM assignments a
-         WHERE a.security_request_id=r.security_request_id AND a.active AND a.assignee_username=:username))))
+         WHERE a.security_request_id=r.security_request_id AND a.active AND a.field=:role AND a.assignee_username=:username))))
  ))
  AND (CAST(:targetType AS text) IS NULL OR e.target_type=CAST(:targetType AS text))
  AND (CAST(:targetId AS text) IS NULL OR e.target_id=CAST(:targetId AS text))

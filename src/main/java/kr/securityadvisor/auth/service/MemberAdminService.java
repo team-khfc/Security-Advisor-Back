@@ -63,7 +63,9 @@ public class MemberAdminService {
         if (admin.username().equals(username)) {
             throw new DomainRuleViolationException("자기 자신의 역할은 바꿀 수 없습니다 — 다른 기관 관리자가 변경해야 합니다");
         }
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         MemberRole before = member.getRole();
         if (before == MemberRole.ADMIN
                 && command.role() != MemberRole.ADMIN
@@ -91,7 +93,9 @@ public class MemberAdminService {
     @Transactional
     public MemberDetail setActivation(MemberPrincipal admin, String username, ActivationCommand command) {
         admin.requireAnyRole(MemberRole.ADMIN);
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         if (member.isActive() == command.active()) {
             return MemberDetail.from(member, clock.instant());
         }
@@ -134,7 +138,9 @@ public class MemberAdminService {
         if (!actor.username().equals(username)) {
             actor.requireAnyRole(MemberRole.ADMIN);
         }
-        Member member = requireMember(username);
+        Member member = memberRepository
+                .findForUpdate(username)
+                .orElseThrow(() -> new NotFoundException("계정을 찾을 수 없습니다: " + username));
         boolean had = member.getEmail() != null;
         member.changeEmail(command.email());
         auditRecorder.record(

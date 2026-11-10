@@ -72,7 +72,7 @@ public class InsightService {
     private final Clock clock;
 
     public InsightSummary summary(MemberPrincipal principal) {
-        principal.requireAnyRole(MemberRole.ADMIN, MemberRole.SECURITY, MemberRole.INFRA);
+        principal.requireAnyRole(MemberRole.ADMIN);
         List<SecurityRequest> requests = securityRequestRepository.findAll();
 
         Map<String, Long> byDocType = new TreeMap<>();

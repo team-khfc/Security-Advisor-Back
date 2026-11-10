@@ -146,6 +146,12 @@ class ListingApiTest {
     }
 
     private MvcTestResult call(String user, String role, String url) {
+        // 인증 주입만 하던 합성 사용자를 실제 계정으로도 준비해 매 요청 계정 검사를 통과시킨다.
+        jdbc.update(
+                "INSERT INTO members(username,password_hash,display_name,role,signup_source,active) VALUES (?,?,'합성 계정',?,'SELF',true) ON CONFLICT(username) DO NOTHING",
+                user,
+                "{bcrypt}synthetic-unused-hash",
+                role);
         return mvc.get()
                 .uri(url)
                 .with(authentication(UsernamePasswordAuthenticationToken.authenticated(

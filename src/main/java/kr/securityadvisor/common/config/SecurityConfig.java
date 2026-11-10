@@ -1,5 +1,7 @@
 package kr.securityadvisor.common.config;
 
+import kr.securityadvisor.common.security.AccountSessionFilter;
+import kr.securityadvisor.common.security.AccountSessionValidator;
 import kr.securityadvisor.common.security.SpaCsrfTokenRequestHandler;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -12,6 +14,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -37,11 +40,15 @@ public class SecurityConfig {
     SecurityFilterChain apiSecurityFilterChain(
             HttpSecurity http,
             SecurityContextRepository securityContextRepository,
+            AccountSessionValidator sessionValidator,
             @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver)
             throws Exception {
         http.csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
                 .securityContext(context -> context.securityContextRepository(securityContextRepository))
+                .addFilterAfter(
+                        new AccountSessionFilter(sessionValidator, exceptionResolver),
+                        SecurityContextHolderFilter.class)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/logout", "/api/members")
                         .permitAll()

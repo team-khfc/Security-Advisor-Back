@@ -46,7 +46,7 @@ class SecurityOnlyDocTypeApiTest {
     private MockMvcTester mvc;
 
     @Test
-    @DisplayName("SECURITY 만 요구하는 서류 유형: 배정 1건 → INFRA 할당 없이 협의 완료 → 제출 → INFRA 최종 확인 422 → SECURITY 확인·확정")
+    @DisplayName("SECURITY 만 요구하는 서류 유형: 배정 1건 → INFRA 할당 없이 협의 완료 → 제출 → 미배정 INFRA 최종 확인 404 → SECURITY 확인·확정")
     void securityOnlyFlow() throws Exception {
         publishSecurityOnlyDocType();
 
@@ -114,8 +114,8 @@ class SecurityOnlyDocTypeApiTest {
         Long submissionId =
                 ((Number) JsonPath.read(submitted.getResponse().getContentAsString(), "$.submissionId")).longValue();
 
-        // INFRA 는 요구 분야가 아니라 최종 확인 불가(422), SECURITY 는 INFRA 선행 없이 바로 확인·확정
-        assertThat(finalConfirm(INFRA, submissionId, requestId)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        // INFRA 는 미배정이므로 신청 정보 접근부터 거부(404), SECURITY 는 INFRA 선행 없이 바로 확인·확정
+        assertThat(finalConfirm(INFRA, submissionId, requestId)).hasStatus(HttpStatus.NOT_FOUND);
         assertThat(finalConfirm(SECURITY, submissionId, requestId)).hasStatus(HttpStatus.CREATED);
         assertThat(mvc.put()
                         .uri("/api/submissions/{id}/confirmation", submissionId)
