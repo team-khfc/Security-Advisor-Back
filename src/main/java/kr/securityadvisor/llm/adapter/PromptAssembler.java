@@ -15,7 +15,7 @@ final class PromptAssembler {
         } else {
             prompt.factLines().forEach(line -> sb.append(line).append('\n'));
         }
-        sb.append("\n[공개 지식] 제안·답변의 근거는 아래 조각에서만 인용한다. 인용은 조각 ID(S숫자)로 한다.\n");
+        sb.append("\n[공개 지식] 공개 규정·지식의 근거는 아래 조각에서만 인용한다. 인용은 조각 ID(S숫자)로 한다.\n");
         if (prompt.knowledgeLines() == null || prompt.knowledgeLines().isEmpty()) {
             sb.append("(제공된 지식 없음)\n");
         } else {
