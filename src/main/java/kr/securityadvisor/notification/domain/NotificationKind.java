@@ -3,6 +3,9 @@ package kr.securityadvisor.notification.domain;
 /** 알림 종류(수신자 관점). */
 public enum NotificationKind {
     ASSIGNED,
+    REASSIGNED,
+    REASSIGNMENT_REQUIRED,
+    REVIEW_COMPLETED,
     SUPPLEMENT_REQUESTED,
     SUPPLEMENT_ANSWERED,
     STAGE_RETURNED,

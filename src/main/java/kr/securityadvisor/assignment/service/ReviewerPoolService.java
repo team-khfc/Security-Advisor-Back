@@ -38,6 +38,7 @@ public class ReviewerPoolService {
     private final MemberDirectory memberDirectory;
     private final ReviewerAvailability availability;
     private final AuditRecorder auditRecorder;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     /** 목록(분야·ID순). field 를 주면 그 분야만. 비활성 등록도 함께 돌려준다(active 로 구분). */
     @Transactional(readOnly = true)
@@ -131,6 +132,8 @@ public class ReviewerPoolService {
         if (pool.isActive()) {
             boolean wasDefault = pool.isDefaultReviewer();
             pool.deactivate();
+            events.publishEvent(new kr.securityadvisor.common.schema.ReviewerEligibilityChanged(
+                    pool.getMemberUsername(), java.util.UUID.randomUUID().toString()));
             auditRecorder.record(
                     admin,
                     AuditTargetType.REVIEWER_POOL,

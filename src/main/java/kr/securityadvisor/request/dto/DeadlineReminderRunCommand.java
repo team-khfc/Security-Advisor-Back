@@ -7,4 +7,10 @@ import java.time.LocalDate;
  *
  * @param asOf 기준일(선택)
  */
-public record DeadlineReminderRunCommand(LocalDate asOf) {}
+public record DeadlineReminderRunCommand(
+        LocalDate asOf,
+        @jakarta.validation.constraints.Positive Long securityRequestId) {
+    public DeadlineReminderRunCommand(LocalDate asOf) {
+        this(asOf, null);
+    }
+}

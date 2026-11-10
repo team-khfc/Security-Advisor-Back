@@ -112,11 +112,10 @@ class SubmissionApiTest {
                 .bodyJson()
                 .extractingPath("$.snapshot.answers[?(@.fieldKey=='project.period')].value")
                 .isEqualTo(List.of("2026-12-01~2027-11-30"));
-        assertThat(mvc.get().uri("/api/notifications").with(authentication(INFRA)))
+        assertThat(mvc.get().uri("/api/notifications?size=100").with(authentication(INFRA)))
                 .hasStatusOk()
                 .bodyJson()
-                .extractingPath(
-                        "$[?(@.kind=='COMMON_INFO_CHANGED' && @.link=='/api/security-requests/" + requestId + "')]")
+                .extractingPath("$.content[?(@.kind=='COMMON_INFO_CHANGED' && @.link=='/requests/" + requestId + "')]")
                 .asArray()
                 .hasSize(1);
         assertThat(mvc.get()

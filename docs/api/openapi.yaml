@@ -1941,6 +1941,33 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AnswerResponse"
+  /api/todos:
+    get:
+      tags:
+      - todo-controller
+      operationId: list_11
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseTodoItem"
   /api/todo-summary:
     get:
       tags:
@@ -2007,7 +2034,7 @@ paths:
     get:
       tags:
       - security-request-controller
-      operationId: list_11
+      operationId: list_12
       parameters:
       - name: query
         in: query
@@ -2110,7 +2137,7 @@ paths:
     get:
       tags:
       - supplement-controller
-      operationId: list_12
+      operationId: list_13
       parameters:
       - name: id
         in: path
@@ -2353,7 +2380,7 @@ paths:
     get:
       tags:
       - notification-controller
-      operationId: list_13
+      operationId: list_14
       parameters:
       - name: unreadOnly
         in: query
@@ -2361,15 +2388,27 @@ paths:
         schema:
           type: boolean
           default: false
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
       responses:
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/NotificationResponse"
+                $ref: "#/components/schemas/PageResponseNotificationResponse"
   /api/notifications/unread-count:
     get:
       tags:
@@ -2519,7 +2558,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_14
+      operationId: list_15
       parameters:
       - name: effectiveStatus
         in: query
@@ -3780,15 +3819,7 @@ components:
           type: boolean
         missingNode:
           type: boolean
-        floatingPointNumber:
-          type: boolean
         bigDecimal:
-          type: boolean
-        integralNumber:
-          type: boolean
-        bigInteger:
-          type: boolean
-        valueNode:
           type: boolean
         nodeType:
           type: string
@@ -3802,13 +3833,15 @@ components:
           - OBJECT
           - POJO
           - STRING
-        boolean:
+        integralNumber:
+          type: boolean
+        valueNode:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
+        bigInteger:
           type: boolean
         double:
-          type: boolean
-        int:
-          type: boolean
-        long:
           type: boolean
         binary:
           type: boolean
@@ -3816,9 +3849,15 @@ components:
           type: boolean
         short:
           type: boolean
+        long:
+          type: boolean
         textual:
           type: boolean
           deprecated: true
+        int:
+          type: boolean
+        boolean:
+          type: boolean
         embeddedValue:
           type: boolean
     SubmissionResponse:
@@ -4416,6 +4455,10 @@ components:
         asOf:
           type: string
           format: date
+        securityRequestId:
+          type: integer
+          format: int64
+          exclusiveMinimum: 0
     DeadlineReminderRunResult:
       type: object
       properties:
@@ -4705,6 +4748,9 @@ components:
           type: string
           enum:
           - ASSIGNED
+          - REASSIGNED
+          - REASSIGNMENT_REQUIRED
+          - REVIEW_COMPLETED
           - SUPPLEMENT_REQUESTED
           - SUPPLEMENT_ANSWERED
           - STAGE_RETURNED
@@ -4727,6 +4773,36 @@ components:
         createdAt:
           type: string
           format: date-time
+    PageResponseTodoItem:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/TodoItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    TodoItem:
+      type: object
+      properties:
+        key:
+          type: string
+        kind:
+          type: string
+        securityRequestId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        link:
+          type: string
     TodoSummary:
       type: object
       properties:
@@ -5124,6 +5200,22 @@ components:
           type: object
           additionalProperties:
             type: string
+    PageResponseNotificationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
     ChannelStatus:
       type: object
       properties:

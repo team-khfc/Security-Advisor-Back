@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 @RequiredArgsConstructor
 public class AssignmentService {
+    private final kr.securityadvisor.notification.service.Notifier notifier;
 
     private final AssignmentRepository assignmentRepository;
     private final ReviewerPoolRepository reviewerPoolRepository;
@@ -140,6 +141,12 @@ public class AssignmentService {
                 request.field() + " 담당자 재배정: "
                         + previous.map(Assignment::getAssigneeUsername).orElse("(미배정)") + " → "
                         + request.assigneeUsername() + " (배정 " + created.getId() + ")");
+        notifier.notify(
+                request.assigneeUsername(),
+                "assignment:" + created.getId() + ":reassigned",
+                kr.securityadvisor.notification.domain.NotificationKind.REASSIGNED,
+                "신청 #" + securityRequestId + " 업무가 인계되었습니다. 기존 답변과 검토 이력을 확인해 주세요",
+                "/requests/" + securityRequestId);
         return AssignmentResponse.from(created);
     }
 
@@ -168,6 +175,12 @@ public class AssignmentService {
                 .map(Assignment::getAssigneeUsername);
     }
 
+    /** 알림에는 현재 계정·분야 등록까지 유효한 담당자만 포함한다. 원래 배정 이력은 유지한다. */
+    public Optional<String> eligibleAssignee(Long securityRequestId, ReviewField field) {
+        return activeAssignee(securityRequestId, field)
+                .filter(username -> availability.reason(username, field) == null);
+    }
+
     /** 신청·분야에 활성 배정이 있는지(미배정 집계용). */
     @Transactional(readOnly = true)
     public boolean hasActiveAssignment(Long securityRequestId, ReviewField field) {
@@ -184,6 +197,8 @@ public class AssignmentService {
                 .stream()
                 .filter(assignment ->
                         assignment.getField().name().equals(principal.role().name()))
+                .filter(assignment ->
+                        availability.reason(assignment.getAssigneeUsername(), assignment.getField()) == null)
                 .map(this::response)
                 .toList();
     }

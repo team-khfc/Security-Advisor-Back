@@ -71,7 +71,7 @@ class NotificationApiTest {
         assertThat(mine).hasStatusOk();
         List<Integer> ids = JsonPath.read(
                 mine.getResponse().getContentAsString(),
-                "$[?(@.kind=='ASSIGNED' && @.link=='/api/security-requests/" + requestId + "')].notificationId");
+                "$.content[?(@.kind=='ASSIGNED' && @.link=='/requests/" + requestId + "')].notificationId");
         assertThat(ids).hasSize(1);
         assertThat(mvc.get().uri("/api/notifications/unread-count").with(authentication(INFRA)))
                 .hasStatusOk()
@@ -134,11 +134,13 @@ class NotificationApiTest {
                 .bodyJson()
                 .extractingPath("$.assignments.unassigned")
                 .isEqualTo(List.of("INFRA"));
-        assertThat(mvc.get().uri("/api/notifications").with(authentication(ADMIN)))
+        org.springframework.test.context.transaction.TestTransaction.flagForCommit();
+        org.springframework.test.context.transaction.TestTransaction.end();
+        jdbc.update("UPDATE members SET role='INFRA' WHERE username='infra'");
+        assertThat(mvc.get().uri("/api/notifications?size=100").with(authentication(ADMIN)))
                 .hasStatusOk()
                 .bodyJson()
-                .extractingPath(
-                        "$[?(@.kind=='UNASSIGNED' && @.link=='/api/security-requests/" + requestId + "/assignments')]")
+                .extractingPath("$.content[?(@.kind=='UNASSIGNED' && @.link=='/requests/" + requestId + "')]")
                 .asArray()
                 .hasSize(1);
     }
