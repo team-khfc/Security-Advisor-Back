@@ -18,6 +18,7 @@ import kr.securityadvisor.common.schema.FieldSchema;
 import kr.securityadvisor.common.security.MemberPrincipal;
 import kr.securityadvisor.configuration.service.PublicationService;
 import kr.securityadvisor.request.domain.Answer;
+import kr.securityadvisor.request.domain.AnswerFieldPolicy;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.RequestStatus;
 import kr.securityadvisor.request.domain.SecurityRequest;
@@ -72,6 +73,8 @@ public class AnswerService {
         BusinessCase businessCase = accessPolicy.ownedCase(principal, businessCaseId);
         requireCaseEditable(businessCase);
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.CASE, null);
+        AnswerFieldPolicy.requireWrite(field, principal.role());
+        AnswerFieldPolicy.validate(field, request.value());
         Answer answer = answerRepository
                 .findByBusinessCaseIdAndScopeAndFieldKey(businessCaseId, AnswerScope.CASE, fieldKey)
                 .map(existing -> {
@@ -94,6 +97,8 @@ public class AnswerService {
         requireRequestEditable(securityRequest);
         BusinessCase businessCase = accessPolicy.viewableCase(principal, securityRequest.getBusinessCaseId());
         FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.REQUEST, securityRequest);
+        AnswerFieldPolicy.requireWrite(field, principal.role());
+        AnswerFieldPolicy.validate(field, request.value());
         Answer answer = answerRepository
                 .findBySecurityRequestIdAndFieldKey(securityRequestId, fieldKey)
                 .map(existing -> {
@@ -117,7 +122,10 @@ public class AnswerService {
             MemberPrincipal principal, Long businessCaseId, String fieldKey, AnswerActionRequest request) {
         BusinessCase businessCase = accessPolicy.ownedCase(principal, businessCaseId);
         requireCaseEditable(businessCase);
+        FieldDefinition field = requireField(businessCase, fieldKey, AnswerScope.CASE, null);
+        AnswerFieldPolicy.requireWrite(field, principal.role());
         Answer answer = existingCaseAnswer(businessCaseId, fieldKey);
+        AnswerFieldPolicy.validate(field, answer.getValue());
         requireRevision(answer, request.expectedRevision());
         answer.confirmByUser(principal.username(), clock.instant());
         audit(principal, answer, AuditAction.ANSWER_CONFIRMED, "AI 제안 값 사용자 확인");
@@ -129,7 +137,11 @@ public class AnswerService {
             MemberPrincipal principal, Long securityRequestId, String fieldKey, AnswerActionRequest request) {
         SecurityRequest securityRequest = accessPolicy.ownedRequest(principal, securityRequestId);
         requireRequestEditable(securityRequest);
+        FieldDefinition field =
+                requireField(businessCaseOf(securityRequest), fieldKey, AnswerScope.REQUEST, securityRequest);
+        AnswerFieldPolicy.requireWrite(field, principal.role());
         Answer answer = existingRequestAnswer(securityRequestId, fieldKey);
+        AnswerFieldPolicy.validate(field, answer.getValue());
         requireRevision(answer, request.expectedRevision());
         answer.confirmByUser(principal.username(), clock.instant());
         audit(principal, answer, AuditAction.ANSWER_CONFIRMED, "AI 제안 값 사용자 확인");
@@ -188,6 +200,8 @@ public class AnswerService {
         BusinessCase businessCase = accessPolicy.viewableCase(staff, securityRequest.getBusinessCaseId());
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
+        AnswerFieldPolicy.requireWrite(field, staff.role());
+        AnswerFieldPolicy.validate(field, value);
         Answer answer = findForField(businessCase, securityRequest, field)
                 .map(existing -> {
                     // "담당자 확인 필요" 자리(값 없음)를 처음 채울 때는 revision 없이도 된다. 값이 있던 항목은 충돌 검사.
@@ -212,9 +226,11 @@ public class AnswerService {
         BusinessCase businessCase = accessPolicy.viewableCase(staff, securityRequest.getBusinessCaseId());
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
+        AnswerFieldPolicy.requireConfirm(field, staff.role());
         Answer answer = findForField(businessCase, securityRequest, field)
                 .orElseThrow(() -> new NotFoundException("답변이 없는 항목입니다: " + fieldKey));
         requireRevision(answer, expectedRevision);
+        AnswerFieldPolicy.validate(field, answer.getValue());
         answer.confirmByStaff(staff.username(), clock.instant());
         audit(staff, answer, AuditAction.ANSWER_STAFF_CONFIRMED, "담당자 확인");
         return AnswerResponse.from(answer);
@@ -236,6 +252,8 @@ public class AnswerService {
         BusinessCase businessCase = accessPolicy.ownedCase(principal, securityRequest.getBusinessCaseId());
         requireRequestEditable(securityRequest);
         FieldDefinition field = requireAnyScopeField(businessCase, fieldKey, securityRequest);
+        AnswerFieldPolicy.requireWrite(field, principal.role());
+        AnswerFieldPolicy.validate(field, value);
         if (field.isStaffField()) {
             throw new DomainRuleViolationException("담당자 항목에는 AI 제안을 넣을 수 없습니다: " + fieldKey);
         }
@@ -317,12 +335,14 @@ public class AnswerService {
         for (Map.Entry<String, String> entry : values.entrySet()) {
             FieldDefinition field = schema.find(entry.getKey()).orElse(null);
             if (field == null
+                    || field.isStaffField()
                     || field.scope() != AnswerScope.REQUEST
                     || !field.appliesTo(to.getDocType())
                     || entry.getValue() == null
                     || entry.getValue().isBlank()) {
                 continue;
             }
+            AnswerFieldPolicy.validate(field, entry.getValue());
             Answer answer = answerRepository
                     .findBySecurityRequestIdAndFieldKey(to.getId(), entry.getKey())
                     .map(existing -> {

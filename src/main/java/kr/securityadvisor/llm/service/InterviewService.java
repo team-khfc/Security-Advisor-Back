@@ -22,6 +22,7 @@ import kr.securityadvisor.llm.dto.InterviewTurnCommand;
 import kr.securityadvisor.llm.dto.InterviewTurnResponse;
 import kr.securityadvisor.llm.dto.InterviewTurnResponse.Evidence;
 import kr.securityadvisor.llm.repository.InterviewTurnRepository;
+import kr.securityadvisor.request.domain.AnswerFieldPolicy;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
@@ -49,7 +50,7 @@ public class InterviewService {
             공개 지식은 일반 설명의 근거이며 기관 사실의 증거가 아니다. AI 요약은 미확정 참고자료다.
             ASK는 질문에 설명만 한다(proposedValue=null). SUGGEST는 현재 항목의 답변 후보를 만든다.
             후보를 작성할 근거가 부족하면 proposedValue=null로 두고 reply에 필요한 추가 정보를 질문한다.
-            BOOLEAN 후보는 '예' 또는 '아니요', NUMBER는 숫자, DATE_RANGE는 'YYYY-MM-DD ~ YYYY-MM-DD'로 쓴다.
+            BOOLEAN 후보는 '예' 또는 '아니요', NUMBER는 숫자, DATE_RANGE는 'YYYY-MM-DD~YYYY-MM-DD', 상시는 'YYYY-MM-DD~'로 쓴다.
             사용자가 종료일 없는 상시 운영이라고 명시한 기간만 'YYYY-MM-DD ~ 종료일 없음'으로 쓴다.
             후보는 4000자 이하, 설명은 6000자 이하. 답변을 확정하거나 검토·제출·할당을 수행했다고 말하지 않는다.
             반드시 JSON 하나: {"reply":"설명 또는 추가 질문", "proposedValue":null, "evidence":["F","B"]}.
@@ -173,7 +174,7 @@ public class InterviewService {
         boolean flagged = tags.isEmpty()
                 || tags.stream().anyMatch(tag -> !citations.containsKey(tag))
                 || !guard.findUnbacked(reply + " " + value, List.of()).isEmpty()
-                || !validCandidate(field.type(), value);
+                || !validCandidate(field, value);
         if (flagged) {
             reply = "답변의 근거를 확인할 수 없습니다. 알고 있는 내용을 직접 입력하거나 담당자에게 확인해 주세요.";
             value = "";
@@ -310,25 +311,14 @@ public class InterviewService {
         }
     }
 
-    private static boolean validCandidate(String type, String value) {
+    private static boolean validCandidate(FieldDefinition field, String value) {
         if (value.isBlank()) return true;
-        return switch (type) {
-            case "BOOLEAN" -> value.equals("예") || value.equals("아니요");
-            case "NUMBER" -> value.matches("-?\\d+(\\.\\d+)?");
-            case "DATE_RANGE" -> {
-                try {
-                    String[] dates = value.split("\\s*~\\s*");
-                    if (dates.length != 2) yield false;
-                    java.time.LocalDate start = java.time.LocalDate.parse(dates[0]);
-                    yield dates[1].equals("종료일 없음")
-                            || dates[1].equals("상시")
-                            || !start.isAfter(java.time.LocalDate.parse(dates[1]));
-                } catch (RuntimeException invalid) {
-                    yield false;
-                }
-            }
-            default -> true;
-        };
+        try {
+            AnswerFieldPolicy.validate(field, value);
+            return true;
+        } catch (DomainRuleViolationException invalid) {
+            return false;
+        }
     }
 
     private record Context(

@@ -23,6 +23,7 @@ import kr.securityadvisor.notification.service.Notifier;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.DeadlineKind;
 import kr.securityadvisor.request.domain.SecurityRequest;
+import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.request.dto.DeadlineResponse;
 import kr.securityadvisor.request.dto.SecurityRequestSummary;
@@ -173,6 +174,19 @@ public class ReviewService {
                 answerService.inputByStaff(principal, request, fieldKey, command.value(), command.expectedRevision());
         review.touch();
         return answer;
+    }
+
+    /** 여러 항목을 한 협의 트랜잭션에서 저장해 부분 저장과 자체 수정 충돌을 막는다. */
+    public List<AnswerResponse> inputAnswers(MemberPrincipal principal, Long reviewId, AnswerBatchCommand command) {
+        Review review = requireReview(reviewId);
+        SecurityRequest request = requireReviewableRequest(principal, review);
+        List<AnswerResponse> result = new java.util.ArrayList<>();
+        for (AnswerBatchCommand.Item item : command.answers()) {
+            result.add(answerService.inputByStaff(
+                    principal, request, item.fieldKey(), item.value(), item.expectedRevision()));
+        }
+        review.touch();
+        return result;
     }
 
     /** 담당자 확인(STAFF_CONFIRMED): 사용자 답변·AI 추론 값이 맞다고 담당자가 확인한다. 값은 바뀌지 않는다. */

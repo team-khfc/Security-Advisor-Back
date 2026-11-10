@@ -202,7 +202,8 @@ public class BusinessCaseService {
         Long caseId = businessCase.getId();
         for (FieldDefinition field : schema.caseFields()) {
             String preset = presetValue(field.key(), businessCase);
-            if (preset != null) {
+            if (preset != null && !field.isStaffField()) {
+                kr.securityadvisor.request.domain.AnswerFieldPolicy.validate(field, preset);
                 answerRepository.save(Answer.userAnswer(AnswerScope.CASE, caseId, null, field.key(), preset));
             } else if (field.isStaffField()) {
                 answerRepository.save(Answer.staffCheckNeeded(AnswerScope.CASE, caseId, null, field.key()));

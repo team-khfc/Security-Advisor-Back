@@ -5,6 +5,7 @@ import java.util.List;
 import kr.securityadvisor.common.schema.ReviewField;
 import kr.securityadvisor.common.security.CurrentMember;
 import kr.securityadvisor.common.security.MemberPrincipal;
+import kr.securityadvisor.request.dto.AnswerBatchCommand;
 import kr.securityadvisor.request.dto.AnswerResponse;
 import kr.securityadvisor.review.dto.ReviewCompletionCommand;
 import kr.securityadvisor.review.dto.ReviewInboxFilter;
@@ -15,6 +16,7 @@ import kr.securityadvisor.review.dto.StaffAnswerCommand;
 import kr.securityadvisor.review.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -58,6 +60,15 @@ public class ReviewActionController {
             @PathVariable String fieldKey,
             @Valid @RequestBody StaffAnswerCommand command) {
         return reviewService.inputAnswer(member, id, fieldKey, command);
+    }
+
+    /** 담당자 일괄 입력. 항목 하나라도 실패하면 모든 변경을 취소한다. */
+    @PatchMapping("/{id}/answers")
+    public List<AnswerResponse> inputAnswers(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody AnswerBatchCommand command) {
+        return reviewService.inputAnswers(member, id, command);
     }
 
     /** 담당자 확인(STAFF_CONFIRMED). */

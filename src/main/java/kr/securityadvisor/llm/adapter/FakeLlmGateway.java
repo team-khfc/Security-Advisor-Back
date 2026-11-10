@@ -95,9 +95,14 @@ public class FakeLlmGateway implements LlmBackend {
             first = false;
             sb.append("{\"fieldKey\":\"")
                     .append(key)
-                    .append("\",\"value\":\"합성 제안(")
-                    .append(key)
-                    .append(")\",\"evidence\":[\"")
+                    .append("\",\"value\":\"")
+                    .append(
+                            key.endsWith(".period")
+                                    ? "2026-12-01~2027-11-30"
+                                    : key.equals("data.personal_info") || key.equals("system.external_transfer")
+                                            ? "false"
+                                            : "합성 제안(" + key + ")")
+                    .append("\",\"evidence\":[\"")
                     .append(firstTag)
                     .append("\"]}");
         }
