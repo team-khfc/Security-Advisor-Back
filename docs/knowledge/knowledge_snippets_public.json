@@ -1,0 +1,204 @@
+[
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제5조 제1항~제3항",
+    "fieldKeys": [
+      "review.access_control",
+      "data.personal_info"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "개인정보처리시스템의 접근 권한은 업무에 필요한 최소 범위로 차등 부여하고, 취급자의 업무가 바뀌면 지체 없이 변경하거나 말소한다. 권한의 부여·변경·말소 내역은 기록해 최소 3년간 보관한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제5조 제4항·제6항",
+    "fieldKeys": [
+      "review.access_control"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "개인정보처리시스템 접속 계정은 취급자별로 따로 발급하고 다른 사람과 공유하지 않는다. 일정 횟수 이상 인증에 실패하면 접근을 제한하는 등 권한 없는 접근을 막는 조치를 한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제7조 제1항·제2항",
+    "fieldKeys": [
+      "review.encryption",
+      "data.personal_info"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "비밀번호·생체인식정보 등 인증정보는 저장하거나 정보통신망으로 주고받을 때 안전한 암호 알고리즘으로 암호화하고, 비밀번호는 복호화되지 않도록 일방향 암호화해 저장한다. 주민등록번호·여권번호·운전면허번호·외국인등록번호·신용카드번호·계좌번호·생체인식정보는 암호화해 저장한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제7조 제4항",
+    "fieldKeys": [
+      "review.encryption",
+      "system.external_transfer",
+      "data.personal_info"
+    ],
+    "docTypes": [],
+    "body": "개인정보를 인터넷 구간으로 주고받을 때는 암호화해야 한다. 외부(인터넷) 전송이 있는 시스템은 전송 구간 암호화 방식(예: TLS 적용 여부)을 적는다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제8조 제1항",
+    "fieldKeys": [
+      "review.logging",
+      "data.personal_info"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "개인정보처리시스템 접속기록은 1년 이상 보관한다. 5만 명 이상 정보주체의 개인정보를 처리하거나 고유식별정보 또는 민감정보를 처리하는 시스템은 2년 이상 보관한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시)",
+    "sourceVersion": "2025.10.31. 개정 반영",
+    "sourceLocator": "제8조 제2항·제3항",
+    "fieldKeys": [
+      "review.logging"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "접속기록과 개인정보 다운로드 상황을 점검하는 주기·방법·사후조치 절차를 내부 관리계획에 정해 이행하고, 접속기록이 위·변조·도난·분실되지 않도록 안전하게 보관한다. (2025.10.31. 개정 전에는 월 1회 이상 점검으로 규정)",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.10.1 보안시스템 운영",
+    "fieldKeys": [
+      "firewall.purpose"
+    ],
+    "docTypes": [
+      "FIREWALL"
+    ],
+    "body": "방화벽 등 보안시스템의 정책 등록·변경·삭제는 신청과 승인 절차를 거치고, 신청·승인·적용 기록을 남겨 책임추적성을 확보한다. 허용 목적은 승인자가 타당성을 판단할 수 있을 만큼 구체적이어야 한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.10.1 보안시스템 운영",
+    "fieldKeys": [
+      "firewall.port",
+      "firewall.protocol",
+      "network.source",
+      "network.destination"
+    ],
+    "docTypes": [
+      "FIREWALL"
+    ],
+    "body": "네트워크 접근통제 정책은 전체 차단을 기본으로 하고, 업무상 필요한 IP와 포트만 개별로 허용한다. 출발지·목적지·포트를 넓게 여는 과다 허용 규칙은 정책 검토에서 지적 대상이 된다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.10.1 보안시스템 운영",
+    "fieldKeys": [
+      "firewall.period"
+    ],
+    "docTypes": [
+      "FIREWALL"
+    ],
+    "body": "보안시스템 정책은 목적에 따라 사용기간을 한정한다. 사용기간이 만료된 정책, 장기간 쓰이지 않는 정책, 퇴직자·직무변경자 관련 정책은 주기적인 타당성 검토에서 정리 대상이 된다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.6.1 네트워크 접근",
+    "fieldKeys": [
+      "network.source",
+      "network.destination",
+      "system.target_server"
+    ],
+    "docTypes": [
+      "FIREWALL"
+    ],
+    "body": "네트워크는 업무 목적과 자산 중요도에 따라 DMZ, 서버팜, DB존, 개발존 등으로 나누고, 영역 사이에는 방화벽이나 접근통제목록으로 업무에 필요한 서비스만 허용한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.6.1 네트워크 접근",
+    "fieldKeys": [
+      "system.target_server",
+      "network.destination",
+      "system.external_transfer"
+    ],
+    "docTypes": [],
+    "body": "웹·메일 등 외부 공개 서버는 DMZ에 두고, 인터넷에서 내부 시스템으로 직접 연결되는 것은 차단한다. 외부 연결이 필요 없는 DB 서버 등은 사설 IP를 사용한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.6.1 네트워크 접근",
+    "fieldKeys": [
+      "system.external_transfer"
+    ],
+    "docTypes": [],
+    "body": "물리적으로 떨어진 IDC, 지사, 협력업체 등과 연결할 때는 전용회선이나 VPN 같은 안전한 접속 환경으로 전송 구간을 보호한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.5.1 사용자 계정 관리",
+    "fieldKeys": [
+      "review.access_control"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "계정과 접근권한의 등록·변경·삭제는 공식 절차와 승인을 거친다. 사용자별 고유 계정을 발급해 공유를 금지하고, 직무에 따라 업무상 필요한 최소 권한만 부여하며, 제조사 기본 계정과 시험 계정은 제거하거나 변경한다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.9.4 로그 및 접속기록 관리",
+    "fieldKeys": [
+      "review.logging"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "서버·응용프로그램·보안시스템·네트워크 장비의 접속기록, 시스템 로그, 권한 부여 내역에 대해 로그 유형·보존 기간·보존 방법을 정한다. 로그 접근권한은 최소화하고, 별도 저장장치 백업이나 덮어쓰기 방지 매체 등으로 위·변조를 막는다.",
+    "active": true
+  },
+  {
+    "sourceTitle": "정보보호 및 개인정보보호 관리체계 인증기준 안내서(KISA)",
+    "sourceVersion": "2023.11.",
+    "sourceLocator": "2.9.4 로그 및 접속기록 관리",
+    "fieldKeys": [
+      "review.logging",
+      "data.personal_info"
+    ],
+    "docTypes": [
+      "SECURITY_REVIEW"
+    ],
+    "body": "개인정보처리시스템 접속기록에는 접속자 식별자, 접속 일시, 접속지 정보(IP 등), 처리한 정보주체 정보, 수행 업무가 포함되어야 한다.",
+    "active": true
+  }
+]
