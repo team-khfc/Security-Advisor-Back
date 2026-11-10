@@ -2009,6 +2009,11 @@ paths:
       - security-request-controller
       operationId: list_11
       parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
       - name: status
         in: query
         required: false
@@ -2019,18 +2024,69 @@ paths:
         required: false
         schema:
           type: string
-      - name: pageable
+      - name: businessCaseId
         in: query
-        required: true
+        required: false
         schema:
-          $ref: "#/components/schemas/Pageable"
+          type: integer
+          format: int64
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: inbox
+        in: query
+        required: false
+        schema:
+          type: string
+          default: all
+      - name: documentKind
+        in: query
+        required: false
+        schema:
+          type: string
+          default: all
+      - name: supplementState
+        in: query
+        required: false
+        schema:
+          type: string
+          default: all
+      - name: sort
+        in: query
+        required: false
+        schema:
+          type: string
+          default: "createdAt,desc"
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
       responses:
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/PageResponseSecurityRequestListItem"
+                $ref: "#/components/schemas/RequestListResponse"
   /api/security-requests/{id}:
     get:
       tags:
@@ -2567,6 +2623,22 @@ paths:
         required: false
         schema:
           type: string
+      - name: action
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: query
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: throughId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
       - name: page
         in: query
         required: false
@@ -2587,7 +2659,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/PageResponseAuditEventResponse"
+                $ref: "#/components/schemas/AuditListResponse"
   /api/assignments/mine:
     get:
       tags:
@@ -3690,32 +3762,7 @@ components:
           type: boolean
         float:
           type: boolean
-        double:
-          type: boolean
-        long:
-          type: boolean
-        short:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        string:
-          type: boolean
-        int:
-          type: boolean
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        pojo:
-          type: boolean
-        container:
-          type: boolean
-        number:
-          type: boolean
-        valueNode:
-          type: boolean
-        missingNode:
+        floatingPointNumber:
           type: boolean
         nodeType:
           type: string
@@ -3729,13 +3776,38 @@ components:
           - OBJECT
           - POJO
           - STRING
+        valueNode:
+          type: boolean
         integralNumber:
+          type: boolean
+        bigInteger:
+          type: boolean
+        missingNode:
           type: boolean
         bigDecimal:
           type: boolean
-        floatingPointNumber:
+        container:
           type: boolean
-        bigInteger:
+        number:
+          type: boolean
+        string:
+          type: boolean
+        pojo:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        double:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        short:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4712,22 +4784,20 @@ components:
         submittedAt:
           type: string
           format: date-time
-    Pageable:
+    FieldSummary:
       type: object
       properties:
-        page:
-          type: integer
-          format: int32
-          minimum: 0
-        size:
-          type: integer
-          format: int32
-          minimum: 1
-        sort:
-          type: array
-          items:
-            type: string
-    PageResponseSecurityRequestListItem:
+        field:
+          type: string
+        assigneeUsername:
+          type: string
+        reviewStatus:
+          type: string
+        allocated:
+          type: boolean
+        confirmed:
+          type: boolean
+    RequestListResponse:
       type: object
       properties:
         content:
@@ -4743,6 +4813,25 @@ components:
         totalElements:
           type: integer
           format: int64
+        summary:
+          $ref: "#/components/schemas/Summary"
+    RequestOverview:
+      type: object
+      properties:
+        myTurn:
+          type: boolean
+        dueDate:
+          type: string
+          format: date
+        submissionId:
+          type: integer
+          format: int64
+        fields:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldSummary"
+        needsReview:
+          type: boolean
     SecurityRequestListItem:
       type: object
       properties:
@@ -4782,6 +4871,26 @@ components:
         updatedAt:
           type: string
           format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        overview:
+          $ref: "#/components/schemas/RequestOverview"
+    Summary:
+      type: object
+      properties:
+        all:
+          type: integer
+          format: int64
+        mine:
+          type: integer
+          format: int64
+        staff:
+          type: integer
+          format: int64
+        done:
+          type: integer
+          format: int64
     SubmissionSummary:
       type: object
       properties:
@@ -5150,7 +5259,7 @@ components:
         totalElements:
           type: integer
           format: int64
-    PageResponseAuditEventResponse:
+    AuditListResponse:
       type: object
       properties:
         content:
@@ -5164,5 +5273,8 @@ components:
           type: integer
           format: int32
         totalElements:
+          type: integer
+          format: int64
+        throughId:
           type: integer
           format: int64

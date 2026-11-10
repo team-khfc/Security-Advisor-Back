@@ -180,10 +180,19 @@ class GeneratedDocumentApiTest {
                 .bodyJson()
                 .extractingPath("$[?(@.format=='HWPX')].implemented")
                 .isEqualTo(List.of(false));
-        // F-14: 다운로드는 감사 이력에 남는다(값 없이 서류·파일명·형식만) — md·pdf 2건
+        // F-14: 다운로드 보안 메타는 신청자에게 노출하지 않고 관리자가 확인한다.
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/audit-events", requestId)
                         .with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.action=='DOCUMENT_DOWNLOADED')]")
+                .asArray()
+                .isEmpty();
+        // 다운로드 기록 자체는 보존한다 — md·pdf 2건.
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/audit-events", requestId)
+                        .with(authentication(auth("admin", "합성 관리자", MemberRole.ADMIN))))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$[?(@.action=='DOCUMENT_DOWNLOADED')]")
