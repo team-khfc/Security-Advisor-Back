@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest  # Docker 포함 — Testcontainers(PostgreSQL) 테스트가 돈다
     steps:
       - uses: actions/checkout@v4
+      - name: 프로젝트 문서 버전·경로 검사
+        run: python3 tools/check_doc_versions.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -1,9 +1,15 @@
 # Security-Advisor-Back
 
 보안길잡이(SecurityAdvisor) 백엔드 — Spring Boot 4.1 · Java 25 · PostgreSQL 17 · Flyway · Gradle(Kotlin DSL) · Lombok(허용 목록만, `lombok.config`로 강제).
-규칙·구조·명령은 팀 Claude 프로젝트의 AGENTS.md를 따른다(저장소 루트 사본은 추후 추가).
+작업 전 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) 5장의 **공식 기준 버전 표**와 참조 문서의 머리말 버전·개정일을 확인한다. 문서별 참조 순서는 [claude/INSTRUCTIONS.md](claude/INSTRUCTIONS.md)를 따른다.
 
-구조·의존 방향·주요 흐름·확장 포인트는 **`docs/ARCHITECTURE.md`**, 프론트 연동 안내는 **`docs/FRONTEND_HANDOFF.md`**, 결정 기록은 `docs/adr/`, 명세와 다른 점은 `docs/DEVIATIONS.md`.
+업무 규칙은 [FUNCTIONAL_SPEC.md](FUNCTIONAL_SPEC.md), 개발 실행 규칙은 [AGENTS.md](AGENTS.md), 문서 개정 절차는 [PROJECT_RULES.md](PROJECT_RULES.md) 7-1장, 협업·수용 기준은 [CONTRIBUTING.md](CONTRIBUTING.md)를 따른다. 코드 작성은 [CODING_STYLE.md](CODING_STYLE.md)와 [SECURE_CODING.md](SECURE_CODING.md), 화면 기준은 [design.md](design.md)를 함께 확인한다. 동기화에 사용한 원본과 남은 차이는 [문서 출처 기록](docs/SOURCE_PROVENANCE.md)에 정리한다.
+
+```bash
+python3 tools/check_doc_versions.py   # 공식 기준 표·머리말 버전·개정일·문서 경로 검사
+```
+
+구조·의존 방향·주요 흐름·확장 포인트는 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), 프론트 연동 안내는 [docs/FRONTEND_HANDOFF.md](docs/FRONTEND_HANDOFF.md)를 참고한다. 실제 스택·스키마 결정은 [ADR 0001](docs/adr/0001-stack-and-schema-conventions.md), REST API 결정은 [ADR 0004](docs/adr/0004-restful-api-and-error-model.md)에 있다. 기존 [ADR](docs/adr/)과 [docs/DEVIATIONS.md](docs/DEVIATIONS.md)의 결정·구현 차이 기록은 보존하며, 원본 규칙과 정리되지 않은 차이는 PROJECT_RULES.md 7-1 절차로 반영한다.
 
 ## 준비물
 
@@ -31,7 +37,7 @@ docker compose --profile ollama up -d --build   # 공개 모델(Ollama) 도 함�
 docker compose down -v          # 시연 데이터 초기화
 ```
 
-완성본·제출용 실행은 Security-Advisor 저장소의 compose(Back + Front + DB)가 맡는다. CI(`.github/workflows/check.yml`)는 push·PR 마다 `./gradlew check` 를 돌린다.
+완성본·제출용 실행은 Security-Advisor 저장소의 compose(Back + Front + DB)가 맡는다. CI(`.github/workflows/check.yml`)는 push·PR 마다 `python3 tools/check_doc_versions.py`와 `./gradlew check` 를 돌린다.
 API 계약 파일은 `docs/api/openapi.yaml`(생성 방법은 `docs/api/README.md`).
 
 ## 사업 건·신청 API (F-01·F-03·F-05 일부)
