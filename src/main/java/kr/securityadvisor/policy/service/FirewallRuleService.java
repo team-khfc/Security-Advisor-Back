@@ -65,32 +65,45 @@ public class FirewallRuleService {
         if (!generates || repository.existsBySubmissionId(submission.getId())) {
             return;
         }
-        Map<String, String> values = snapshotValues(submission.getSnapshot());
-        RulePeriod period = RulePeriod.parse(values.get("firewall.period"));
-        List<String> ports = new ArrayList<>();
-        for (String p : String.valueOf(values.getOrDefault("firewall.port", "")).split(",")) {
-            if (!p.isBlank()) {
-                ports.add(p.strip());
+        JsonNode plan = objectMapper.readTree(submission.getSnapshot()).path("infrastructurePlan");
+        List<Map<String, String>> connections = new ArrayList<>();
+        if (plan.path("connections").isArray() && !plan.path("connections").isEmpty()) {
+            for (JsonNode row : plan.path("connections")) {
+                connections.add(Map.of(
+                        "network.source",
+                        row.path("sourceAddress").asString(),
+                        "network.destination",
+                        row.path("destinationAddress").asString(),
+                        "firewall.protocol",
+                        row.path("protocol").asString(),
+                        "firewall.port",
+                        row.path("port").asString(),
+                        "firewall.period",
+                        row.path("startDate").asString() + " ~ "
+                                + row.path("endDate").asString()));
             }
-        }
-        if (ports.isEmpty()) {
-            throw new DomainRuleViolationException("확정 제출본에 포트 값이 없어 규칙을 만들 수 없습니다");
-        }
+        } else connections.add(snapshotValues(submission.getSnapshot()));
         int no = 1;
         List<Long> created = new ArrayList<>();
-        for (String port : ports) {
-            FirewallRule rule = repository.save(FirewallRule.fromConfirmedSubmission(
-                    event.securityRequestId(),
-                    submission.getId(),
-                    no++,
-                    values.get("network.source"),
-                    values.get("network.destination"),
-                    values.get("firewall.protocol"),
-                    port,
-                    period.start(),
-                    period.end(),
-                    period.reviewDate()));
-            created.add(rule.getId());
+        for (var values : connections) {
+            RulePeriod period = RulePeriod.parse(values.get("firewall.period"));
+            if (values.getOrDefault("firewall.port", "").isBlank())
+                throw new DomainRuleViolationException("확정 제출본에 포트 값이 없어 규칙을 만들 수 없습니다");
+            for (String port : values.get("firewall.port").split("[,\\n]")) {
+                if (port.isBlank()) continue;
+                var rule = repository.save(FirewallRule.fromConfirmedSubmission(
+                        event.securityRequestId(),
+                        submission.getId(),
+                        no++,
+                        values.get("network.source"),
+                        values.get("network.destination"),
+                        values.get("firewall.protocol"),
+                        port.strip(),
+                        period.start(),
+                        period.end(),
+                        period.reviewDate()));
+                created.add(rule.getId());
+            }
         }
         auditRecorder.record(
                 event.actor(),

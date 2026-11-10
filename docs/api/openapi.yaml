@@ -83,6 +83,49 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SecurityRequestResponse"
+  /api/security-requests/{id}/infrastructure-plan:
+    get:
+      tags:
+      - infrastructure-plan-controller
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InfrastructurePlanResponse"
+    put:
+      tags:
+      - infrastructure-plan-controller
+      operationId: save
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InfrastructurePlanCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InfrastructurePlanResponse"
   /api/security-requests/{id}/closure:
     put:
       tags:
@@ -453,7 +496,7 @@ paths:
     get:
       tags:
       - llm-configuration-controller
-      operationId: get
+      operationId: get_1
       parameters:
       - name: id
         in: path
@@ -532,7 +575,7 @@ paths:
     put:
       tags:
       - knowledge-publication-controller
-      operationId: save
+      operationId: save_1
       requestBody:
         content:
           application/json:
@@ -679,7 +722,7 @@ paths:
     get:
       tags:
       - business-case-controller
-      operationId: get_1
+      operationId: get_2
       parameters:
       - name: id
         in: path
@@ -1077,6 +1120,31 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/InquiryResponse"
+  /api/security-requests/{id}/infrastructure-proposals:
+    post:
+      tags:
+      - infrastructure-proposal-controller
+      operationId: generate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InfrastructureProposalCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/InfrastructureProposalResponse"
   /api/security-requests/{id}/generated-documents:
     get:
       tags:
@@ -1101,7 +1169,7 @@ paths:
     post:
       tags:
       - generated-document-controller
-      operationId: generate
+      operationId: generate_1
       parameters:
       - name: id
         in: path
@@ -2193,7 +2261,7 @@ paths:
     get:
       tags:
       - submission-controller
-      operationId: get_2
+      operationId: get_3
       parameters:
       - name: id
         in: path
@@ -2296,7 +2364,7 @@ paths:
     get:
       tags:
       - security-request-controller
-      operationId: get_3
+      operationId: get_4
       parameters:
       - name: id
         in: path
@@ -2488,7 +2556,7 @@ paths:
     get:
       tags:
       - review-action-controller
-      operationId: get_4
+      operationId: get_5
       parameters:
       - name: id
         in: path
@@ -2534,7 +2602,7 @@ paths:
     get:
       tags:
       - publication-controller
-      operationId: get_5
+      operationId: get_6
       parameters:
       - name: id
         in: path
@@ -2672,7 +2740,7 @@ paths:
     get:
       tags:
       - member-controller
-      operationId: get_6
+      operationId: get_7
       parameters:
       - name: username
         in: path
@@ -2690,7 +2758,7 @@ paths:
     get:
       tags:
       - llm-connection-test-controller
-      operationId: get_7
+      operationId: get_8
       parameters:
       - name: id
         in: path
@@ -2968,7 +3036,7 @@ paths:
     get:
       tags:
       - installation-controller
-      operationId: get_8
+      operationId: get_9
       responses:
         "200":
           description: OK
@@ -2994,7 +3062,7 @@ paths:
     get:
       tags:
       - generated-document-controller
-      operationId: get_9
+      operationId: get_10
       parameters:
       - name: id
         in: path
@@ -3223,7 +3291,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: get_10
+      operationId: get_11
       parameters:
       - name: id
         in: path
@@ -3424,6 +3492,117 @@ components:
         createdAt:
           type: string
           format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          maxLength: 100
+          minLength: 0
+        sourceSystem:
+          type: string
+          maxLength: 200
+          minLength: 0
+        sourceAddress:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        sourceZone:
+          type: string
+          maxLength: 30
+          minLength: 0
+        destinationSystem:
+          type: string
+          maxLength: 200
+          minLength: 0
+        destinationAddress:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        destinationZone:
+          type: string
+          maxLength: 30
+          minLength: 0
+        protocol:
+          type: string
+          maxLength: 20
+          minLength: 0
+        port:
+          type: string
+          maxLength: 500
+          minLength: 0
+        purpose:
+          type: string
+          maxLength: 1000
+          minLength: 0
+        direction:
+          type: string
+          maxLength: 20
+          minLength: 0
+        startDate:
+          type: string
+          minLength: 1
+        endDate:
+          type: string
+          minLength: 1
+      required:
+      - destinationAddress
+      - destinationSystem
+      - destinationZone
+      - direction
+      - endDate
+      - id
+      - port
+      - protocol
+      - purpose
+      - sourceAddress
+      - sourceSystem
+      - sourceZone
+      - startDate
+    InfrastructurePlanCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+          maxItems: 50
+          minItems: 1
+        notes:
+          type: string
+          maxLength: 4000
+          minLength: 0
+        answerRevisions:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+      required:
+      - answerRevisions
+      - connections
+      - expectedRevision
+      - notes
+    InfrastructurePlanResponse:
+      type: object
+      properties:
+        revision:
+          type: integer
+          format: int64
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+        notes:
+          type: string
+        updatedBy:
+          type: string
         updatedAt:
           type: string
           format: date-time
@@ -4372,24 +4551,13 @@ components:
           type: boolean
         container:
           type: boolean
-        long:
+        missingNode:
           type: boolean
-        double:
+        floatingPointNumber:
           type: boolean
-        pojo:
+        bigDecimal:
           type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        int:
-          type: boolean
-        short:
-          type: boolean
-        boolean:
-          type: boolean
-        string:
-          type: boolean
-        binary:
+        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -4403,19 +4571,30 @@ components:
           - OBJECT
           - POJO
           - STRING
-        bigInteger:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
         integralNumber:
           type: boolean
         valueNode:
           type: boolean
-        missingNode:
-          type: boolean
         number:
+          type: boolean
+        string:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        binary:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        pojo:
+          type: boolean
+        double:
+          type: boolean
+        long:
+          type: boolean
+        boolean:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4649,6 +4828,36 @@ components:
         createdAt:
           type: string
           format: date-time
+    InfrastructureProposalCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+        explanation:
+          type: string
+          maxLength: 6000
+          minLength: 0
+      required:
+      - expectedRevision
+      - explanation
+    InfrastructureProposalResponse:
+      type: object
+      properties:
+        baseRevision:
+          type: integer
+          format: int64
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/Connection"
+        warnings:
+          type: array
+          items:
+            type: string
+        modelReference:
+          type: string
     GenerateDocumentCommand:
       type: object
       properties:

@@ -42,6 +42,7 @@ public class FinalDraftService {
     private final ObjectMapper mapper;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final InfrastructurePlanService infrastructurePlans;
 
     /** 모델 호출 전의 답변 기준을 만들고 호출 후에도 같은 기준인지 확인한다. */
     public String prepare(MemberPrincipal actor, Long requestId, long expectedRevision) {
@@ -158,7 +159,11 @@ public class FinalDraftService {
                 .map(a -> a.getFieldKey() + ":" + a.getId() + ":" + a.getRevision())
                 .toList();
         String input = mapper.writeValueAsString(java.util.List.of(
-                businessCase.getPublicationId(), businessCase.getRevision(), request.getRevision(), answers));
+                businessCase.getPublicationId(),
+                businessCase.getRevision(),
+                request.getRevision(),
+                answers,
+                infrastructurePlans.snapshot(request.getId()).revision()));
         try {
             return HexFormat.of()
                     .formatHex(MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8)));

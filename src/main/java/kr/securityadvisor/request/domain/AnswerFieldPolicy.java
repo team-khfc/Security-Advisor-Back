@@ -26,7 +26,16 @@ public final class AnswerFieldPolicy {
 
     /** 입력은 항목 소유 역할만 가능하며 관리자에게 우회 권한을 주지 않는다. */
     public static void requireWrite(FieldDefinition field, MemberRole role) {
-        if (role == MemberRole.ADMIN || field.askRole() != role) {
+        boolean infraNetwork = role == MemberRole.INFRA
+                && field.askRole() == MemberRole.APPLICANT
+                && Set.of(
+                                "firewall.protocol",
+                                "firewall.port",
+                                "firewall.period",
+                                "firewall.purpose",
+                                "firewall.direction")
+                        .contains(field.key());
+        if (role == MemberRole.ADMIN || (field.askRole() != role && !infraNetwork)) {
             throw new ForbiddenException(field.label() + ": 해당 항목의 작성 담당자만 입력할 수 있습니다.");
         }
     }

@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.assertj.MvcTestResult;
  * → INFRA 완료 → SECURITY 완료 → 3단계 → 차수 반환 3→1 → 종결 → 이후 422.
  */
 @Tag("docker") // Testcontainers(PostgreSQL) 필요 — Docker 없는 환경에서는 -PexcludeTags=docker 로 제외
-@SpringBootTest(properties = "securityadvisor.demo.account-password=Test-Demo-1234")
+@SpringBootTest(properties = {"securityadvisor.demo.account-password=Test-Demo-1234", "securityadvisor.llm.mode=fake"})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class ReviewWorkflowApiTest {
@@ -121,9 +121,7 @@ class ReviewWorkflowApiTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"expectedRevision\":" + reviewRevision(infraReviewId) + "}")
                 .exchange();
-        assertThat(allocated).hasStatusOk();
-        assertThat(allocated).bodyJson().extractingPath("$.status").isEqualTo("ALLOCATED");
-        assertThat(allocated).bodyJson().extractingPath("$.allocated").isEqualTo(true);
+        assertThat(allocated).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(requestStatus(requestId)).isEqualTo("IN_REVIEW");
 
         // SECURITY 보완 요청 → 신청 상태 SUPPLEMENT_REQUESTED, 대상 항목 needsReview, 보완 응답 기한 생성
@@ -242,12 +240,13 @@ class ReviewWorkflowApiTest {
                 .extractingPath("$.status")
                 .isEqualTo("RECHECK");
         // SECURITY 완료만으로는 전이하지 않고(INFRA 재검토 중), INFRA 가 다시 완료해야 3단계 최종 검토 + 협의 기한 종료 + 보완 RESOLVED
-        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
+        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
         assertThat(requestStage(requestId)).isEqualTo(2);
         MvcTestResult infraDone = complete(INFRA, infraReviewId, INFRA_CHECKLIST);
         assertThat(infraDone).hasStatusOk();
         assertThat(infraDone).bodyJson().extractingPath("$.status").isEqualTo("COMPLETED");
         assertThat(infraDone).bodyJson().extractingPath("$.checklist.port").isEqualTo(true);
+        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
         assertThat(requestStage(requestId)).isEqualTo(3);
         assertThat(requestStatus(requestId)).isEqualTo("FINAL_REVIEW");
         assertThat(mvc.get()
@@ -353,7 +352,6 @@ class ReviewWorkflowApiTest {
         assertThat(actions)
                 .contains(
                         "ANSWER_STAFF_CONFIRMED",
-                        "ALLOCATION_COMPLETED",
                         "SUPPLEMENT_REQUESTED",
                         "SUPPLEMENT_ANSWERED",
                         "REVIEW_COMPLETED",
@@ -371,6 +369,166 @@ class ReviewWorkflowApiTest {
                 .extractingPath("$.content[?(@.action=='ANSWER_STAFF_INPUT')]")
                 .asArray()
                 .hasSize(1);
+    }
+
+    @Autowired
+    private kr.securityadvisor.request.service.AnswerService testAnswers;
+
+    @Autowired
+    private kr.securityadvisor.request.service.RequestAccessPolicy testAccess;
+
+    @Autowired
+    private tools.jackson.databind.ObjectMapper testJson;
+
+    @Test
+    void infrastructureConnectionsSaveAndGuard() throws Exception {
+        Long id = createFirewallRequest();
+        var requested = mvc.post()
+                .uri("/api/security-requests/{id}/reviews", id)
+                .with(authentication(APPLICANT))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":0}")
+                .exchange();
+        assertThat(requested).hasStatus(HttpStatus.CREATED);
+        var actor = new MemberPrincipal("infra", "박인프라", MemberRole.INFRA);
+        var request = testAccess.viewableRequest(actor, id);
+        var revisions = new java.util.LinkedHashMap<String, Long>();
+        testAnswers.allAnswers(request).forEach(a -> revisions.put(a.fieldKey(), a.revision()));
+        var one = new kr.securityadvisor.request.dto.InfrastructurePlanCommand.Connection(
+                "row1",
+                "합성 웹",
+                "192.0.2.10",
+                "DMZ",
+                "합성 API",
+                "198.51.100.20",
+                "내부망",
+                "TCP",
+                "443",
+                "API 조회",
+                "아웃바운드",
+                "2026-11-11",
+                "2027-11-11");
+        var two = new kr.securityadvisor.request.dto.InfrastructurePlanCommand.Connection(
+                "row2",
+                "합성 API",
+                "198.51.100.20",
+                "내부망",
+                "합성 DB",
+                "203.0.113.30",
+                "내부망",
+                "TCP",
+                "5432",
+                "DB 조회",
+                "아웃바운드",
+                "2026-11-11",
+                "2027-11-11");
+        var command = new kr.securityadvisor.request.dto.InfrastructurePlanCommand(
+                0L, List.of(one, two), "합성 서버·망 분리 검토", revisions);
+        String body = testJson.writeValueAsString(command);
+        assertThat(mvc.put()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(SECURITY))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.put()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("192.0.2.10", "999.0.0.1")))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        var saved = mvc.put()
+                .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+        assertThat(saved).hasStatusOk();
+        assertThat(saved).bodyJson().extractingPath("$.connections.length()").isEqualTo(2);
+        assertThat(mvc.put()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .hasStatus(HttpStatus.CONFLICT);
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(SECURITY)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.connections[1].port")
+                .isEqualTo("5432");
+        var document = mvc.post()
+                .uri("/api/security-requests/{id}/generated-documents", id)
+                .with(authentication(INFRA))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"aiSupplement\":false}")
+                .exchange();
+        assertThat(document).hasStatus(HttpStatus.CREATED);
+        assertThat(document.getResponse().getContentAsString()).contains("합성 DB", "5432", "통신 구간 2");
+        var reviews = requested.getResponse().getContentAsString();
+        assertThat(complete(INFRA, reviewId(reviews, "INFRA"), INFRA_CHECKLIST)).hasStatusOk();
+        assertThat(complete(SECURITY, reviewId(reviews, "SECURITY"), SECURITY_CHECKLIST))
+                .hasStatusOk();
+        assertThat(mvc.put()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("\"expectedRevision\":0", "\"expectedRevision\":1")))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    @Test
+    @DisplayName("망 구성 AI 제안은 배정된 인프라만 요청하고 기존 저장값을 변경하지 않는다")
+    void infrastructureProposalAccess() throws Exception {
+        Long id = createFirewallRequest();
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/reviews", id)
+                        .with(authentication(APPLICANT))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":0}"))
+                .hasStatus(HttpStatus.CREATED);
+        String body = "{\"expectedRevision\":0,\"explanation\":\"합성 자료에는 아직 IP 정보가 없습니다.\"}";
+        for (var actor : List.of(SECURITY, APPLICANT, ADMIN))
+            assertThat(mvc.post()
+                            .uri("/api/security-requests/{id}/infrastructure-proposals", id)
+                            .with(authentication(actor))
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .hasStatus(HttpStatus.FORBIDDEN);
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/infrastructure-proposals", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.connections.length()")
+                .isEqualTo(0);
+        assertThat(mvc.get()
+                        .uri("/api/security-requests/{id}/infrastructure-plan", id)
+                        .with(authentication(INFRA)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.revision")
+                .isEqualTo(0);
+        assertThat(mvc.post()
+                        .uri("/api/security-requests/{id}/infrastructure-proposals", id)
+                        .with(authentication(INFRA))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("\"expectedRevision\":0", "\"expectedRevision\":9")))
+                .hasStatus(HttpStatus.CONFLICT);
     }
 
     private MvcTestResult complete(Authentication who, Long reviewId, String checklist) throws Exception {

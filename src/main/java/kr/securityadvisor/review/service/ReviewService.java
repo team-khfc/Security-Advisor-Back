@@ -75,6 +75,8 @@ public class ReviewService {
     private final RequiredReviewFields requiredReviewFields;
     private final ReviewJson json;
     private final Clock clock;
+    private final jakarta.persistence.EntityManager entityManager;
+    private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
 
     /**
      * 신청자의 협의 요청: 1단계 작성 중 → 2단계 협의 중.
@@ -199,31 +201,33 @@ public class ReviewService {
         return answer;
     }
 
-    /** INFRA 할당 완료(PUT …/allocation-completion). 협의 완료가 아니다(불변식 12) — SECURITY 완료의 선행 조건일 뿐. */
+    /** 이전 클라이언트의 분리된 할당 완료 요청은 상태 변경 없이 거부한다. 담당 분야 협의 완료로 통합되었다. */
     public ReviewResponse completeAllocation(MemberPrincipal principal, Long reviewId, ReviewRevisionCommand command) {
         Review review = requireReview(reviewId);
-        SecurityRequest request = requireReviewableRequest(principal, review);
+        requireReviewableRequest(principal, review);
         review.requireRevision(command.expectedRevision());
-        review.completeAllocation(principal.username(), clock.instant());
-        audit(principal, request, AuditAction.ALLOCATION_COMPLETED, null, "INFRA 할당 완료 (협의 " + reviewId + ")");
-        return toResponse(review);
+        throw new DomainRuleViolationException("자원 할당 완료는 담당 분야 협의 완료로 통합되었습니다");
     }
 
     /**
-     * 분야 협의 완료(PUT …/completion). 체크리스트 전부 확인·의견 필수·미해결 보완 없음·SECURITY 는 INFRA 할당 선행.
+     * 분야 협의 완료(PUT …/completion). 체크리스트 전부 확인·의견 필수·미해결 보완 없음·SECURITY 는 INFRA 협의 완료 선행.
      * 필요한 분야가 모두 완료되면 신청을 3단계 사용자 최종 검토로 올리고 협의 기한을 종료한다.
      */
     public ReviewResponse complete(MemberPrincipal principal, Long reviewId, ReviewCompletionCommand command) {
         Review review = requireReview(reviewId);
         SecurityRequest request = requireReviewableRequest(principal, review);
+        entityManager.refresh(request, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(review);
+        requireReviewableRequest(principal, review);
         review.requireRevision(command.expectedRevision());
 
         List<Review> reviews = reviewRepository.findBySecurityRequestIdOrderByIdAsc(request.getId());
         // INFRA 선행(불변식 9)은 이 서류가 INFRA 협의를 요구할 때만 — SECURITY 만 요구하는 서류는 바로 완료할 수 있다
-        boolean infraAllocated = !requiredReviewFields.infraPrecedes(requiredReviewFields.of(request))
+        boolean infraCompleted = !requiredReviewFields.infraPrecedes(requiredReviewFields.of(request))
                 || reviews.stream()
                         .filter(other -> other.getField() == ReviewField.INFRA)
-                        .anyMatch(Review::isAllocated);
+                        .anyMatch(Review::isCompleted);
+        infrastructurePlans.requireCurrent(request);
         int openSupplements = supplementRepository.countByReviewIdAndStatus(reviewId, SupplementStatus.OPEN);
         Instant now = clock.instant();
         review.complete(
@@ -231,7 +235,7 @@ public class ReviewService {
                 command.opinion(),
                 command.checklist(),
                 json.writeChecklist(command.checklist()),
-                infraAllocated,
+                infraCompleted,
                 openSupplements,
                 now);
         supplementRepository

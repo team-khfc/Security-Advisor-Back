@@ -22,7 +22,7 @@ import org.hibernate.type.SqlTypes;
  * 분야별 협의(F-04) 애그리거트. 2단계 진입 시 서류 유형의 협의 분야마다 하나씩 만들어지고 신청은 ID 로만 참조한다.
  *
  * <p>할당 완료와 협의 완료는 별도 상태다(불변식 12): INFRA 는 할당만 끝내고 검토를 보류할 수 있다.
- * SECURITY 협의 완료는 INFRA 할당 완료 이후에만 가능하다(불변식 9 — 1차 범위 INFRA 선행 고정).
+ * SECURITY 협의 완료는 INFRA 협의 완료 이후에만 가능하다(불변식 9 — 1차 범위 INFRA 선행 고정).
  * 협의 완료는 체크리스트 전부 확인 + 의견 필수.
  */
 @Entity
@@ -173,11 +173,11 @@ public class Review extends BaseAuditEntity {
     }
 
     /**
-     * 협의 완료. 체크리스트 전부 확인·의견 필수, 미해결 보완 없음, SECURITY 는 INFRA 할당 완료 이후(불변식 9).
+     * 협의 완료. 체크리스트 전부 확인·의견 필수, 미해결 보완 없음, SECURITY 는 INFRA 협의 완료 이후(불변식 9).
      *
      * @param checklist 항목 키 → 확인 여부
      * @param checklistJson 저장용 직렬화 문자열
-     * @param infraAllocated 같은 신청의 INFRA 협의가 할당 완료됐는지(SECURITY 에만 의미)
+     * @param infraCompleted 같은 신청의 INFRA 협의가 완료됐는지(SECURITY 에만 의미)
      * @param openSupplementCount 이 협의의 미해결(OPEN) 보완 요청 수
      */
     public void complete(
@@ -185,7 +185,7 @@ public class Review extends BaseAuditEntity {
             String opinion,
             Map<String, Boolean> checklist,
             String checklistJson,
-            boolean infraAllocated,
+            boolean infraCompleted,
             int openSupplementCount,
             Instant now) {
         requireActor(staffUsername);
@@ -195,8 +195,8 @@ public class Review extends BaseAuditEntity {
         if (status == ReviewStatus.SUPPLEMENT_REQUESTED || openSupplementCount > 0) {
             throw new DomainRuleViolationException("미해결 보완 요청이 있어 협의를 완료할 수 없습니다");
         }
-        if (field == ReviewField.SECURITY && !infraAllocated) {
-            throw new DomainRuleViolationException("INFRA 할당 완료 전에는 SECURITY 협의를 완료할 수 없습니다(INFRA 선행)");
+        if (field == ReviewField.SECURITY && !infraCompleted) {
+            throw new DomainRuleViolationException("ICT인프라의 협의 단계가 끝나지 않았습니다.");
         }
         if (opinion == null || opinion.isBlank()) {
             throw new DomainRuleViolationException("협의 완료에는 의견이 필요합니다");

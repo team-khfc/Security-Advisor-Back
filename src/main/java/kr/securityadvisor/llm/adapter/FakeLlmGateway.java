@@ -6,6 +6,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.securityadvisor.llm.domain.LlmPurpose;
 import kr.securityadvisor.llm.service.DocTypeSuggestionService;
+import kr.securityadvisor.llm.service.InfrastructureProposalService;
 import kr.securityadvisor.llm.service.InterviewService;
 import kr.securityadvisor.llm.service.LlmBackend;
 import kr.securityadvisor.llm.service.LlmPrompt;
@@ -40,7 +41,12 @@ public class FakeLlmGateway implements LlmBackend {
                         REFERENCE);
             case SUMMARY -> new LlmResult("합성 요약: 입력 문서의 핵심을 요약한 것으로 가정한 고정 응답입니다.", REFERENCE);
             case DOCUMENT -> new LlmResult("합성 초안: 확정된 값으로 채운 서류 초안으로 가정한 고정 응답입니다.", REFERENCE);
-            case INQUIRY -> new LlmResult(inquiry(prompt), REFERENCE);
+            case INQUIRY ->
+                new LlmResult(
+                        prompt.system().contains(InfrastructureProposalService.MARKER)
+                                ? "{\"connections\":[]}"
+                                : inquiry(prompt),
+                        REFERENCE);
         };
     }
 

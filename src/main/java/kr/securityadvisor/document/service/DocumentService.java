@@ -81,6 +81,7 @@ public class DocumentService {
     private final ObjectMapper objectMapper;
     private final DocumentExporters exporters;
     private final Clock clock;
+    private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
     private final EntityManager entityManager;
 
     public GeneratedDocumentResponse generate(
@@ -118,6 +119,49 @@ public class DocumentService {
 
         List<DocumentSection> sections =
                 withFinalDraft(renderer.sections(schema, request, sources), principal, request, submissionId);
+        sections = new ArrayList<>(sections);
+        var plan = submissionId == null
+                ? infrastructurePlans.snapshot(request.getId())
+                : objectMapper
+                                .readTree(submissionService
+                                        .requireSubmission(submissionId)
+                                        .getSnapshot())
+                                .hasNonNull("infrastructurePlan")
+                        ? objectMapper.treeToValue(
+                                objectMapper
+                                        .readTree(submissionService
+                                                .requireSubmission(submissionId)
+                                                .getSnapshot())
+                                        .path("infrastructurePlan"),
+                                kr.securityadvisor.request.dto.InfrastructurePlanResponse.class)
+                        : null;
+        if (plan != null && !plan.connections().isEmpty()) {
+            int index = 0;
+            for (var row : plan.connections()) {
+                String key = "infrastructure.connection." + (++index);
+                String value = row.sourceSystem() + " (" + row.sourceZone() + ", " + row.sourceAddress() + ") → "
+                        + row.destinationSystem() + " (" + row.destinationZone() + ", " + row.destinationAddress()
+                        + ") · " + row.direction() + " · " + row.protocol() + " / " + row.port() + " · "
+                        + row.startDate() + " ~ " + row.endDate() + " · 목적: " + row.purpose();
+                sections.add(new DocumentSection(
+                        "통신 구간 " + index,
+                        List.of(new DocumentValue(
+                                key, "서버·네트워크 구성", "REQUEST", value, "STAFF_INPUT", true, false, value, "담당자 입력"))));
+            }
+            if (!plan.notes().isBlank())
+                sections.add(new DocumentSection(
+                        "ICT인프라 검토 사항",
+                        List.of(new DocumentValue(
+                                "infrastructure.notes",
+                                "검토 사항",
+                                "REQUEST",
+                                plan.notes(),
+                                "STAFF_INPUT",
+                                true,
+                                false,
+                                plan.notes(),
+                                "담당자 입력"))));
+        }
         Instant now = clock.instant();
         String aiSupplement = null;
         String modelReference = null;

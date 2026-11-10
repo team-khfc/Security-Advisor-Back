@@ -39,13 +39,13 @@ class ReviewTest {
     }
 
     @Test
-    @DisplayName("SECURITY 협의는 INFRA 할당 완료 전에는 완료할 수 없다(INFRA 선행)")
+    @DisplayName("SECURITY 협의는 INFRA 협의 완료 전에는 완료할 수 없다(INFRA 선행)")
     void securityRequiresInfraAllocation() {
         Review security = Review.open(1L, ReviewField.SECURITY);
         Map<String, Boolean> all = allChecked(ReviewField.SECURITY);
         assertThatThrownBy(() -> security.complete("security", "이상 없음", all, "{}", false, 0, NOW))
                 .isInstanceOf(DomainRuleViolationException.class)
-                .hasMessageContaining("INFRA");
+                .hasMessageContaining("ICT인프라");
         security.complete("security", "이상 없음", all, "{}", true, 0, NOW);
         assertThat(security.isCompleted()).isTrue();
         assertThat(security.getCompletedBy()).isEqualTo("security");
