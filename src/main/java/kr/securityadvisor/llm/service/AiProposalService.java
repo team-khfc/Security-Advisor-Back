@@ -20,6 +20,7 @@ import kr.securityadvisor.knowledge.service.SnippetHit;
 import kr.securityadvisor.llm.domain.LlmPurpose;
 import kr.securityadvisor.llm.dto.AiProposalCommand;
 import kr.securityadvisor.llm.dto.AiProposalResult;
+import kr.securityadvisor.request.domain.AnswerFieldPolicy;
 import kr.securityadvisor.request.domain.BusinessCase;
 import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.dto.AnswerResponse;
@@ -125,6 +126,13 @@ public class AiProposalService {
             List<String> evidence = new ArrayList<>();
             node.path("evidence").forEach(e -> evidence.add(e.asString("")));
             String reason = reject(fieldKey, value, evidence, candidateKeys, hits);
+            if (reason == null) {
+                try {
+                    AnswerFieldPolicy.validate(schema.find(fieldKey).orElseThrow(), value);
+                } catch (DomainRuleViolationException invalid) {
+                    reason = invalid.getMessage();
+                }
+            }
             if (reason != null) {
                 skipped.add(new AiProposalResult.Skipped(fieldKey.isBlank() ? "?" : fieldKey, reason));
                 auditRecorder.record(

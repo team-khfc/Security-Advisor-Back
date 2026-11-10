@@ -2040,6 +2040,33 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/AnswerResponse"
+  /api/reviews/{id}/answers:
+    patch:
+      tags:
+      - review-action-controller
+      operationId: inputAnswers
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerBatchCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AnswerResponse"
   /api/notifications/{id}:
     patch:
       tags:
@@ -4345,15 +4372,24 @@ components:
           type: boolean
         number:
           type: boolean
-        floatingPointNumber:
+        textual:
           type: boolean
-        valueNode:
+          deprecated: true
+        double:
           type: boolean
-        missingNode:
+        pojo:
           type: boolean
-        bigDecimal:
+        string:
           type: boolean
-        bigInteger:
+        short:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        boolean:
+          type: boolean
+        binary:
           type: boolean
         nodeType:
           type: string
@@ -4367,26 +4403,17 @@ components:
           - OBJECT
           - POJO
           - STRING
+        bigDecimal:
+          type: boolean
+        valueNode:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
         integralNumber:
           type: boolean
-        textual:
+        missingNode:
           type: boolean
-          deprecated: true
-        long:
-          type: boolean
-        string:
-          type: boolean
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        int:
-          type: boolean
-        double:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
+        bigInteger:
           type: boolean
         embeddedValue:
           type: boolean
