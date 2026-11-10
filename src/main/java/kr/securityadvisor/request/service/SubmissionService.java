@@ -54,6 +54,7 @@ public class SubmissionService {
     private final RequestAccessPolicy accessPolicy;
     private final SubmissionChecker submissionChecker;
     private final FinalDraftService finalDraftService;
+    private final InfrastructurePlanService infrastructurePlans;
     private final EntityManager entityManager;
     private final ReviewFactsProvider reviewFacts;
     private final DeadlineService deadlineService;
@@ -92,6 +93,7 @@ public class SubmissionService {
                 reviewFacts.openSupplementCount(securityRequestId),
                 reviewFacts.allReviewsCompleted(securityRequestId));
         Map<String, Object> finalDraft = finalDraftService.submissionSnapshot(request);
+        infrastructurePlans.requireCurrent(request);
         request.submit(preconditions);
 
         Instant now = clock.instant();
@@ -256,6 +258,7 @@ public class SubmissionService {
                 })
                 .toList();
         root.put("answers", values);
+        root.put("infrastructurePlan", infrastructurePlans.snapshot(request.getId()));
         if (finalDraft != null) root.put("finalDraft", finalDraft);
         return objectMapper.writeValueAsString(root);
     }

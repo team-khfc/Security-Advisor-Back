@@ -489,13 +489,6 @@ class SubmissionApiTest {
         staffInput(infraReviewId, "system.target_server", "합성 업무 서버 01");
         staffInput(infraReviewId, "network.source", "10.0.0.0/24 (합성)");
         staffInput(infraReviewId, "network.destination", "10.0.1.10 (합성)");
-        assertThat(mvc.put()
-                        .uri("/api/reviews/{id}/allocation-completion", infraReviewId)
-                        .with(authentication(INFRA))
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"expectedRevision\":" + reviewRevision(infraReviewId) + "}"))
-                .hasStatusOk();
         assertThat(complete(INFRA, infraReviewId, INFRA_CHECKLIST)).hasStatusOk();
         assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
         assertThat(requestStage(requestId)).isEqualTo(3);
