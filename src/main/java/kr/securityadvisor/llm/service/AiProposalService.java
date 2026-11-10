@@ -87,7 +87,7 @@ public class AiProposalService {
         Map<String, SnippetHit> hits = new LinkedHashMap<>();
         for (FieldDefinition field : candidates) {
             knowledgeSearch
-                    .forField(field.key(), request.getDocType(), written)
+                    .forField(field.key(), request.getDocType(), written, businessCase.getKnowledgePublicationId())
                     .forEach(h -> hits.putIfAbsent(h.tag(), h));
         }
         List<String> knowledgeLines = hits.values().stream()

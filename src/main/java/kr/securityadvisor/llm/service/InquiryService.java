@@ -128,7 +128,10 @@ public class InquiryService {
                 .filter(v -> v != null)
                 .toList());
         texts.add(command.text());
-        List<FactRecord> facts = privateContextLookup.matchIn(principal, texts);
+        Long knowledgePublicationId = accessPolicy
+                .viewableCase(principal, request.getBusinessCaseId())
+                .getKnowledgePublicationId();
+        List<FactRecord> facts = privateContextLookup.matchIn(principal, texts, knowledgePublicationId);
         List<AnswerResponse> confirmedFacts = answers.stream()
                 .filter(a -> a.confirmed() && !a.needsReview() && a.value() != null)
                 .filter(a ->
@@ -137,7 +140,7 @@ public class InquiryService {
         List<String> factLines = new ArrayList<>(
                 facts.stream().map(f -> "[" + f.tag() + "] " + f.line()).toList());
         confirmedFacts.forEach(a -> factLines.add("[A" + a.answerId() + "] 담당자 확인 신청값: " + a.value()));
-        List<SnippetHit> hits = knowledgeSearch.search(command.text(), 3);
+        List<SnippetHit> hits = knowledgeSearch.search(command.text(), 3, knowledgePublicationId);
         List<InquiryMessage> recent = new ArrayList<>(messageRepository.findTop10ByInquiryIdOrderByIdDesc(inquiryId));
         java.util.Collections.reverse(recent);
 
@@ -169,7 +172,7 @@ public class InquiryService {
                 .filter(labels::containsKey)
                 .distinct()
                 .toList();
-        List<String> knownValues = new ArrayList<>(privateContextLookup.knownValues(principal));
+        List<String> knownValues = new ArrayList<>(privateContextLookup.knownValues(principal, knowledgePublicationId));
         confirmedFacts.forEach(a -> knownValues.add(a.value()));
         List<String> unbacked = guard.findUnbacked(parsed.answer(), knownValues);
         String answerText = parsed.answer();

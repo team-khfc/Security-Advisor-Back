@@ -499,6 +499,35 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/KnowledgeSnippetResponse"
+  /api/knowledge-drafts/current:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: current
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeDraftResponse"
+    put:
+      tags:
+      - knowledge-publication-controller
+      operationId: save
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeDraftCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeDraftResponse"
   /api/firewall-rules/{id}/revocation:
     put:
       tags:
@@ -1441,6 +1470,24 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/KnowledgeSnippetResponse"
+  /api/knowledge-drafts/current/publications:
+    post:
+      tags:
+      - knowledge-publication-controller
+      operationId: publish
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublishCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgePublicationResponse"
   /api/inquiries/{id}/messages:
     get:
       tags:
@@ -1550,7 +1597,7 @@ paths:
     post:
       tags:
       - configuration-controller
-      operationId: publish
+      operationId: publish_1
       parameters:
       - name: id
         in: path
@@ -2179,7 +2226,7 @@ paths:
     get:
       tags:
       - final-draft-controller
-      operationId: current
+      operationId: current_1
       parameters:
       - name: id
         in: path
@@ -2394,7 +2441,7 @@ paths:
     get:
       tags:
       - publication-controller
-      operationId: current_1
+      operationId: current_2
       responses:
         "200":
           description: OK
@@ -2413,6 +2460,12 @@ paths:
         required: false
         schema:
           type: string
+      - name: knowledgePublicationId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
       responses:
         "200":
           description: OK
@@ -2520,6 +2573,12 @@ paths:
           type: integer
           format: int32
           default: 5
+      - name: knowledgePublicationId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
       responses:
         "200":
           description: OK
@@ -2529,6 +2588,187 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SnippetHit"
+  /api/knowledge-publications:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: history_1
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseKnowledgePublicationResponse"
+  /api/knowledge-publications/{id}:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: content
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeSnapshot"
+  /api/knowledge-publications/{id}/comparison:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: publishedComparison
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeComparisonResponse"
+  /api/knowledge-drafts/current/snippets:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: snippets
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ""
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseKnowledgeSnippetResponse"
+  /api/knowledge-drafts/current/snippets/{id}:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: snippet
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeSnippetResponse"
+  /api/knowledge-drafts/current/private-contexts:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: contexts
+      parameters:
+      - name: q
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ""
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponsePrivateContextResponse"
+  /api/knowledge-drafts/current/private-contexts/{id}:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: context
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PrivateContextResponse"
+  /api/knowledge-drafts/current/comparison:
+    get:
+      tags:
+      - knowledge-publication-controller
+      operationId: compare
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/KnowledgeComparisonResponse"
   /api/installation:
     get:
       tags:
@@ -2637,6 +2877,12 @@ paths:
         schema:
           type: integer
           format: int64
+      - name: knowledgePublicationId
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
       - name: docType
         in: query
         required: false
@@ -2691,7 +2937,7 @@ paths:
     get:
       tags:
       - configuration-controller
-      operationId: current_2
+      operationId: current_3
       responses:
         "200":
           description: OK
@@ -3454,6 +3700,46 @@ components:
         revision:
           type: integer
           format: int64
+    KnowledgeDraftCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+        note:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - expectedRevision
+    KnowledgeDraftResponse:
+      type: object
+      properties:
+        knowledgeDraftId:
+          type: integer
+          format: int64
+        basedOnVersion:
+          type: integer
+          format: int32
+        currentPublishedVersion:
+          type: integer
+          format: int32
+        revision:
+          type: integer
+          format: int64
+        note:
+          type: string
+        updatedBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        snippetCount:
+          type: integer
+          format: int64
+        privateContextCount:
+          type: integer
+          format: int64
     RuleRevocationCommand:
       type: object
       properties:
@@ -3804,6 +4090,9 @@ components:
         publicationId:
           type: integer
           format: int64
+        knowledgePublicationId:
+          type: integer
+          format: int64
         revision:
           type: integer
           format: int64
@@ -3882,6 +4171,16 @@ components:
           type: boolean
         container:
           type: boolean
+        valueNode:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
+        missingNode:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        bigInteger:
+          type: boolean
         integralNumber:
           type: boolean
         nodeType:
@@ -3896,36 +4195,26 @@ components:
           - OBJECT
           - POJO
           - STRING
-        missingNode:
+        string:
           type: boolean
-        bigInteger:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        valueNode:
-          type: boolean
-        floatingPointNumber:
+        short:
           type: boolean
         long:
           type: boolean
-        binary:
+        pojo:
           type: boolean
-        int:
+        boolean:
           type: boolean
-        string:
+        double:
           type: boolean
         textual:
           type: boolean
           deprecated: true
-        double:
+        int:
+          type: boolean
+        binary:
           type: boolean
         number:
-          type: boolean
-        short:
-          type: boolean
-        boolean:
-          type: boolean
-        pojo:
           type: boolean
         embeddedValue:
           type: boolean
@@ -4397,6 +4686,33 @@ components:
       required:
       - reason
       - role
+    PublishCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+      required:
+      - expectedRevision
+    KnowledgePublicationResponse:
+      type: object
+      properties:
+        knowledgePublicationId:
+          type: integer
+          format: int64
+        version:
+          type: integer
+          format: int32
+        publishedAt:
+          type: string
+          format: date-time
+        publishedBy:
+          type: string
+        note:
+          type: string
+        previousVersion:
+          type: integer
+          format: int32
     InquiryMessageCommand:
       type: object
       properties:
@@ -4543,14 +4859,6 @@ components:
         overdue:
           type: integer
           format: int32
-    PublishCommand:
-      type: object
-      properties:
-        expectedRevision:
-          type: integer
-          format: int64
-      required:
-      - expectedRevision
     PublicationResponse:
       type: object
       properties:
@@ -5145,6 +5453,7 @@ components:
           - CONFIGURATION
           - REVIEWER_POOL
           - REMINDER_SCHEDULE
+          - KNOWLEDGE_PUBLICATION
         targetId:
           type: string
         targetRevision:
@@ -5220,6 +5529,8 @@ components:
           - ANALYSIS_APPLIED
           - CONFIGURATION_DRAFT_SAVED
           - CONFIGURATION_PUBLISHED
+          - KNOWLEDGE_DRAFT_SAVED
+          - KNOWLEDGE_PUBLISHED
         reason:
           type: string
         summary:
@@ -5370,6 +5681,81 @@ components:
           type: array
           items:
             type: string
+    PageResponseKnowledgePublicationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgePublicationResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    KnowledgeSnapshot:
+      type: object
+      properties:
+        snippets:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeSnippetResponse"
+        privateContexts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrivateContextResponse"
+    KnowledgeComparisonResponse:
+      type: object
+      properties:
+        fromVersion:
+          type: integer
+          format: int32
+        toVersion:
+          type: integer
+          format: int32
+        revision:
+          type: integer
+          format: int64
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Change"
+    PageResponseKnowledgeSnippetResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeSnippetResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+    PageResponsePrivateContextResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrivateContextResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
     InsightSummary:
       type: object
       properties:
@@ -5443,6 +5829,9 @@ components:
         completedReviewCount:
           type: integer
           format: int64
+        calculatedAt:
+          type: string
+          format: date-time
     FieldHelpResponse:
       type: object
       properties:

@@ -127,7 +127,8 @@ public class DocumentService {
                     LlmPrompt.of(SYSTEM, List.of(), List.of(), valuesText(sections)),
                     LlmCallContext.of(principal, AuditTargetType.SECURITY_REQUEST, securityRequestId));
             aiSupplement = result.text();
-            for (String token : guard.findUnbacked(aiSupplement, knownValues(principal, sources))) {
+            for (String token : guard.findUnbacked(
+                    aiSupplement, knownValues(principal, sources, businessCase.getKnowledgePublicationId()))) {
                 aiSupplement = aiSupplement.replace(token, "[근거 없는 내부 정보 — 담당자 확인 필요]");
             }
             modelReference = result.modelReference();
@@ -383,8 +384,10 @@ public class DocumentService {
         return sb.toString();
     }
 
-    private List<String> knownValues(MemberPrincipal principal, Map<String, DocumentRenderer.Source> sources) {
-        List<String> known = new java.util.ArrayList<>(privateContextLookup.knownValues(principal));
+    private List<String> knownValues(
+            MemberPrincipal principal, Map<String, DocumentRenderer.Source> sources, Long knowledgePublicationId) {
+        List<String> known =
+                new java.util.ArrayList<>(privateContextLookup.knownValues(principal, knowledgePublicationId));
         sources.values().stream()
                 .map(DocumentRenderer.Source::value)
                 .filter(v -> v != null)

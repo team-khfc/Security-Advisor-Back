@@ -232,6 +232,7 @@ public class SubmissionService {
         root.put("securityRequestId", request.getId());
         root.put("docType", request.getDocType().code());
         root.put("publicationId", businessCase.getPublicationId());
+        root.put("knowledgePublicationId", businessCase.getKnowledgePublicationId());
         root.put("submittedAt", now.toString());
         List<Map<String, Object>> values = answers.values().stream()
                 .map(answer -> {

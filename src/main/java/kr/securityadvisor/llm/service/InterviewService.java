@@ -127,12 +127,19 @@ public class InterviewService {
             cite(citations, lines, "U", "현재 입력 중인 답변 · 미저장", command.draft());
         }
         knowledge
-                .forField(field.key(), null, command.text())
+                .forField(
+                        field.key(),
+                        null,
+                        command.text(),
+                        context.businessCase().getKnowledgePublicationId())
                 .forEach(hit -> cite(citations, lines, hit.tag(), hit.citation(), hit.body()));
         if ("ASK".equals(command.mode())) {
-            knowledge.search(command.text(), 3).forEach(hit -> {
-                if (!citations.containsKey(hit.tag())) cite(citations, lines, hit.tag(), hit.citation(), hit.body());
-            });
+            knowledge
+                    .search(command.text(), 3, context.businessCase().getKnowledgePublicationId())
+                    .forEach(hit -> {
+                        if (!citations.containsKey(hit.tag()))
+                            cite(citations, lines, hit.tag(), hit.citation(), hit.body());
+                    });
         }
         List<LlmPrompt.LlmMessage> history = new ArrayList<>();
         List<InterviewTurn> recent = new ArrayList<>(
