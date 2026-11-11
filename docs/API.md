@@ -4,11 +4,11 @@
 
 ## 공통 규약
 
-- **인증:** 세션 쿠키. 로그인·회원가입·`GET /api/installation` 외에는 모두 로그인이 필요하다. 미로그인·만료는 401.
+- **인증:** 세션 쿠키. 익명 접근은 로그인·로그아웃·회원가입, `GET /api/installation`, 상태 확인(`/actuator/health`), Swagger UI·OpenAPI 경로에 허용한다. 나머지는 로그인이 필요하다. 미로그인·만료는 401.
 - **CSRF:** 상태를 바꾸는 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보낸다.
 - **권한:** 서버가 판단한다. 역할이 맞지 않으면 403, 볼 수 없는 자원(남의 신청·배정되지 않은 신청)은 존재를 숨겨 404.
 - **오류:** 전부 ProblemDetail(JSON). 400 형식 · 401 · 403 권한 · 404 없음/조회 불가 · 409 revision 불일치·중복 · 422 업무 규칙 위반 · 429 로그인 잠금 · 503 AI 모델 사용 불가. 422·503 의 `detail` 은 사용자에게 보여 줄 문장이다.
-- **동시 변경:** 쓰기 요청은 `expectedRevision` 을 받는다(처음 채우는 답변 제외). 다르면 409 — 최신 값을 다시 읽고 사용자가 판단한다.
+- **동시 변경:** 버전이 있는 자원의 수정은 해당 DTO가 요구하는 `expectedRevision`을 보낸다. 생성·알림 읽음 등 모든 쓰기에 공통으로 요구되는 필드는 아니다. 다르면 409 — 최신 값을 다시 읽고 사용자가 판단한다.
 - **상태 전이:** `status`·`stage` 를 직접 바꾸는 API 는 없다. 하위 자원 POST(협의 요청·보완·반환·제출) 또는 단일 하위 자원 PUT(협의 완료·종결·철회·확정)으로 한다.
 - **값의 출처:** 모든 답변은 `valueSource`(USER_ANSWER·AI_INFERRED·STAFF_INPUT·STAFF_CONFIRMED)와 `confirmed` 를 가진다. AI 값은 사람이 확인하기 전까지 미확정이고, 미확정 값이 남아 있으면 제출이 막힌다.
 - **목록:** 페이지형은 `{content, page, size, totalElements}`(`page` 는 0부터, `size` 최대 100).
@@ -78,7 +78,7 @@
 | `POST /api/security-requests/{id}/ai-proposals` | **AI 항목 제안**(신청자 본인, 미제출 신청) — 값이 없거나 미확정 AI 값인 신청자 항목에 대해 제안 → `AI_INFERRED`·미확정 저장. 근거 없는 제안·IP 류 토큰은 버린다(`skipped` 에 이유). body `{fieldKeys?}` | 200, 모델 불가 503, 제출 후 422 |
 | `GET /api/field-help/{fieldKey}` | **항목 도움말** — 왜 묻는지·필수 여부·답하는 역할 + 그 항목에 태깅된 공개자료 근거. 모델 호출 없음. `docType`·`q`·`publicationId`·`knowledgePublicationId` | 200, 항목 없음 404 |
 
-- 프롬프트는 [기관 사실](서버가 역할로 걸러 넣은 행, 신청자용에는 없음)과 [공개 지식](게시된 지식 조각, `S<id>` 로 인용) 블록으로 나뉜다. 모델 출력의 IP·대역이 사실 블록에 없으면 `InternalInfoGuard` 가 거른다.
+- 프롬프트는 `[기관 사실]` 블록(서버가 역할로 걸러 넣은 행, 신청자용에는 없음)과 `[공개 지식]` 블록(게시된 지식 조각, `S<id>` 로 인용) 블록으로 나뉜다. 모델 출력의 IP·대역이 사실 블록에 없으면 `InternalInfoGuard` 가 거른다.
 - 응답이 출력 한도로 잘렸거나 비어 있으면 저장하지 않고 503 이다. 자동 재시도는 없다.
 
 ## 협의·담당자 검토·보완·반환 API
@@ -94,7 +94,7 @@
 | `PUT /api/reviews/{id}/answers/{fieldKey}` | **담당자 입력**(출처 STAFF_INPUT). 자기 분야 항목만. scope=CASE 항목은 사업 건에 저장된다. 2단계 협의 중인 신청만 | 200, 미배정·다른 분야 403, 2단계 아님 422 |
 | `PATCH /api/reviews/{id}/answers` | 담당자 일괄 입력 — 하나라도 실패하면 전부 취소 | 200 |
 | `PUT /api/reviews/{id}/answers/{fieldKey}/confirmation` | **담당자 확인**(출처 STAFF_CONFIRMED) — 자기 분야와 신청자 항목. 값은 바뀌지 않는다 | 200, 답변 없음 404 |
-| `PUT /api/reviews/{id}/allocation-completion` | **쓰지 않는다.** 할당 완료는 협의 완료로 합쳐져 항상 422 를 돌려준다(경로만 남아 있음) | 200, 422 |
+| `PUT /api/reviews/{id}/allocation-completion` | **쓰지 않는다.** 할당 완료는 협의 완료로 합쳐져 항상 422 를 돌려준다(경로만 남아 있음) | 422 |
 | `PUT /api/reviews/{id}/completion` | **분야 협의 완료** — 의견 필수, 분야 체크리스트 전부 확인, 미해결 보완 없음, 서버·통신 구성이 확인 저장 상태, SECURITY 는 INFRA 협의 완료 뒤. 필요한 분야가 모두 끝나면 신청이 3단계로 넘어가고 협의 기한이 끝난다 | 200, 규칙 위반 422, revision 409 |
 | `GET /api/security-requests/{id}/infrastructure-plan` | **서버·통신 구성** 조회(서버 목록·통신 구간·운영 계획·체크리스트, `draft`·`aiPending` 상태) | 200 |
 | `PUT /api/security-requests/{id}/infrastructure-plan` | 구성 임시 저장(`draft:true`, 누락 허용·형식만 검사) 또는 확인 저장(필수 항목 검사). 배정된 INFRA·SECURITY 담당자, 협의 단계. 완료된 협의는 재검토가 된다 | 200, 권한 403, 검증 422, revision 409 |
