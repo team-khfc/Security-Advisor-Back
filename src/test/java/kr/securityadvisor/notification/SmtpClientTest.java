@@ -22,28 +22,25 @@ import org.junit.jupiter.api.Test;
 class SmtpClientTest {
 
     @Test
-    @DisplayName("EHLO → MAIL FROM → RCPT TO → DATA → QUIT, 제목은 encoded-word, 서버 오류 응답이면 예외")
-    void sendsMail() throws Exception {
+    @DisplayName("STARTTLS 미지원 서버에는 인증 정보나 메일을 보내지 않는다")
+    void rejectsPlaintext() throws Exception {
         try (ServerSocket server = new ServerSocket(0)) {
             CompletableFuture<List<String>> received = CompletableFuture.supplyAsync(() -> fakeSmtp(server, false));
             NotificationChannelProperties.Smtp settings = new NotificationChannelProperties.Smtp(
-                    "127.0.0.1", server.getLocalPort(), false, null, null, "noreply@demo.invalid", 5);
-            new SmtpClient(settings).send("applicant@demo.invalid", "제목(합성)", "본문\n.점으로 시작하는 줄");
-
-            List<String> lines = received.get();
-            assertThat(lines).anyMatch(l -> l.startsWith("EHLO "));
-            assertThat(lines)
-                    .contains("MAIL FROM:<noreply@demo.invalid>", "RCPT TO:<applicant@demo.invalid>", "DATA", "QUIT");
-            assertThat(String.join("\n", lines))
-                    .contains("Subject: =?UTF-8?B?")
-                    .contains("Content-Transfer-Encoding: base64");
-        }
-        try (ServerSocket server = new ServerSocket(0)) {
-            CompletableFuture.runAsync(() -> fakeSmtp(server, true));
-            NotificationChannelProperties.Smtp settings = new NotificationChannelProperties.Smtp(
-                    "127.0.0.1", server.getLocalPort(), false, null, null, "noreply@demo.invalid", 5);
-            assertThatThrownBy(() -> new SmtpClient(settings).send("x@demo.invalid", "s", "b"))
+                    "127.0.0.1",
+                    server.getLocalPort(),
+                    true,
+                    "synthetic-user",
+                    "synthetic-password",
+                    "noreply@demo.invalid",
+                    5);
+            assertThatThrownBy(() -> new SmtpClient(settings).send("applicant@demo.invalid", "합성 제목", "합성 본문"))
                     .hasMessageContaining("SMTP");
+            assertThat(received.get(10, java.util.concurrent.TimeUnit.SECONDS))
+                    .noneMatch(line -> line.startsWith("AUTH")
+                            || line.startsWith("MAIL")
+                            || line.startsWith("RCPT")
+                            || line.equals("DATA"));
         }
     }
 

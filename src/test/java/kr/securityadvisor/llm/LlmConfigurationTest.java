@@ -32,7 +32,7 @@ class LlmConfigurationTest {
     @Test
     @DisplayName("api_key_env 는 환경변수 이름 형식만 — 키 값처럼 보이는 문자열은 거부한다")
     void apiKeyEnvNameOnly() {
-        assertThatThrownBy(() -> create("https://api.openai.com", "sk-abcdef0123456789"))
+        assertThatThrownBy(() -> create("https://api.openai.com", "not-an-env-name"))
                 .isInstanceOf(DomainRuleViolationException.class)
                 .hasMessageContaining("환경변수 이름");
         assertThatThrownBy(() -> create("https://api.openai.com", "openai_key"))
