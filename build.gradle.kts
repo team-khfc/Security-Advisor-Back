@@ -1,5 +1,5 @@
 // 백엔드 빌드 설정.
-// 버전을 올릴 때는 docs/adr/0001-tech-stack.md 의 버전 표도 함께 고친다.
+// 버전을 올릴 때는 README.md 와 docs/ARCHITECTURE.md 의 스택 표기도 함께 고친다.
 plugins {
     java
     id("org.springframework.boot") version "4.1.2"

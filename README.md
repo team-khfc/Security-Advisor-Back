@@ -61,7 +61,7 @@ docker compose up -d         # 기존 데이터로 재실행
 
 ## 로컬 Java 개발
 
-준비물: **JDK 25**, 접근 가능한 PostgreSQL 17, Docker(통합 검사), Python 3(문서 검사). Gradle은 저장소의 Wrapper를 사용합니다.
+준비물: **JDK 25**, 접근 가능한 PostgreSQL 17, Docker(통합 검사). Gradle은 저장소의 Wrapper를 사용합니다.
 
 ```bash
 ./gradlew bootRun
@@ -106,12 +106,11 @@ docker compose up -d --no-deps app
 | AI·문서 | 사업별 `/interview-turns`, `/api/analysis-jobs`, `/api/generated-documents` |
 | 모델 관리 | `/api/llm-configurations`, `/api/llm-connection-tests` |
 
-요청·응답·권한·상태 코드는 [OpenAPI 계약](docs/api/openapi.yaml)을 기준으로 확인하세요. [계약 갱신 방법](docs/api/README.md), [프론트 연동 안내](docs/FRONTEND_HANDOFF.md)도 제공합니다.
+전체 경로와 설명은 [API 목록](docs/API.md)에 있습니다. 요청·응답·권한·상태 코드는 [OpenAPI 계약](docs/api/openapi.yaml)을 기준으로 확인하세요([계약 갱신 방법](docs/api/README.md)).
 
 ## 검사
 
 ```bash
-python3 tools/check_doc_versions.py
 ./gradlew check
 ```
 
@@ -130,10 +129,10 @@ src/main/java/kr/securityadvisor/
   notification/ audit/ insight/ 알림·감사·지표
 src/main/resources/db/migration/ 데이터베이스 변경 이력
 src/test/                       단위·API·업무 흐름 검사
-docs/api/                       OpenAPI 계약
+docs/                           구조·API 목록·DB 명세·OpenAPI 계약·지식 데이터
 ```
 
-기능별로 controller → service → domain/repository를 구분하고, 업무 규칙을 도메인에 둡니다. 최신 테이블·제약은 마이그레이션이 기준입니다.
+기능별로 controller → service → domain/repository를 구분하고, 업무 규칙을 도메인에 둡니다. 최신 테이블·제약은 마이그레이션이 기준이며, 정리한 표와 ERD는 [DB 명세](docs/DATABASE.md)에 있습니다.
 
 ## 변경 후 통합 배포에 반영하기
 
@@ -144,13 +143,14 @@ docs/api/                       OpenAPI 계약
 
 **이 저장소에 커밋하거나 main에 병합하는 것만으로 SecurityAdvisor나 실행 중인 Docker가 자동 갱신되지는 않습니다.** 통합 저장소의 `front/`·`back/`를 직접 고치면 개발 원본과 배포본이 달라지므로, 기능 수정은 반드시 원본에서 시작합니다.
 
-자세한 교체 범위·검증·업데이트 방법은 [통합 배포 유지보수 안내](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor/-/blob/main/README.md#개발부터-통합-배포까지)를 따릅니다. 공통 협업 기준은 [CONTRIBUTING.md](CONTRIBUTING.md)에 있습니다. GitLab 업로드 보안 검사와 애플리케이션의 빌드·업무 검사는 서로 다른 검사입니다.
+자세한 교체 범위·검증·업데이트 방법은 [통합 배포 유지보수 안내](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor/-/blob/main/README.md#개발부터-통합-배포까지)를 따릅니다. GitLab 업로드 보안 검사와 애플리케이션의 빌드·업무 검사는 서로 다른 검사입니다.
 
 ## 참고 문서
 
-- [업무 명세](FUNCTIONAL_SPEC.md) · [개발 규칙](AGENTS.md) · [기여 안내](CONTRIBUTING.md)
-- [구조](docs/ARCHITECTURE.md) · [설계 결정](docs/adr/) · [시큐어코딩](SECURE_CODING.md)
-- [GPT 근거 검증](docs/GPT_SUMMARY_EVIDENCE_20261111.md) · [출력 한도 처리](docs/CONSULTATION_SUMMARY_LIMIT_20261111.md)
+- [구조·설계 결정·명세와 다른 점](docs/ARCHITECTURE.md) — 처음 받았다면 이 문서부터 읽습니다
+- [API 목록](docs/API.md) · [DB 명세·ERD](docs/DATABASE.md) · [OpenAPI 계약](docs/api/openapi.yaml)
+- [지식 조각 데이터와 등록 방법](docs/knowledge/README.md)
+- [업무 명세](FUNCTIONAL_SPEC.md) · [개발 규칙](AGENTS.md) · [코드 스타일](CODING_STYLE.md) · [시큐어코딩](SECURE_CODING.md) — 2026-11-07 사본
 - [통합 배포](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor) · [프론트 원본](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor-front)
 
-개별 검증 기록은 작성 시점의 결과입니다. 제출 버전의 출처와 통합 검증은 배포 저장소의 `RELEASE.md`와 `docs/JUDGE_VALIDATION.md`를 확인하세요.
+설계 결정 기록(ADR)과 작업별 검증 기록은 `docs/ARCHITECTURE.md` 4~6장으로 요약해 옮겼고 원문은 git 이력에 있습니다. 제출 버전의 출처와 통합 검증은 배포 저장소의 `RELEASE.md`와 `docs/JUDGE_VALIDATION.md`를 확인하세요.
