@@ -14,8 +14,10 @@
 
 | 문서 | 내용 |
 |---|---|
-| `README.md` | 실행 방법, API 표(한국어 설명·상태 코드), DB 명세·ERD |
+| `README.md` | 저장소 역할, 실행 방법, 환경변수, 통합 배포 반영 절차 |
 | `docs/ARCHITECTURE.md` | 이 문서 — 구조, 흐름, 설계 결정, 명세와 다른 점, 기능별 동작 규칙 |
+| `docs/API.md` | API 경로 146개와 한 줄 설명, 공통 규약(인증·CSRF·오류·revision) |
+| `docs/DATABASE.md` | DB 규칙과 ERD(테이블 35개, 마이그레이션에서 생성) |
 | `docs/api/openapi.yaml` | API 계약(테스트가 생성하는 파일, 손으로 고치지 않는다). 생성 방법은 `docs/api/README.md` |
 | `docs/knowledge/` | 공개 지식 조각 데이터(JSON)와 설명. 넣는 방법은 `scripts/load-knowledge-snippets.ps1` |
 | `FUNCTIONAL_SPEC.md` | 업무 규칙 원본 — 역할, 4단계 절차, 불변식 36개, 상태. **v1.12(2026-11-07) 사본** |
@@ -232,7 +234,7 @@ AI 에게 주는 지시문(시스템 프롬프트)은 설정이 아니라 각 �
 4. **서비스**: 권한 검사(`MemberPrincipal.requireAnyRole`, `RequestAccessPolicy`, `ReviewerAccessPolicy`) → 도메인 호출 → `AuditRecorder.record`(같은 트랜잭션) → 필요 시 `Notifier`.
 5. **API**: `/api/<복수형-kebab>`, 상태 전이는 하위 자원 POST / 단일 하위 자원 PUT, 오류는 ProblemDetail. 컨트롤러는 domain·repository 를 import 하지 않는다(ArchUnit). 열거형 파라미터는 String 으로 받아 400 으로 변환.
 6. **테스트**: 도메인 단위 테스트 + API 테스트(`@Tag("docker")`, Testcontainers). 같은 DB 를 여러 테스트가 공유하므로 seed 상태를 바꾸면 끝에 되돌린다.
-7. **문서**: `README.md` API 표·ERD, `docs/api/openapi.yaml` 재생성(`-PexportOpenApi=true`), 이 문서의 표.
+7. **문서**: `docs/API.md` 표, `docs/DATABASE.md` ERD, `docs/api/openapi.yaml` 재생성(`-PexportOpenApi=true`), 이 문서의 표.
 
 ### 7.2 하면 안 되는 것
 
