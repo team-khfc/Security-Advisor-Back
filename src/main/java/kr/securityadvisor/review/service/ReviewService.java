@@ -270,7 +270,7 @@ public class ReviewService {
     /**
      * 사용자가 답변을 바꾸면(공통 항목이면 사업 건의 미제출 신청 전부) 완료된 협의를 재검토로 돌린다(불변식 7).
      * 대상은 2단계(협의 중·보완 요청) 신청만이다 — 3단계 최종 검토의 보충 답변은 담당자가 4단계 최종 확인에서 검증하며,
-     * 거기서 되돌릴 때는 4→3 차수 반환으로 재검토 표시를 만든다(docs/DEVIATIONS.md #13).
+     * 거기서 되돌릴 때는 4→3 차수 반환으로 재검토 표시를 만든다(docs/ARCHITECTURE.md 5장 #13).
      */
     @EventListener
     public void onAnswerChanged(AnswerChangedEvent event) {

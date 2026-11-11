@@ -1,10 +1,26 @@
 # 보안길잡이 · 백엔드
 
+개발자 안내: [개발·유지보수 가이드](docs/README.md) · [적용 규칙](docs/RULES_GUIDE.md) · [DB·설치 설정](docs/DEVELOPMENT_MAINTENANCE.md) · [LLM 구성 변경](docs/LLM_CONFIGURATION.md)
+
+**2026년 공공 AI 대전환 챌린지 제출작**
+
 **사업 기획부터 보안 서류 확정까지, 담당자 협의를 연결하는 업무 서버입니다.**
 
 보안길잡이(SecurityAdvisor)의 인증·권한, 신청·협의, AI 연동, 문서 생성, 이력과 관리자 기능을 제공합니다. 이 저장소는 **백엔드 개발 원본과 OpenAPI 계약**을 관리합니다.
 
-> **심사·전체 서비스 실행:** 화면·DB·테스트 계정까지 포함한 [통합 배포 저장소](https://github.com/team-khfc/Security-Advisor)를 이용하세요. 여기서는 백엔드 개발과 단독 검증 방법을 안내합니다.
+> **심사·전체 서비스 실행:** 화면·DB·시연용 계정까지 포함한 [통합 배포 저장소](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor)를 이용하세요. 여기서는 백엔드 개발과 단독 검증 방법을 안내합니다.
+
+## 저장소별 역할과 유지보수
+
+**기능은 Front·Back에서 각각 개발하고, 검증된 버전을 SecurityAdvisor에 모아 Docker로 실행 가능한 형태로 배포합니다.**
+
+| 저장소 | 수정 대상 | 이용 대상 |
+|---|---|---|
+| [SecurityAdvisor-Front](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor-front) | 화면·입력·프론트 API 연결·모의 API·화면 검사 | 프론트 개발자 |
+| [SecurityAdvisor-Back](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor-back) | 업무 규칙·권한·DB 변경·AI 연동·문서 생성·OpenAPI 계약 | 백엔드 개발자 |
+| [SecurityAdvisor](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor) | 검증된 소스 스냅샷·통합 실행 설정·모의 데이터·배포 안내 | 배포 담당자·심사위원·서비스 실행자 |
+
+GitLab의 표시 이름과 복제되는 폴더 이름은 다를 수 있습니다. 명령은 각 저장소의 README가 있는 루트에서 실행합니다. 전체 서비스를 실행할 사람은 **SecurityAdvisor 하나만** 내려받으면 됩니다.
 
 ## 주요 기능
 
@@ -45,7 +61,7 @@ docker compose up -d         # 기존 데이터로 재실행
 
 ## 로컬 Java 개발
 
-준비물: **JDK 25**, 접근 가능한 PostgreSQL 17, Docker(통합 검사), Python 3(문서 검사). Gradle은 저장소의 Wrapper를 사용합니다.
+준비물: **JDK 25**, 접근 가능한 PostgreSQL 17, Docker(통합 검사). Gradle은 저장소의 Wrapper를 사용합니다.
 
 ```bash
 ./gradlew bootRun
@@ -90,12 +106,11 @@ docker compose up -d --no-deps app
 | AI·문서 | 사업별 `/interview-turns`, `/api/analysis-jobs`, `/api/generated-documents` |
 | 모델 관리 | `/api/llm-configurations`, `/api/llm-connection-tests` |
 
-요청·응답·권한·상태 코드는 [OpenAPI 계약](docs/api/openapi.yaml)을 기준으로 확인하세요. [계약 갱신 방법](docs/api/README.md), [프론트 연동 안내](docs/FRONTEND_HANDOFF.md)도 제공합니다.
+전체 경로와 설명은 [API 목록](docs/API.md)에 있습니다. 요청·응답·권한·상태 코드는 [OpenAPI 계약](docs/api/openapi.yaml)을 기준으로 확인하세요([계약 갱신 방법](docs/api/README.md)).
 
 ## 검사
 
 ```bash
-python3 tools/check_doc_versions.py
 ./gradlew check
 ```
 
@@ -114,20 +129,28 @@ src/main/java/kr/securityadvisor/
   notification/ audit/ insight/ 알림·감사·지표
 src/main/resources/db/migration/ 데이터베이스 변경 이력
 src/test/                       단위·API·업무 흐름 검사
-docs/api/                       OpenAPI 계약
+docs/                           구조·API 목록·DB 명세·OpenAPI 계약·지식 데이터
 ```
 
-기능별로 controller → service → domain/repository를 구분하고, 업무 규칙을 도메인에 둡니다. 최신 테이블·제약은 마이그레이션이 기준입니다.
+기능별로 controller → service → domain/repository를 구분하고, 업무 규칙을 도메인에 둡니다. 최신 테이블·제약은 마이그레이션이 기준이며, 정리한 표와 ERD는 [DB 명세](docs/DATABASE.md)에 있습니다.
+
+## 변경 후 통합 배포에 반영하기
+
+1. 이 저장소의 최신 main에서 작업 브랜치를 만듭니다. 업무·권한·AI 처리와 DB 변경을 수정하고 `./gradlew check`로 확인합니다. 기존에 배포된 Flyway 파일은 수정하지 않고 새 마이그레이션을 추가합니다. API가 바뀌면 `docs/api/openapi.yaml`과 관련 문서를 함께 갱신합니다.
+2. API 변경은 Back을 먼저 검토하고 Front의 대응 변경을 연결합니다. GitLab에서는 Merge Request(MR), GitHub에서는 Pull Request(PR)로 변경 이유와 검사 결과를 남깁니다.
+3. 검토·검사 후 main에 병합하고 배포할 커밋에 새 릴리스 태그를 지정합니다. 이미 배포한 태그를 다른 커밋으로 옮기지 않습니다.
+4. SecurityAdvisor에서 해당 버전의 스냅샷을 갱신하고 `RELEASE.md`와 `snapshots.json`에 출처를 기록합니다. 통합 실행·업무 흐름 검증 후 배포합니다.
+
+**이 저장소에 커밋하거나 main에 병합하는 것만으로 SecurityAdvisor나 실행 중인 Docker가 자동 갱신되지는 않습니다.** 통합 저장소의 `front/`·`back/`를 직접 고치면 개발 원본과 배포본이 달라지므로, 기능 수정은 반드시 원본에서 시작합니다.
+
+자세한 교체 범위·검증·업데이트 방법은 [통합 배포 유지보수 안내](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor/-/blob/main/README.md#개발부터-통합-배포까지)를 따릅니다. GitLab 업로드 보안 검사와 애플리케이션의 빌드·업무 검사는 서로 다른 검사입니다.
 
 ## 참고 문서
 
-- [업무 명세](FUNCTIONAL_SPEC.md) · [개발 규칙](AGENTS.md) · [기여 안내](CONTRIBUTING.md)
-- [구조](docs/ARCHITECTURE.md) · [설계 결정](docs/adr/) · [시큐어코딩](SECURE_CODING.md)
-- [GPT 근거 검증](docs/GPT_SUMMARY_EVIDENCE_20261111.md) · [출력 한도 처리](docs/CONSULTATION_SUMMARY_LIMIT_20261111.md)
-- [통합 배포](https://github.com/team-khfc/Security-Advisor) · [프론트 원본](https://github.com/team-khfc/Security-Advisor-Front)
+- [구조·설계 결정·명세와 다른 점](docs/ARCHITECTURE.md) — 처음 받았다면 이 문서부터 읽습니다
+- [API 목록](docs/API.md) · [DB 명세·ERD](docs/DATABASE.md) · [OpenAPI 계약](docs/api/openapi.yaml)
+- [지식 조각 데이터와 등록 방법](docs/knowledge/README.md)
+- [업무 명세](FUNCTIONAL_SPEC.md) · [개발 규칙](AGENTS.md) · [코드 스타일](CODING_STYLE.md) · [시큐어코딩](SECURE_CODING.md) — 2026-11-07 사본
+- [통합 배포](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor) · [프론트 원본](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor-front)
 
-개별 검증 기록은 작성 시점의 결과입니다. 제출 버전의 출처와 통합 검증은 배포 저장소의 `RELEASE.md`와 `docs/JUDGE_VALIDATION.md`를 확인하세요.
-
-## 메일 알림의 암호화
-
-메일 알림은 SMTP_HOST와 발신 주소가 있을 때만 활성화됩니다. `SMTP_STARTTLS=true`는 STARTTLS를 반드시 지원하는 서버(보통 587번), `false`는 처음부터 TLS로 연결하는 서버(보통 465번)를 사용합니다. 평문 릴레이는 지원하지 않으며 인증서 신뢰와 서버 이름을 검증합니다. 사설 인증서 환경에서는 JVM 신뢰 저장소를 구성해야 합니다.
+설계 결정 기록(ADR)과 작업별 검증 기록은 `docs/ARCHITECTURE.md` 4~6장으로 요약해 옮겼고 원문은 git 이력에 있습니다. 제출 버전의 출처와 통합 검증은 배포 저장소의 `RELEASE.md`와 `docs/JUDGE_VALIDATION.md`를 확인하세요.

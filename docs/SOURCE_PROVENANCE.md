@@ -1,5 +1,7 @@
 # 규칙 문서 원본과 공개본 출처
 
+이번 동기화: 2026-11-11 사용자 제공 수정 공개 ZIP 기반. 아래 표의 제공 원본은 수정 ZIP의 공개 문서이며 비공개 원문을 의미하지 않는다. 기존 본문 중 이전 동기화일·치환 설명은 당시 기록으로 보존한다.
+
 동기화 작업일: 2026-11-10 · 원본 개정일: 2026-11-07 (`design.md`는 2026-11-06)
 
 ## 공개본 변환 범위
@@ -16,14 +18,14 @@
 
 | 문서 | 기준 버전 | 원본 개정일 | 제공 원경로 | 원본 SHA-256 | 공개본 SHA-256 | 비식별 변환 |
 |---|---|---|---|---|---|---|
-| PROJECT_CONTEXT.md | v3.5 | 2026-11-07 | project_sources/07-PROJECT_CONTEXT.md | a13b836cce3589685ea0d1997c2d8a23b3d2acb8e05708dd9e84b2c17b53a4d6 | c4641a23d8bdd58a29ec0bcf7b32c03710228a60cce7ba6157c75c9e75696948 | 실명 5곳, 개인 이메일 0곳, 역할·조사 정리 3곳 |
-| FUNCTIONAL_SPEC.md | v1.12 | 2026-11-07 | project_sources/06-FUNCTIONAL_SPEC.md | 12a0706e915502331a849245cfdab92cc5311d782274078cb5d6f056c7ddacca | 12a0706e915502331a849245cfdab92cc5311d782274078cb5d6f056c7ddacca | 실명 0곳, 개인 이메일 0곳, 역할·조사 정리 0곳 |
-| AGENTS.md | v1.17 | 2026-11-07 | project_sources/02-AGENTS.md | 8ccb9919b00c9d615aa278aa9d63aa18eeacf178af0f461a94522ab80ace1b19 | a50a5ca711f9f3692d29a79ed6e321b2ebfba6671d25a8c06f433e91b3685741 | 실명 2곳, 개인 이메일 0곳, 역할·조사 정리 2곳 |
-| PROJECT_RULES.md | v1.15 | 2026-11-07 | project_sources/08-PROJECT_RULES.md | bb5df13e3f7a17bb476c574c6d86b30b4d5f28756a94e5b82b556c64be27b141 | 7b8f40f693689ad9b9806969fcb4d87f279d24b1037da57e329fe9a6dda2bffc | 실명 28곳, 개인 이메일 5곳, 역할·조사 정리 10곳 |
-| CODING_STYLE.md | v0.6 | 2026-11-07 | project_sources/03-CODING_STYLE.md | 4b3114acb719da4871c14407197a0497d6bc50e487a8f6499f1a09fb9ab52464 | 4b3114acb719da4871c14407197a0497d6bc50e487a8f6499f1a09fb9ab52464 | 실명 0곳, 개인 이메일 0곳, 역할·조사 정리 0곳 |
-| SECURE_CODING.md | v1.5 | 2026-11-07 | project_sources/09-SECURE_CODING.md | 5c9211724412bdcd471279d76cc5c41cbb157b36af4d4de93daa31a4972cd774 | 5c9211724412bdcd471279d76cc5c41cbb157b36af4d4de93daa31a4972cd774 | 실명 0곳, 개인 이메일 0곳, 역할·조사 정리 0곳 |
-| CONTRIBUTING.md | v0.17 | 2026-11-07 | project_sources/04-CONTRIBUTING.md | 0de2942ba6045aeac613c22405f8419b433b67a90326876abbb3c50ca115a9ca | e296bf389fdd2ec47c8550d3691e97ef153605510f2b0dcd1421c2a12faf05f2 | 실명 9곳, 개인 이메일 0곳, 역할·조사 정리 1곳 |
-| design.md | v3.1 | 2026-11-06 | project_sources/05-design.md | 5dbc2fbb05decc7e9a98523b3f103e2b21d78d6191bbe6826fcce678afc802c1 | 5dbc2fbb05decc7e9a98523b3f103e2b21d78d6191bbe6826fcce678afc802c1 | 실명 0곳, 개인 이메일 0곳, 역할·조사 정리 0곳 |
+| PROJECT_CONTEXT.md | v3.11 | 2026-11-11 | 개정 공개 ZIP/PROJECT_CONTEXT.md | abddce8657244e026b42e2703df7ec3dfff4af4a760b148201887e72a946ce21 | 66635984225b1e40492d4a51e3c58a0c0b6cce43c26eafd617ffe713fe1d8cc4 | 승인된 규칙 동기화·가이드 경로 보완 |
+| FUNCTIONAL_SPEC.md | v1.14 | 2026-11-11 | 개정 공개 ZIP/FUNCTIONAL_SPEC.md | 266524fa7e254ecde089db0dd3ebded183eaba4d300674b1df9ed2131078db7b | 97e320aeaacc50f346f5d17d8d7864949cf276abea5d3f5a7053f77e0fa126b5 | 승인된 규칙 동기화·가이드 경로 보완 |
+| AGENTS.md | v1.22 | 2026-11-11 | 개정 공개 ZIP/AGENTS.md | d0482d2e445b171f8fd910e8f7cdc08b31f4eae1035c06e02eaa541696ed7f6e | d762830dc0acce9e2cb758669a006d2867862f841f771b1fd8230830c30b6d5c | 승인된 규칙 동기화·가이드 경로 보완 |
+| PROJECT_RULES.md | v1.19 | 2026-11-11 | 개정 공개 ZIP/PROJECT_RULES.md | c1dd96ce097b54660aaddec548255849bcb186a3d1f80a67da192d9d7481b871 | 0ae9bee638af245dc6ba518a363d469675c45d06d31e51d2f0a7cd98c41a7f51 | 승인된 규칙 동기화·가이드 경로 보완 |
+| CODING_STYLE.md | v0.7 | 2026-11-11 | 개정 공개 ZIP/CODING_STYLE.md | 5881164fe0d50083306598b2e3dbbf0617d5c7516e41a7a5c5e4218a119f914b | 5881164fe0d50083306598b2e3dbbf0617d5c7516e41a7a5c5e4218a119f914b | 승인된 규칙 동기화·가이드 경로 보완 |
+| SECURE_CODING.md | v1.5 | 2026-11-07 | 개정 공개 ZIP/SECURE_CODING.md | 5c9211724412bdcd471279d76cc5c41cbb157b36af4d4de93daa31a4972cd774 | 5c9211724412bdcd471279d76cc5c41cbb157b36af4d4de93daa31a4972cd774 | 승인된 규칙 동기화·가이드 경로 보완 |
+| CONTRIBUTING.md | v0.20 | 2026-11-11 | 개정 공개 ZIP/CONTRIBUTING.md | 049c174285a258ea67e1e24b1869e9299ad15a58958d24fd6b457862e28fb23b | d93b9c26510d3ef1b7ff3ef915fbec03d120ba6f8fec273b547fa0e532596974 | 승인된 규칙 동기화·가이드 경로 보완 |
+| design.md | v3.1 | 2026-11-06 | 개정 공개 ZIP/design.md | 5dbc2fbb05decc7e9a98523b3f103e2b21d78d6191bbe6826fcce678afc802c1 | 5dbc2fbb05decc7e9a98523b3f103e2b21d78d6191bbe6826fcce678afc802c1 | 승인된 규칙 동기화·가이드 경로 보완 |
 
 `claude/INSTRUCTIONS.md`는 사용자가 대화에 직접 제공한 **v1.14 · 2026-11-07** 요약 지침의 제목부터 작업 태도 끝까지 옮겼다. 첨부 파일 8종의 해시 표와 구분하며, 전달된 요약 지침의 개인정보 치환이나 업무 내용 수정은 없었다. 공개본 SHA-256은 `1327b6ce23b625a6df2704c041a11bd0719d4a0000ea049be0af625b997e1715`이다.
 

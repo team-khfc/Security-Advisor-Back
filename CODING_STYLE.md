@@ -1,6 +1,6 @@
 # 보안길잡이 코딩 스타일
 
-v0.6 · 2026-11-07 · Lombok 허용 목록 반영(1장 Java) · 이력은 문서 끝 "변경 이력" · 채택·수정은 PR로
+v0.7 · 2026-11-11 · 중복 정리 — Spring Boot 작성 규칙과 프론트 데이터 접근 규칙을 AGENTS.md 5·6장 링크로 · 이력은 문서 끝 "변경 이력" · 채택·수정은 PR로
 
 팀 기준은 **Google 공식 스타일 가이드 준수**다(팀장 확정, 2026-11-05). Google 원문에서 필요한 규칙을 채택하고 React·Next.js·Spring Boot에 맞춰 보완한다. 아래 `[G]`는 Google 원문 기반, `[P]`는 프로젝트 선택·예외, `[F]`는 프레임워크 요구다. Google 문서의 후속 변경을 개발 중인 코드에 자동 적용하지 않는다. 보안 관련 작성 규칙은 SECURE_CODING.md가 같은 비중의 기준이다.
 
@@ -30,12 +30,11 @@ v0.6 · 2026-11-07 · Lombok 허용 목록 반영(1장 Java) · 이력은 문서
 
 ### Spring Boot 프로젝트 규칙
 
-- `[P]` 생성자 주입만 사용(@Autowired 필드 주입 금지). Lombok은 AGENTS.md 5장의 허용 목록만 쓰고(`@Getter`·`@RequiredArgsConstructor`·`@NoArgsConstructor(PROTECTED)`·`@Slf4j`), 금지 항목은 `lombok.config`로 컴파일 오류가 나게 한다. google-java-format은 Lombok 애너테이션을 일반 애너테이션처럼 정렬한다.
-- `[P]` 요청·응답은 record DTO(XxxRequest/XxxResponse). 엔티티를 API 응답으로 직접 내보내지 않고 XxxResponse.from(entity)로 변환한다.
-- `[P]` Controller는 입출력, Service는 업무 검증·트랜잭션(@Transactional 규칙은 AGENTS.md 5장), Repository는 저장소를 맡는다. 계층 의존 방향은 ArchUnit이 강제한다.
-- `[P]` Map<String, Object>·JsonNode로 운영 계약을 대신하지 않는다. 오류는 GlobalExceptionHandler → ProblemDetail로 모은다.
+Spring Boot 작성 규칙의 원본은 AGENTS.md 5장이다 — 생성자 주입·Lombok 허용 목록·record DTO·엔티티 작성·트랜잭션·예외 처리(ProblemDetail)는 "코딩 규칙", 계층별 책임과 의존 방향은 "계층과 의존 방향", 업무 규칙을 두는 곳은 "도메인 주도 설계". 이 문서에는 거기에 없는 것만 둔다.
+
+- `[P]` google-java-format은 Lombok 애너테이션을 일반 애너테이션처럼 정렬한다.
+- `[P]` Map<String, Object>·JsonNode로 운영 계약을 대신하지 않는다.
 - `[P]` 단순히 클래스 수를 늘리는 Service/ServiceImpl 쌍을 강제하지 않는다. 대체 구현·테스트 경계 등 실제 필요가 있을 때 인터페이스를 둔다.
-- `[P]` 엔티티는 BaseTimeEntity 상속, @Table 명시, protected 기본 생성자, setter 대신 의미 있는 메서드.
 
 ## 3. TypeScript·React — Google TS 가이드 기반, 프로젝트 예외 명시
 
@@ -55,8 +54,7 @@ v0.6 · 2026-11-07 · Lombok 허용 목록 반영(1장 Java) · 이력은 문서
 - printWidth 100은 팀이 선택한 목표 폭이다. Google 공식 규칙이라고 표현하지 않으며, Prettier 출력이 Google의 모든 세부 규칙과 동일하지도 않다.
 - 파일명 규칙은 v0.2의 kebab-case에서 **camelCase/PascalCase 체계로 변경**되었다(개발자 규칙 채택). 기존 kebab-case 파일의 일괄 개명은 전용 리팩터링 PR에서만 한다.
 - `[P]` React state 직접 변경 금지. 비동기 호출은 로딩·실패·취소/경합 상태를 고려한다.
-- `[P]` 서버 데이터는 TanStack Query 훅으로만, HTTP는 공통 httpClient(requestJson)로만. 일반 컴포넌트에서 HTTP 호출·업무 전이·출력을 한 함수에 섞지 않는다.
-- `[F/P]` use client는 브라우저 기능이 필요한 경계에만. 클라이언트 번들에 서버 비밀값 금지.
+- `[P]` 서버 데이터 접근(TanStack Query 훅·공통 httpClient)과 use client 경계는 AGENTS.md 6장이 원본이다. 일반 컴포넌트에서 HTTP 호출·업무 전이·출력을 한 함수에 섞지 않는다.
 - `[P]` 권한 표시와 실제 권한 검사를 구분한다. UI에서 버튼을 숨기는 것으로 서버 보호를 대체하지 않는다.
 - `[P]` hooks의 조건부 호출·누락된 의존성을 임의 suppression으로 숨기지 않는다. 예외는 이유와 검증 근거를 남긴다.
 - `[P]` KRDS 원본 토큰을 수정하지 않고 프로젝트 별칭과 공통 UI를 사용한다. 시각 규칙은 design.md, 화면 참고 원본은 prototype-soo의 최신 디자인 시안(디자이너 작업 영역, 수시 변경 — 구현 직전 확인, AGENTS.md 6장). 시안의 시연용 코드(브라우저 저장소, CDN 로딩)를 그대로 옮기지 않는다.
@@ -99,6 +97,7 @@ v0.6 · 2026-11-07 · Lombok 허용 목록 반영(1장 Java) · 이력은 문서
 
 | 버전 | 날짜 | 변경 |
 |---|---|---|
+| v0.7 | 2026-11-11 | 중복 정리 — "Spring Boot 프로젝트 규칙"에서 AGENTS.md 5장과 같은 항목(생성자 주입·Lombok·record DTO·계층 책임·예외 처리·엔티티)을 빼고 링크로, 3장의 서버 데이터 접근·use client 항목은 AGENTS.md 6장 링크로. "Service는 업무 검증" 표현은 AGENTS.md 5장(업무 규칙은 domain 계층)과 어긋나 링크로 바꾸면서 뺐다 |
 | v0.6 | 2026-11-07 | Lombok 허용 목록 반영(1장 Java) |
 | v0.5 | 2026-11-07 | 적용 저장소를 Security-Advisor-Back(Java)·Front(TS)로 변경 |
 | v0.4 | — | 화면 참고 원본을 prototype-soo 최신 시안으로 변경 |
