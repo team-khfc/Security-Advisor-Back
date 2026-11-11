@@ -1,15 +1,17 @@
 # AGENTS.md — SecurityAdvisor(보안길잡이)
 
-v1.17 · 2026-11-07 · 중복 정리 — 1장 업무 서술·15장 결정 표 제거(원본 링크), 후속 작업은 BACKLOG.md, Java 25 재확정(Docker 이미지 포함), Lombok 허용 목록 · 이력은 문서 끝 "변경 이력" · 기반: 메인 개발자 작성 개발 규칙(1~10장) + 업무·대회 규칙(11~14장) · 채택·수정은 이 파일을 고치는 PR로
+v1.22 · 2026-11-11 · 저장소 규칙 동기화·개발 실행 설명 일치 · 상세 변경은 docs/RULES_CHANGELOG.md
 
 사람과 AI 에이전트(Claude Code, Codex, Cursor, Copilot 등)가 함께 지키는 규칙이다. 작업을 시작하기 전에 이 파일을 끝까지 읽는다.
+
+**구현 편차 안내(2026-11-11):** 답변 변경 후 재검토 범위·재신청·서류 유형별 확정 주체 등에서, 현재 구현이 이 문서·FUNCTIONAL_SPEC.md와 다른 항목이 있다. 목록과 결정 주체는 PROJECT_CONTEXT.md 8장에 있다. 결정 전까지 이 문서의 규칙 문구는 그대로 둔다.
 
 ## 0. 저장소 정책
 
 | 저장소 | 역할 |
 |---|---|
-| **team-khfc/Security-Advisor-Back** | **백엔드 개발 저장소.** 서버·DB 개발: Spring Boot 애플리케이션, Flyway 마이그레이션, seed 데이터, 개발용 `compose.yaml`(DB만), **OpenAPI 계약 파일(`docs/api/openapi.yaml`)**, `docs/adr/`, `docs/glossary.md`(팀 공통 용어집), `Dockerfile` |
-| **team-khfc/Security-Advisor-Front** | **프론트엔드 개발 저장소.** 화면 개발: Next.js 애플리케이션, 화면·컴포넌트, 프론트 테스트, **모의 API(합성 데이터)**, `Dockerfile`. API 타입은 Back의 OpenAPI 계약을 따른다 |
+| **team-khfc/Security-Advisor-Back** | **백엔드 개발 저장소.** 서버·DB 개발: Spring Boot 애플리케이션, Flyway 마이그레이션, seed 데이터, 개발용 `compose.yaml`(DB·앱), **OpenAPI 계약 파일(`docs/api/openapi.yaml`)**, `docs/adr/`, `docs/glossary.md`(팀 공통 용어집), `Dockerfile` |
+| **team-khfc/Security-Advisor-Front** | **프론트엔드 개발 저장소.** 화면 개발: Next.js 애플리케이션, 화면·컴포넌트, 프론트 테스트, **모의 API(모의 데이터)**, `Dockerfile`. API 타입은 Back의 OpenAPI 계약을 따른다 |
 | **team-khfc/Security-Advisor** | **완성본·배포 저장소(공공GitLab 제출 대상).** Back·Front의 릴리스 태그 시점 코드를 `back/`·`front/`에 **스냅샷으로 복사**하고, 전체 실행용 `compose.yaml`(DB·Back·Front), `.env.example`, README·구동안내서, `RELEASE.md`(스냅샷 출처 태그·커밋)를 둔다. 사용자는 이 저장소 하나만 받아 Docker로 실행한다. **여기서 기능을 개발·수정하지 않는다** |
 | **team-khfc/prototype** | **개발 작업 시작점.** 선행 Next.js 화면·도메인 검사 15종(프론트 기반), 초기 백엔드 예제(참고). 산출물은 Back·Front 저장소로 나눠 가져온다. 이 저장소의 `보안길잡이 디자인시안 프로토타입/`은 이전 시안이라 참고하지 않는다 |
 | **team-khfc/prototype-soo** | **디자인 시안 원본(디자인 담당 작업 영역).** 화면 시안·공통 스타일·`docs/design.md` 원본. 미리보기 https://team-khfc.github.io/prototype-soo/ . **디자이너가 언제든 고칠 수 있으므로** 화면 구현 직전에 기본 브랜치 최신본과 `MERGE_NOTES.md`를 확인한다. 디자이너만 수정 |
@@ -18,8 +20,8 @@ v1.17 · 2026-11-07 · 중복 정리 — 1장 업무 서술·15장 결정 표 �
 
 - **개발은 분리한다.** 서버·DB는 **Security-Advisor-Back**, 화면은 **Security-Advisor-Front**에서만 개발한다. 한 저장소에 다른 쪽 코드를 넣지 않는다.
 - **각자 독립적으로 개발·테스트한다.** 상대 저장소를 내려받거나 실행하지 않아도 자기 저장소의 개발 서버와 검사가 돌아가야 한다.
-  - Back: 개발용 `compose.yaml`로 DB만 띄우고 `./gradlew bootRun`, 검사는 Testcontainers(`./gradlew check`). API 확인은 Swagger UI.
-  - Front: **모의 API 모드가 기본**이다(MSW 등, Back의 OpenAPI 계약과 같은 모양의 합성 데이터). `npm run dev`는 Back 없이 동작하고, 실제 Back과 붙여 볼 때만 서버 측 환경변수로 `/api/*`를 Back에 프록시한다(Next.js rewrites, `NEXT_PUBLIC_` 변수 사용 금지 — 세션 쿠키가 같은 출처로 유지됨). 프론트 테스트는 Back 없이 통과해야 한다.
+  - Back: `docker compose up -d --build`로 DB·앱을 함께 실행하거나, 호스트에서 접근 가능한 DB를 별도로 준비해 `./gradlew bootRun`, 검사는 Testcontainers(`./gradlew check`). API 확인은 Swagger UI.
+  - Front: **모의 API 모드가 기본**이다(MSW 등, Back의 OpenAPI 계약과 같은 모양의 모의 데이터). `npm run dev`는 Back 없이 동작하고, 실제 Back과 붙여 볼 때만 서버 측 환경변수로 `/api/*`를 Back에 프록시한다(Next.js rewrites, `NEXT_PUBLIC_` 변수 사용 금지 — 세션 쿠키가 같은 출처로 유지됨). 프론트 테스트는 Back 없이 통과해야 한다.
 - **API 계약이 경계다.** Back이 `docs/api/openapi.yaml`을 저장소에 커밋해 소유하고(코드와 다르면 Back CI 실패), Front는 그 파일을 Back 태그·커밋과 함께 복사해 타입·모의 API를 만든다. 계약 변경은 Back PR이 먼저이고, Front PR 설명에 Back PR 링크와 계약 버전을 적는다. 양쪽에 걸친 기능은 저장소마다 이슈를 만들고 서로 링크한다.
 - **완성본·배포는 Security-Advisor 하나로 한다.** Back·Front 릴리스 태그 시점 코드를 `back/`·`front/`에 스냅샷으로 복사하고, Security-Advisor의 `compose.yaml`이 DB·Back·Front를 빌드·실행한다(multi-stage — 사용자는 Docker만 필요). 릴리스 절차의 원본은 CONTRIBUTING.md 2장, 실행 명령은 2장.
 - **Security-Advisor에서는 기능을 고치지 않는다.** `back/`·`front/`는 스냅샷이므로 직접 수정하지 않고, 수정이 필요하면 Back·Front에서 고친 뒤 새 태그로 스냅샷을 갱신한다. 이 저장소에서 바꾸는 것은 compose·`.env.example`·README·구동안내서·`RELEASE.md`·통합 smoke 검사뿐이다.
@@ -37,22 +39,22 @@ v1.17 · 2026-11-07 · 중복 정리 — 1장 업무 서술·15장 결정 표 �
 | 영역 | 기술 |
 |---|---|
 | 백엔드 | **Java 25 (LTS)**, Spring Boot 4.1 (Spring MVC), Spring Data JPA, Flyway, Gradle (Kotlin DSL), Lombok(허용 목록만 — 5장) |
-| AI 프레임워크 | **Spring AI 2.0** (ChatClient·ChatModel, PGVector VectorStore) — 공통 LLM 어댑터 뒤에서 사용, 버전 고정 |
+| AI 프레임워크 | **Spring AI 2.0** (ChatClient·ChatModel) — 공통 LLM 어댑터 뒤에서 사용, 버전 고정. VectorStore(PGVector)는 쓰지 않는다 |
 | 프론트엔드 | Node 22/24, React 19, TypeScript 5.9, **Next.js (App Router)**, TanStack Query 5 — Vite 미사용(2026-11-05 협의 확정) |
-| DB | PostgreSQL 17 (+ pgvector) |
+| DB | PostgreSQL 17 — 공개자료 검색은 전문검색(FTS), pgvector 미사용(2026-11-08 결정, ADR 0006) |
 | 실행 환경 | Docker Compose |
 
-버전과 선택 이유는 docs/adr/0001-tech-stack.md(스택)와 docs/adr/0002-spring-ai.md(AI 프레임워크)에 있다. 버전을 올릴 때는 그 문서도 고친다. Gradle toolchain과 Docker 베이스 이미지(예: `eclipse-temurin:25`)를 Java 25로 고정한다(2026-11-07 재확정 — Java 21 전환 안은 채택하지 않음). 포맷터·플러그인·Lombok은 Java 25를 지원하는 버전을 저장소 설정에 고정한다.
+버전과 선택 이유는 docs/adr/0001-tech-stack.md(스택)와 docs/adr/0002-spring-ai.md(AI 프레임워크)에, 공개자료 검색 방식은 docs/adr/0006-lexical-rag-without-pgvector.md에 있다. 버전을 올릴 때는 그 문서도 고친다. Gradle toolchain과 Docker 베이스 이미지(예: `eclipse-temurin:25`)를 Java 25로 고정한다(2026-11-07 재확정 — Java 21 전환 안은 채택하지 않음). 포맷터·플러그인·Lombok은 Java 25를 지원하는 버전을 저장소 설정에 고정한다.
 
 ## 2. 자주 쓰는 명령
 
 ```bash
 # Security-Advisor-Back — 백엔드 개발(Front 불필요)
-docker compose up -d db                      # 개발용 DB만 실행
-./gradlew bootRun                            # 백엔드 실행 → http://localhost:8080 (Swagger UI로 확인)
+cp .env.example .env                         # 최초 실행에만 복사, 기존 .env 보존
+docker compose up -d --build                 # DB·백엔드 실행 → http://localhost:8080
 
 # Security-Advisor-Front — 프론트 개발(Back 불필요)
-npm install && npm run dev                   # 모의 API 모드(기본, 합성 데이터)
+npm install && npm run dev                   # 모의 API 모드(기본, 모의 데이터)
 npm run dev:api                              # 실제 Back에 연결(서버 측 환경변수 API_BASE_URL로 /api 프록시)
 
 # Security-Advisor — 완성본 실행(사용자·심사위원, Docker만 필요)
@@ -69,6 +71,10 @@ npm run format && npm run check      # Front: 포맷 정리 + 타입 + 린트 + 
 ```
 
 Security-Advisor는 스냅샷 갱신 PR마다 `docker compose up -d --build` 후 통합 smoke 검사(로그인 → 신청 생성 → 조회)를 실행하고, 결과를 PR에 적는다.
+
+**제출 전 한시 축소:** 2026-11-10부터 11.11 제출 메일 발송까지는 건별 검사 범위를 줄이고 스냅샷을 묶어서 갱신한다. 범위·조건·종료는 CONTRIBUTING.md 4-1이 원본이다. 제출 후에는 이 장의 검사를 모두 다시 적용한다.
+
+로컬 Java 실행은 JDK 25와 접근 가능한 PostgreSQL이 별도로 필요하다. 기본 compose의 DB는 호스트 포트를 공개하지 않으므로 `docker compose up -d db`만으로 호스트의 `bootRun`이 localhost:5432에 연결되지는 않는다. 로컬 DB 또는 개발용 포트 공개 설정을 준비하고 `DB_URL`·`DB_USERNAME`·`DB_PASSWORD`를 프로세스 환경에 지정한다.
 
 백엔드 개발자는 JDK 25와 JAVA_HOME을, 프론트 개발자는 Node를 준비한다(완성본 실행에는 Docker만 필요). 백엔드 테스트는 Testcontainers로 실제 PostgreSQL을 띄우므로 Docker가 실행 중이어야 한다.
 구성이 바뀌어 명령·포트가 달라지면 이 장과 README를 같은 PR에서 갱신한다. 문서의 명령이 실제 구성과 다르면 차이를 보고한다.
@@ -96,7 +102,7 @@ docs/                # 설계 문서, ADR(결정 기록), glossary.md(팀 공통
 app/                 # Next.js App Router 라우트
 features/<기능>/     # 백엔드 컨텍스트와 같은 이름의 기능 폴더
 components/ui/  lib/
-mocks/               # 모의 API(합성 데이터) — 계약 사본 기준
+mocks/               # 모의 API(모의 데이터) — 계약 사본 기준
 contract/openapi.yaml  # Back 계약 사본(출처 태그·커밋 기록)
 Dockerfile
 
@@ -123,7 +129,7 @@ compose.yaml  .env.example  README.md  RELEASE.md
 
 - **바운디드 컨텍스트:** 기능 패키지 하나가 컨텍스트 하나다(FUNCTIONAL_SPEC.md 1장 도메인 맵 기준). 컨텍스트 간 참조는 ID와 공개 서비스 인터페이스로만 하고, 다른 컨텍스트의 엔티티를 직접 조회·수정하지 않는다.
 - **유비쿼터스 언어:** 코드 식별자는 기획의 업무 용어에 대응하는 영어를 쓴다(사업 건 BusinessCase, 신청 SecurityRequest, 답변 범위 AnswerScope, 협의 Review, 보완 Supplement, 제출본 Submission, 게시본 Publication, 출처 ValueSource, 배정 Assignment, 처리 기한 Deadline, 감사 이력 AuditEvent, 방화벽 규칙 FirewallRule, 알림 Notification 등 — FUNCTIONAL_SPEC.md 2장). 대응표는 docs/glossary.md로 관리하고, 새 용어는 기획 담당자·팀장과 합의 후 추가한다. 같은 개념에 두 이름을 쓰지 않는다.
-- **도메인 불변식:** 업무 규칙은 domain 계층이 지킨다. 상태 전이는 setter가 아니라 의미 있는 도메인 메서드(`complete()`, `submit()`, `publish()`)로 표현하고, 불변식 위반(미확정 값이 있는 제출, 협의 미완료 제출, 사유 없는 차수 반환·종결·철회, 할당 완료를 협의 완료로 취급 등 — FUNCTIONAL_SPEC.md 5장)은 도메인 예외로 막는다. **11장 업무 불변 원칙은 곧 도메인 불변식이다.**
+- **도메인 불변식:** 업무 규칙은 domain 계층이 지킨다. 상태 전이는 setter가 아니라 의미 있는 도메인 메서드(`complete()`, `submit()`, `publish()`)로 표현하고, 불변식 위반(미확정 값이 있는 제출, 협의 미완료 제출, 사유 없는 차수 반환·종결·철회, 자원 정보 입력을 협의 완료로 취급 등 — FUNCTIONAL_SPEC.md 5장)은 도메인 예외로 막는다. **11장 업무 불변 원칙은 곧 도메인 불변식이다.**
 - **애그리거트:** 리포지토리는 애그리거트 루트 단위로만 둔다. 다른 애그리거트는 ID로 참조한다. 예: BusinessCase와 SecurityRequest는 같은 `request` 컨텍스트에 있지만 별개 애그리거트이며, 신청은 caseId만 가진다. 사업 건의 진행 상태는 저장하지 않고 하위 신청에서 계산한다. 한 트랜잭션은 한 애그리거트 변경을 원칙으로 하고, 여러 애그리거트에 걸친 변화는 애플리케이션 서비스가 조율하거나 도메인 이벤트를 쓴다.
 - **프레임워크 비의존:** domain 계층은 Spring Web·Spring AI 타입에 의존하지 않는다(JPA 애너테이션은 허용). ArchUnit 규칙으로 검사한다.
 - **실용 범위:** 11.11까지는 전술 패턴(애그리거트·도메인 메서드·불변식·용어집)까지만 적용한다. 이벤트 소싱·CQRS 같은 무거운 패턴은 도입하지 않는다(필요해지면 ADR로 결정).
@@ -195,7 +201,7 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 | 문서 분석 요청 | `POST /api/business-cases/{id}/analysis-jobs` → 202 + `Location` | — |
 | 답변 수정 | `PATCH /api/answers/{id}` | Answer.update |
 | 협의 요청(1→2단계, 자동 배정) | `POST /api/security-requests/{id}/reviews` | requestReview |
-| 할당 완료 / 협의 완료 | `PUT /api/reviews/{id}/allocation-completion` / `PUT /api/reviews/{id}/completion` | completeAllocation / complete |
+| 분야 협의 완료 | `PUT /api/reviews/{id}/completion` | complete |
 | 보완 요청 / 보완 답변 | `POST /api/security-requests/{id}/supplements` / `POST /api/supplements/{id}/answers` | requestSupplement / answer |
 | 차수 반환 | `POST /api/security-requests/{id}/stage-returns`(사유·지정 항목) | returnToStage |
 | 제출 | `POST /api/security-requests/{id}/submissions` + `Idempotency-Key` | submit |
@@ -245,8 +251,7 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 
 ## 6. 프론트엔드 규칙
 
-- 컴포넌트는 함수 컴포넌트 + named export를 쓴다(export function ProcedureList). 단, **Next.js가 요구하는 특수 파일(page.tsx, layout.tsx, next.config 등)은 default export를 유지한다** — 이 예외는 ESLint 설정에도 반영한다.
-- 파일명: 컴포넌트 PascalCase.tsx, 훅 useXxx.ts, 그 외 camelCase.ts, 테스트 <대상>.test.tsx.
+- 컴포넌트는 함수 컴포넌트로 만든다(export function ProcedureList). 내보내기(named export, Next.js 특수 파일의 default export 예외)·파일명·타입 작성 규칙은 CODING_STYLE.md 3장이 원본이다. 특수 파일 예외는 ESLint 설정에도 반영한다.
 - import: 기능 밖에서는 @/features/<기능>(index.ts)으로만 가져온다. 기능 안에서는 ./, ../ 상대 경로. 두 단계 이상(../../)은 @/ 별칭을 쓴다.
 - 서버 데이터는 TanStack Query 훅(useXxx)으로만 가져온다. fetch를 직접 쓰지 않고 공통 httpClient(requestJson)를 쓴다.
 - 프론트의 features/<기능>도 백엔드 바운디드 컨텍스트와 같은 이름·같은 용어(glossary.md)를 쓴다.
@@ -279,17 +284,17 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 - 브랜치: <종류>/<이슈번호>-<짧은-설명> (예: feat/12-review-complete). 종류: feat fix refactor docs test chore.
 - 커밋 메시지: <종류>(<범위>): <한국어 요약> (예: feat(review): 협의 완료 불변식 추가). 범위는 기능 이름 또는 infra(저장소가 나뉘어 있으므로 backend/frontend 범위는 쓰지 않는다). 다른 저장소의 PR·이슈와 연결되면 설명에 링크를 적는다.
 - PR 하나에는 이슈 하나만 담는다. 리뷰하기 어려울 만큼 크면 나눈다. 포맷 정리만 하는 변경은 따로 올린다.
-- PR을 올리기 전에 2장의 검사를 모두 통과시킨다.
+- PR을 올리기 전에 2장의 검사를 모두 통과시킨다(제출 전 한시 축소 기간에는 CONTRIBUTING.md 4-1의 건별 검사).
 
 ## 9. AI 에이전트 작업 규칙
 
 - 작업 전에: 이 파일과 FUNCTIONAL_SPEC.md(담당 기능 F-xx), 관련 기능 폴더를 읽고, 비슷한 기존 코드가 있는지 먼저 찾는다. 있으면 재사용한다.
-- **작업 전 버전 확인:** 참조하는 규칙 문서(이 파일, FUNCTIONAL_SPEC.md, SECURE_CODING.md, design.md 등)의 머리말 버전이 PROJECT_CONTEXT.md 5장 기준 버전 표와 같은지 확인한다. 저장소 사본이 표보다 낮거나 문서끼리 내용이 다르면, 작업을 진행하지 말고 차이(문서명·저장소 버전·기준 버전)를 먼저 보고한다. `python3 tools/check_doc_versions.py`가 있으면 실행해 결과를 그대로 보고한다.
+- **작업 전 버전 확인:** 참조하는 규칙 문서(이 파일, FUNCTIONAL_SPEC.md, SECURE_CODING.md, design.md 등)의 머리말 버전이 PROJECT_CONTEXT.md 5장 기준 버전 표와 같은지 확인한다. 차이가 있으면 문서명·사본 버전·승인된 기준 버전을 먼저 보고한다. 적용 여부와 임시 미동기화 예외는 PROJECT_RULES.md 7-1을 따른다. 버전 숫자만 보고 임의 사본을 채택하지 않는다. `python3 tools/check_doc_versions.py`가 있으면 실행해 결과를 그대로 보고한다.
 - 규칙 문서를 고쳤다면 PROJECT_RULES.md 7-1의 개정 절차(머리말 → 기준 버전 표 → 사본 동기화 → 공지)를 같은 PR에서 진행한다.
 - 요청받은 범위만 고친다. 관련 없는 파일의 포맷·이름·구조를 함께 바꾸지 않는다.
 - 요구사항이 모호하면 추측해서 크게 만들지 말고 질문하거나, 가정한 내용을 PR 설명에 적는다.
 - 테스트를 통과시키려고 테스트의 기대값을 바꾸거나 테스트를 지우거나 @Disabled 하지 않는다.
-- 완료 조건: 2장의 검사가 모두 통과하고, 새 동작에 대한 테스트가 있다. 통과하지 못했으면 그 사실을 그대로 보고한다.
+- 완료 조건: 2장의 검사가 모두 통과하고, 새 동작에 대한 테스트가 있다. 통과하지 못했으면 그 사실을 그대로 보고한다. 제출 전 한시 축소 기간에는 CONTRIBUTING.md 4-1의 건별 검사를 실행하고, 실행하지 않은 검사를 그대로 적는다.
 - 다음은 사람의 확인을 받은 뒤에만 한다: 의존성 추가·버전 변경, main에 머지된 마이그레이션 변경, AGENTS.md·compose.yaml·CI 설정 변경, 파일·데이터 삭제.
 - 같은 실수를 반복하지 않도록, 사람이 지적한 규칙은 이 파일에 한 줄로 추가하자고 제안한다.
 - 팀원이 작성한 미커밋 변경사항을 덮어쓰지 않는다. 같은 부분에서 충돌하면 변경 의도를 확인한다.
@@ -312,8 +317,8 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 1. **AI는 제안만 하고, 확정은 항상 사람이 한다.** AI 출력이 검증 없이 승인·제출·업무 상태 전이의 근거가 되지 않는다. 화면에서도 AI 값을 확정된 사실처럼 표시하지 않는다. 3단계의 AI 최종 초안 보완분도 미확정이다.
 2. **모든 값은 출처를 가진다.** 필드 단위로 `사용자 답변 / AI 추론(근거 링크) / 담당자 입력 / 담당자 확인` 4종을 구분해 저장·표시한다. 어떤 출처에도 없는 값은 "담당자 확인 필요" 상태로 생성한다.
 3. **지식과 사실을 분리한다.** 공개 자료(국정원·KISA) RAG는 "어떤 항목·규정이 필요한가"의 근거이고, 기관 내부 사실(내부망 IP·서버·자산)은 기관이 등록한 비공개 컨텍스트와 담당자만 안다. AI가 기관 사실을 추측해 채우지 않는다.
-4. **상태의 의미를 섞지 않는다.** 검토 완료 ≠ 실제 처리 완료, **할당 완료 ≠ 협의 완료**, 협의 완료 ≠ 방화벽 적용 완료, **서류 확정 ≠ 방화벽 실제 적용**, 초안 ≠ 게시본 ≠ 제출본. 기관 설정의 새 게시본은 새 신청에만 적용한다.
-5. **서버가 최종 판단한다.** 권한·기관 범위·업무 전이·버전 검증은 백엔드 책임이다. 클라이언트의 role 값·버튼 숨김을 권한 증명으로 믿지 않는다.
+4. **상태의 의미를 섞지 않는다.** 검토 완료 ≠ 실제 처리 완료, **자원 정보 입력·임시 저장 ≠ 협의 완료**, 협의 완료 ≠ 방화벽 적용 완료, **서류 확정 ≠ 방화벽 실제 적용**, 초안 ≠ 게시본 ≠ 제출본. 기관 설정의 새 게시본은 새 신청에만 적용한다.
+5. **서버가 최종 판단한다.** 권한·업무 전이·버전 검증은 백엔드 책임이다. 클라이언트의 role·기관 값·버튼 숨김을 권한 증명으로 믿지 않는다(모든 계정은 운영 기관 1곳 소속).
 6. **이력은 지우지 않는다.** 차수 반환·종결·철회는 사유 필수이며 기존 답변·할당·이력을 삭제하지 않는다. 반환은 영향 항목만 재검토 표시한다.
 
 ## 12. 데이터·보안 규칙 — 전원, 예외 없음
@@ -328,21 +333,20 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 
 - **LLM 호출은 Spring AI 2.0의 ChatClient/ChatModel을 우리 공통 LLM 어댑터 인터페이스 뒤에서 사용한다.** 업무(domain) 코드가 Spring AI 타입에 직접 의존하지 않게 해 프레임워크 교체 여지를 남긴다. 상용 1종 + 공통기반 지원 모델(EXAONE, HyperCLOVA X, Gemma 등 OpenAI 호환 엔드포인트) 1종 이상에서 핵심 기능이 돌아야 한다(대회 모델 비종속 요구).
 - 모델 연결 구성(공급자·엔드포인트·모델명·파라미터·용도별 지정)은 DB 설정 데이터로 관리하고, 어댑터 구현체가 이를 읽어 Spring AI 클라이언트를 런타임 생성·캐시해 동적 라우팅한다. 구성 변경은 기관 관리자 권한 + 변경 이력. **API 키는 DB에 평문 저장하지 않는다**(환경변수 키 참조만). 동적 base-url은 관리자 등록 허용 목록 검증 후에만 호출한다(SSRF 방지).
-- RAG는 Spring AI VectorStore(PGVector)로 공개 자료만 색인하고, 답변·질문 생성 시 근거 문서와 위치를 함께 반환한다. 담당자 AI 질의는 권한 범위 내 신청·기관 컨텍스트로 제한한다.
+- 공개자료 RAG는 큐레이션한 공개 자료 스니펫을 PostgreSQL 전문검색(FTS)으로 찾는다(pgvector·VectorStore 미사용 — 2026-11-08 결정, ADR 0006). 넣을 수 있는 자료와 근거 반환은 12장을 따른다. 담당자 AI 질의는 권한 범위 내 신청·기관 컨텍스트로 제한한다.
 - 필드 추출·요약·보완은 Structured Output으로 받되 결과는 항상 'AI 추론(근거 포함)·미확정' 상태로 저장한다 — 11장 원칙이 우선한다.
 - AI 응답은 대상 신청·revision과 연결해 처리한다. 분석 중 입력이 바뀌었으면 이전 입력 기준 결과임을 표시하고 최신 값을 덮어쓰지 않는다.
 - AI 실패·시간 초과 시 직접 입력·담당자 문의·재시도를 제공한다. 실패를 성공으로 표시하지 않는다.
 
 ## 14. 대회 제약 (2026-11-11 제출)
 
-- 11.08 기능 동결, 11.11 오전 제출(이메일 도착 기준). 마감 후 공공GitLab 산출물 수정 금지.
-- 심사위원이 구동안내서만 보고 전 과정을 구동할 수 있어야 한다. 제출·구동 기준은 **Security-Advisor 저장소 하나**다. 구동안내서에 Docker 설치 전제, `cp .env.example .env` → `docker compose up -d --build` 절차, 접속 주소, LLM 키 입력 위치(`.env`), 모델 교체 방법, 테스트 계정, 초기화(`docker compose down -v`)를 적고, 작성자가 아닌 사람이 깨끗한 환경에서 Security-Advisor만 받아 교차 구동으로 확인한다.
-- 재배포가 제한되는 오픈소스는 구동안내서에 명시한다. 범위(서류 2종) 추가는 팀장 승인 사항이다.
+- 일정(11.08 기능 동결, 11.11 제출)·범위 추가 승인·오픈소스 라이선스 표기·마감 후 공공GitLab 수정 금지는 PROJECT_RULES.md 4·6·8·11장이 원본이다.
+- 심사위원이 구동안내서만 보고 전 과정을 구동할 수 있어야 한다. 제출·구동 기준은 **Security-Advisor 저장소 하나**다. 구동안내서에 Docker 설치 전제, `cp .env.example .env` → `docker compose up -d --build` 절차, 접속 주소, LLM 키 입력 위치(`.env`), 모델 교체 방법, 시연용 계정, 초기화(`docker compose down -v`)를 적는다. 작성자가 아닌 사람의 교차 구동 확인은 PROJECT_RULES.md 9장을 따른다.
 
 ## 15. 확정 결정과 후속 작업
 
 - 확정 결정의 기록은 PROJECT_CONTEXT.md 7장 한 곳에서 관리한다. 이 문서에는 결정 표를 두지 않는다.
-- 개발 후속 작업은 BACKLOG.md에서 관리하고, 저장소가 준비되면 GitHub 이슈로 한 번에 등록한다. 등록 후에는 이슈가 원본이다.
+- 개발 후속 작업은 BACKLOG.md에서 관리한다(이슈 등록 등 운영 방법은 그 문서 머리말).
 
 ## 변경 이력
 
@@ -350,6 +354,11 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 
 | 버전 | 날짜 | 변경 |
 |---|---|---|
+| v1.22 | 2026-11-11 | 0장의 DB만 실행 설명을 실제 DB·앱 구성에 맞추고 docs 가이드 연결 |
+| v1.21 | 2026-11-11 | 승인된 조회 권한·협의 단계 반영, 문서 기준 적용과 개발 실행 안내 정정 |
+| v1.20 | 2026-11-11 | 중복 정리(규칙 내용 변경 없음) — 6장의 내보내기·파일명 규칙은 CODING_STYLE.md 3장 링크로, 13장의 자료 범위·근거 반환은 12장 링크로, 14장의 일정·범위·라이선스·마감 후 수정 금지·교차 구동은 PROJECT_RULES.md 4·6·8·9·11장 링크로, 15장의 이슈 등록 방법은 BACKLOG.md 머리말로 |
+| v1.19 | 2026-11-11 | 공개자료 검색을 PostgreSQL 전문검색(FTS)으로 반영 — 1장 스택 표·13장 RAG 규칙에서 pgvector·VectorStore 제거(2026-11-08 결정, Back ADR 0006 · PROJECT_CONTEXT.md 7장). 머리말에 구현 편차 안내 추가(목록은 PROJECT_CONTEXT.md 8장 — 규칙 문구 변경 없음) |
+| v1.18 | 2026-11-10 | 제출 전 한시 검사 축소 링크 추가(2·8·9장 — 원본은 CONTRIBUTING.md 4-1), 11장 5번에서 "기관 범위"를 빼고 운영 기관 1곳 고정에 맞춤 |
 | v1.17 | 2026-11-07 | 중복 정리 — 1장 업무 서술·15장 결정 표 제거(원본 링크), 후속 작업은 BACKLOG.md, Java 25 재확정(Docker 이미지 포함), Lombok 허용 목록 |
 | v1.16 | 2026-11-07 | 5장 이름 규칙: 기본 키 `<테이블 단수형>_id`, 같은 이름 컬럼은 같은 의미·타입, 엔티티 식별자 필드 연결 방식(개발자 요청) |
 | v1.15 | — | 운영 기관 테이블 없음 명시, 기관 정보 조회 API(0·1·5·15장) |
@@ -358,6 +367,6 @@ controller → service → repository / domain 한 방향만 허용한다. Archi
 | v1.12 | — | 운영 기관 설치당 1기관 고정(1장·5장 API 404 기준) |
 | v1.11 | — | 5장 API 규칙을 RESTful 설계 기준으로 확장(자원·메서드·상태 전이의 자원 표현·상태 코드·표현 형식) |
 | v1.10 | — | 디자인 시안 참조를 prototype-soo로 변경, 시안 수시 변경 원칙(6장) |
-| v1.9 | — | 최종 확정안 반영(인증·회원가입·테스트 계정, 시연 필수 경로, 신청 단계×상태) |
+| v1.9 | — | 최종 확정안 반영(인증·회원가입·시연용 계정, 시연 필수 경로, 신청 단계×상태) |
 | v1.8 | — | 업무 도메인 6종 |
 | v1.7 | — | 9장 작업 전 문서 버전 확인 의무 |
