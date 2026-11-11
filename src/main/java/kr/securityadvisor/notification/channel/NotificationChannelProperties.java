@@ -13,7 +13,7 @@ public record NotificationChannelProperties(Webhook webhook, Smtp smtp) {
 
     public NotificationChannelProperties {
         webhook = webhook == null ? new Webhook(null, 5) : webhook;
-        smtp = smtp == null ? new Smtp(null, 25, false, null, null, null, 10) : smtp;
+        smtp = smtp == null ? new Smtp(null, 587, true, null, null, null, 10) : smtp;
     }
 
     public record Webhook(String url, int timeoutSeconds) {

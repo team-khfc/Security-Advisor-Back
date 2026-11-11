@@ -34,6 +34,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // TLS 강제·인증서 검증·MIME 처리는 표준 Jakarta Mail 구현에 위임한다.
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 
     // 인증·권한(시연용 세션 로그인, 역할·기관 격리 검사)
     implementation("org.springframework.boot:spring-boot-starter-security")

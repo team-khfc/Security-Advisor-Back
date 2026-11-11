@@ -60,8 +60,8 @@ securityadvisor:
       timeout-seconds: 5
     smtp:
       host: ${SMTP_HOST:}
-      port: ${SMTP_PORT:25}
-      starttls: ${SMTP_STARTTLS:false}
+      port: ${SMTP_PORT:587}
+      starttls: ${SMTP_STARTTLS:true}
       username: ${SMTP_USERNAME:}
       password: ${SMTP_PASSWORD:}
       from: ${SMTP_FROM:}
