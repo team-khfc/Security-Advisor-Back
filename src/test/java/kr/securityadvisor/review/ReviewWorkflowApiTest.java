@@ -359,7 +359,7 @@ class ReviewWorkflowApiTest {
                         "REVIEW_RECHECK",
                         "STAGE_RETURNED",
                         "REQUEST_CLOSED");
-        // 공통(scope=CASE) 항목의 담당자 입력은 사업 건을 대상으로 기록된다(docs/DEVIATIONS.md #6) — 관리자 전체 조회로 확인
+        // 공통(scope=CASE) 항목의 담당자 입력은 사업 건을 대상으로 기록된다(docs/ARCHITECTURE.md 5장 #6) — 관리자 전체 조회로 확인
         Long businessCaseId = ((Number) JsonPath.read(requestJson(requestId), "$.businessCaseId")).longValue();
         assertThat(mvc.get()
                         .uri("/api/audit-events?targetType=BUSINESS_CASE&targetId={id}&size=100", businessCaseId)
