@@ -1288,6 +1288,25 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ConsultationSummary"
+  /api/security-requests/{id}/consistency-checks:
+    post:
+      tags:
+      - consistency-check-controller
+      operationId: check
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConsistencyCheckResponse"
   /api/security-requests/{id}/assignments:
     get:
       tags:
@@ -4774,26 +4793,30 @@ components:
           type: boolean
         container:
           type: boolean
-        string:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
-          type: boolean
-        int:
-          type: boolean
-        double:
-          type: boolean
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
         textual:
           type: boolean
           deprecated: true
+        int:
+          type: boolean
+        pojo:
+          type: boolean
+        boolean:
+          type: boolean
+        double:
+          type: boolean
+        short:
+          type: boolean
+        binary:
+          type: boolean
+        string:
+          type: boolean
         long:
           type: boolean
-        number:
+        floatingPointNumber:
+          type: boolean
+        integralNumber:
+          type: boolean
+        bigDecimal:
           type: boolean
         nodeType:
           type: string
@@ -4807,17 +4830,13 @@ components:
           - OBJECT
           - POJO
           - STRING
-        integralNumber:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigInteger:
-          type: boolean
-        bigDecimal:
+        missingNode:
           type: boolean
         valueNode:
           type: boolean
-        missingNode:
+        bigInteger:
+          type: boolean
+        number:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5210,6 +5229,60 @@ components:
           type: array
           items:
             type: string
+    ConsistencyCheckResponse:
+      type: object
+      properties:
+        fingerprint:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        model:
+          type: string
+        answerCount:
+          type: integer
+          format: int32
+        totalFiles:
+          type: integer
+          format: int32
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/Source"
+        findings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Finding"
+    Finding:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+        label:
+          type: string
+        answer:
+          type: string
+        confirmed:
+          type: boolean
+        fileId:
+          type: integer
+          format: int64
+        quote:
+          type: string
+        explanation:
+          type: string
+    Source:
+      type: object
+      properties:
+        fileId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        truncated:
+          type: boolean
+        empty:
+          type: boolean
     ReassignRequest:
       type: object
       properties:
