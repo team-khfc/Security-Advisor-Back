@@ -3252,6 +3252,57 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ConfigurationResponse"
+  /api/business-cases/{id}/uploaded-files/{fileId}:
+    get:
+      tags:
+      - uploaded-file-controller
+      operationId: download_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: byte
+  /api/business-cases/{id}/source-documents/{fileId}:
+    get:
+      tags:
+      - source-document-controller
+      operationId: get_12
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SourceDocumentResponse"
   /api/auth/me:
     get:
       tags:
@@ -3335,7 +3386,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: get_12
+      operationId: get_13
       parameters:
       - name: id
         in: path
@@ -4522,6 +4573,13 @@ components:
             - PDF
             - HWPX
           uniqueItems: true
+    FieldCondition:
+      type: object
+      properties:
+        fieldKey:
+          type: string
+        expectedValue:
+          type: boolean
     FieldDefinition:
       type: object
       properties:
@@ -4552,6 +4610,8 @@ components:
           - ADMIN
         hint:
           type: string
+        condition:
+          $ref: "#/components/schemas/FieldCondition"
         staffField:
           type: boolean
     FieldSchema:
@@ -4714,6 +4774,27 @@ components:
           type: boolean
         container:
           type: boolean
+        string:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        double:
+          type: boolean
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        long:
+          type: boolean
+        number:
+          type: boolean
         nodeType:
           type: string
           enum:
@@ -4726,38 +4807,17 @@ components:
           - OBJECT
           - POJO
           - STRING
-        missingNode:
-          type: boolean
-        valueNode:
-          type: boolean
         integralNumber:
           type: boolean
         floatingPointNumber:
           type: boolean
-        bigDecimal:
-          type: boolean
         bigInteger:
           type: boolean
-        number:
+        bigDecimal:
           type: boolean
-        textual:
+        valueNode:
           type: boolean
-          deprecated: true
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        string:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
-          type: boolean
-        int:
-          type: boolean
-        long:
-          type: boolean
-        double:
+        missingNode:
           type: boolean
         embeddedValue:
           type: boolean
@@ -6782,6 +6842,24 @@ components:
         totalElements:
           type: integer
           format: int64
+    SourceDocumentResponse:
+      type: object
+      properties:
+        uploadedFileId:
+          type: integer
+          format: int64
+        originalName:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+        text:
+          type: string
+        maximumCharacters:
+          type: integer
+          format: int32
+        possiblyTruncated:
+          type: boolean
     AuditListResponse:
       type: object
       properties:

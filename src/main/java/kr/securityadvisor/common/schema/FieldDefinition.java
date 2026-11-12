@@ -23,7 +23,24 @@ public record FieldDefinition(
         String type,
         boolean required,
         MemberRole askRole,
-        String hint) {
+        String hint,
+        FieldCondition condition) {
+
+    public FieldDefinition(
+            String key,
+            String label,
+            AnswerScope scope,
+            Set<DocTypeCode> docTypes,
+            String type,
+            boolean required,
+            MemberRole askRole,
+            String hint) {
+        this(key, label, scope, docTypes, type, required, askRole, hint, null);
+    }
+
+    public boolean isApplicable(java.util.function.Function<String, String> values) {
+        return condition == null || condition.matches(values);
+    }
 
     public boolean appliesTo(DocTypeCode docType) {
         return docTypes == null || docTypes.isEmpty() || docTypes.contains(docType);

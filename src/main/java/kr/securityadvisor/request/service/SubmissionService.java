@@ -243,6 +243,7 @@ public class SubmissionService {
                     v.put("scope", answer.getScope().name());
                     v.put("value", answer.getValue());
                     v.put("notApplicable", answer.isNotApplicable());
+                    v.put("evidence", answer.getEvidence());
                     v.put(
                             "valueSource",
                             answer.getValueSource() == null

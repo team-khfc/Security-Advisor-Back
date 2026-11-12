@@ -62,6 +62,7 @@ public final class SchemaComparison {
             } else {
                 add(changes, path + ".label", key + " · 질문 문구", prior.label(), field.label(), false);
                 add(changes, path + ".hint", key + " · 도움말", prior.hint(), field.hint(), false);
+                add(changes, path + ".condition", key + " · 사업 적용 조건", prior.condition(), field.condition(), true);
                 add(changes, path + ".scope", key + " · 답변 범위", prior.scope(), field.scope(), true);
                 add(changes, path + ".docTypes", key + " · 적용 서류", prior.docTypes(), field.docTypes(), true);
                 add(changes, path + ".type", key + " · 응답 형식", prior.type(), field.type(), true);
@@ -126,6 +127,11 @@ public final class SchemaComparison {
                         .map(d -> d.name())
                         .toList()
                 + "\n필수 여부: " + (field.required() ? "필수" : "선택") + "\n도움말: "
-                + (field.hint() == null ? "없음" : field.hint());
+                + (field.hint() == null ? "없음" : field.hint())
+                + "\n적용 조건: "
+                + (field.condition() == null
+                        ? "항상 질문"
+                        : field.condition().fieldKey() + " = "
+                                + (field.condition().expectedValue() ? "예" : "아니요"));
     }
 }

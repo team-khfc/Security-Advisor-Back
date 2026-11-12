@@ -468,7 +468,17 @@ public class AnswerService {
                         .map(AnswerResponse::from)
                         .toList());
         all.addAll(requestAnswers(securityRequest.getId()));
-        return all;
+        FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
+        return all.stream()
+                .filter(answer -> schema.find(answer.fieldKey())
+                        .map(field -> field.appliesTo(securityRequest.getDocType())
+                                && field.isApplicable(key -> all.stream()
+                                        .filter(a -> a.fieldKey().equals(key))
+                                        .map(a -> a.value() == null ? "" : a.value())
+                                        .findFirst()
+                                        .orElse(null)))
+                        .orElse(false))
+                .toList();
     }
 
     /** 보완 요청·차수 반환으로 지정된 항목을 재검토 표시한다(값·출처·확인은 보존, 불변식 11). 없는 항목은 자리를 만든다. */
@@ -544,6 +554,7 @@ public class AnswerService {
             throw new DomainRuleViolationException(
                     "항목 " + fieldKey + " 은(는) " + securityRequest.getDocType() + " 서류에 해당하지 않습니다");
         }
+        requireApplicable(businessCase, field);
         return field;
     }
 
@@ -582,7 +593,40 @@ public class AnswerService {
             throw new DomainRuleViolationException(
                     "항목 " + fieldKey + " 은(는) " + securityRequest.getDocType() + " 서류에 해당하지 않습니다");
         }
+        requireApplicable(businessCase, field);
         return field;
+    }
+
+    private void requireApplicable(BusinessCase businessCase, FieldDefinition field) {
+        if (!field.isApplicable(key -> answerRepository
+                .findByBusinessCaseIdAndScopeAndFieldKey(businessCase.getId(), AnswerScope.CASE, key)
+                .map(Answer::getValue)
+                .orElse(null))) {
+            throw new DomainRuleViolationException("사업 조건에 해당하지 않거나 조건 답변이 없는 항목입니다: " + field.label());
+        }
+    }
+
+    /** 담당자 전용 필수 질문은 해당 분야 협의를 끝내기 전에 직접 확인한다. */
+    public void requireStaffAnswers(SecurityRequest request, kr.securityadvisor.common.security.MemberRole role) {
+        BusinessCase businessCase = businessCaseOf(request);
+        FieldSchema schema = publicationService.getFieldSchema(businessCase.getPublicationId());
+        for (FieldDefinition field : schema.requiredFieldsFor(request.getDocType())) {
+            // 기존 공통 자원 항목은 인프라 계획의 별도 검증을 유지한다.
+            if (field.scope() != AnswerScope.REQUEST || field.askRole() != role) continue;
+            boolean applicable = field.isApplicable(key -> answerRepository
+                    .findByBusinessCaseIdAndScopeAndFieldKey(businessCase.getId(), AnswerScope.CASE, key)
+                    .map(Answer::getValue)
+                    .orElse(null));
+            if (!applicable) continue;
+            Answer answer = findForField(businessCase, request, field).orElse(null);
+            if (answer == null
+                    || !answer.hasValue()
+                    || answer.isNotApplicable()
+                    || answer.isUnconfirmed()
+                    || answer.isNeedsReview()) {
+                throw new DomainRuleViolationException("협의 완료 전 담당자 확인이 필요합니다: " + field.label());
+            }
+        }
     }
 
     private Optional<Answer> findForField(

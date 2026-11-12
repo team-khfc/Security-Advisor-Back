@@ -170,6 +170,9 @@ public class AiProposalService {
         List<FieldDefinition> fields = new ArrayList<>(schema.caseFields());
         fields.addAll(schema.requestFields(request.getDocType()));
         return fields.stream()
+                .filter(f -> f.appliesTo(request.getDocType()))
+                .filter(f -> f.isApplicable(
+                        key -> answers.containsKey(key) ? answers.get(key).value() : null))
                 .filter(f -> !f.isStaffField())
                 .filter(f -> requested.isEmpty() || requested.contains(f.key()))
                 .filter(f -> {
