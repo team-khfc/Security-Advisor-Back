@@ -19,6 +19,7 @@ public record RulePeriod(LocalDate start, LocalDate end, LocalDate reviewDate) {
         try {
             LocalDate start = LocalDate.parse(parts[0].strip());
             LocalDate end = parts.length > 1 && !parts[1].isBlank() ? LocalDate.parse(parts[1].strip()) : null;
+            if (LocalDate.of(9999, 12, 31).equals(end)) end = null;
             LocalDate review = end == null ? start.plusMonths(REVIEW_MONTHS_FOR_OPEN_ENDED) : null;
             return new RulePeriod(start, end, review);
         } catch (DateTimeParseException e) {

@@ -2517,6 +2517,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/SupplementResponse"
+  /api/security-requests/{id}/preparation-materials/final-review:
+    get:
+      tags:
+      - preparation-materials-controller
+      operationId: getPreparationFinalReview
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PreparationReviewResponse"
   /api/security-requests/{id}/firewall-rules:
     get:
       tags:
@@ -4964,11 +4983,32 @@ components:
           type: boolean
         container:
           type: boolean
-        missingNode:
+        number:
           type: boolean
-        bigDecimal:
+        string:
+          type: boolean
+        long:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        pojo:
+          type: boolean
+        boolean:
+          type: boolean
+        short:
+          type: boolean
+        double:
+          type: boolean
+        binary:
+          type: boolean
+        int:
           type: boolean
         integralNumber:
+          type: boolean
+        valueNode:
+          type: boolean
+        bigInteger:
           type: boolean
         nodeType:
           type: string
@@ -4982,32 +5022,11 @@ components:
           - OBJECT
           - POJO
           - STRING
-        valueNode:
+        missingNode:
           type: boolean
         floatingPointNumber:
           type: boolean
-        bigInteger:
-          type: boolean
-        number:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
-          type: boolean
-        int:
-          type: boolean
-        long:
-          type: boolean
-        double:
-          type: boolean
-        string:
-          type: boolean
-        boolean:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        binary:
+        bigDecimal:
           type: boolean
         embeddedValue:
           type: boolean
@@ -6156,6 +6175,8 @@ components:
         kind:
           type: string
           enum:
+          - PREPARATION_SUPPLEMENT
+          - PREPARATION_REVIEW
           - ASSIGNED
           - REASSIGNED
           - REASSIGNMENT_REQUIRED
@@ -6257,6 +6278,12 @@ components:
           type: integer
           format: int64
         unassignedRequests:
+          type: integer
+          format: int64
+        preparationReviews:
+          type: integer
+          format: int64
+        preparationSupplements:
           type: integer
           format: int64
         total:
@@ -6440,6 +6467,28 @@ components:
         submittedAt:
           type: string
           format: date-time
+    PreparationReviewResponse:
+      type: object
+      properties:
+        format:
+          type: integer
+          format: int32
+        revision:
+          type: integer
+          format: int64
+        fingerprint:
+          type: string
+        capturedAt:
+          type: string
+          format: date-time
+        extraConditions:
+          type: object
+          additionalProperties:
+            type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Item"
     DocumentData:
       type: object
       properties:

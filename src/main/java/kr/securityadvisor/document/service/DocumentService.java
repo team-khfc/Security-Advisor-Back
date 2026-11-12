@@ -82,6 +82,7 @@ public class DocumentService {
     private final DocumentExporters exporters;
     private final Clock clock;
     private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
+    private final kr.securityadvisor.request.service.PreparationMaterialsService preparationMaterials;
     private final EntityManager entityManager;
 
     public GeneratedDocumentResponse generate(
@@ -136,6 +137,22 @@ public class DocumentService {
                                 kr.securityadvisor.request.dto.InfrastructurePlanResponse.class)
                         : null;
         sections.addAll(InfrastructureDocumentSections.from(plan));
+        var preparation = submissionId == null
+                ? preparationMaterials.finalReview(principal, request.getId())
+                : objectMapper
+                                .readTree(submissionService
+                                        .requireSubmission(submissionId)
+                                        .getSnapshot())
+                                .hasNonNull("preparationReview")
+                        ? objectMapper.treeToValue(
+                                objectMapper
+                                        .readTree(submissionService
+                                                .requireSubmission(submissionId)
+                                                .getSnapshot())
+                                        .path("preparationReview"),
+                                kr.securityadvisor.request.dto.PreparationReviewResponse.class)
+                        : null;
+        sections.addAll(PreparationDocumentSections.from(preparation));
         Instant now = clock.instant();
         String aiSupplement = null;
         String modelReference = null;

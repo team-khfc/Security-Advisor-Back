@@ -2,6 +2,8 @@ package kr.securityadvisor.notification.domain;
 
 /** 알림 종류(수신자 관점). */
 public enum NotificationKind {
+    PREPARATION_SUPPLEMENT,
+    PREPARATION_REVIEW,
     ASSIGNED,
     REASSIGNED,
     REASSIGNMENT_REQUIRED,

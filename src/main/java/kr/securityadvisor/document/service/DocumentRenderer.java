@@ -78,7 +78,7 @@ public class DocumentRenderer {
                         .append(" | ")
                         .append(escape(v.display()))
                         .append(" | ")
-                        .append(sourceLabel(v.valueSource()))
+                        .append(v.fieldKey().startsWith("preparation.") ? "자료 현황 기록" : sourceLabel(v.valueSource()))
                         .append(" | ")
                         .append(v.status())
                         .append(" |\n");
