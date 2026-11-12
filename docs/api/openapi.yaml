@@ -83,6 +83,49 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/SecurityRequestResponse"
+  /api/security-requests/{id}/preparation-materials:
+    get:
+      tags:
+      - preparation-materials-controller
+      operationId: getPreparationMaterials
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PreparationMaterialsResponse"
+    put:
+      tags:
+      - preparation-materials-controller
+      operationId: updatePreparationMaterials
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreparationMaterialsCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PreparationMaterialsResponse"
   /api/security-requests/{id}/infrastructure-plan:
     get:
       tags:
@@ -1076,6 +1119,36 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ReviewRequestResult"
+  /api/security-requests/{id}/preparation-materials/files:
+    post:
+      tags:
+      - preparation-materials-controller
+      operationId: uploadPreparationFile
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UploadedFileResponse"
   /api/security-requests/{id}/inquiries:
     get:
       tags:
@@ -3609,6 +3682,104 @@ components:
         updatedAt:
           type: string
           format: date-time
+    PreparationMaterialsCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+        expectedFingerprint:
+          type: string
+          maxLength: 64
+          minLength: 0
+        action:
+          type: string
+          minLength: 1
+          pattern: ATTACH|REVIEW|CONDITIONS
+        key:
+          type: string
+          maxLength: 40
+          minLength: 0
+        status:
+          type: string
+          maxLength: 30
+          minLength: 0
+        fileIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+            exclusiveMinimum: 0
+          maxItems: 10
+          minItems: 0
+        note:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        conditions:
+          type: object
+          additionalProperties:
+            type: boolean
+      required:
+      - action
+      - expectedFingerprint
+      - expectedRevision
+    PreparationItem:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        reviewer:
+          type: string
+        condition:
+          type: string
+        description:
+          type: string
+        applicability:
+          type: string
+        status:
+          type: string
+        fileIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        note:
+          type: string
+        actor:
+          type: string
+        at:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+        canAttach:
+          type: boolean
+        canReview:
+          type: boolean
+    PreparationMaterialsResponse:
+      type: object
+      properties:
+        revision:
+          type: integer
+          format: int64
+        fingerprint:
+          type: string
+        extraConditions:
+          type: object
+          additionalProperties:
+            type: boolean
+        editable:
+          type: boolean
+        canSetConditions:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PreparationItem"
     Connection:
       type: object
       properties:
@@ -4793,30 +4964,11 @@ components:
           type: boolean
         container:
           type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        int:
-          type: boolean
-        pojo:
-          type: boolean
-        boolean:
-          type: boolean
-        double:
-          type: boolean
-        short:
-          type: boolean
-        binary:
-          type: boolean
-        string:
-          type: boolean
-        long:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        integralNumber:
+        missingNode:
           type: boolean
         bigDecimal:
+          type: boolean
+        integralNumber:
           type: boolean
         nodeType:
           type: string
@@ -4830,13 +4982,32 @@ components:
           - OBJECT
           - POJO
           - STRING
-        missingNode:
-          type: boolean
         valueNode:
+          type: boolean
+        floatingPointNumber:
           type: boolean
         bigInteger:
           type: boolean
         number:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        double:
+          type: boolean
+        string:
+          type: boolean
+        boolean:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        binary:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5042,6 +5213,27 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DeadlineResponse"
+    UploadedFileResponse:
+      type: object
+      properties:
+        uploadedFileId:
+          type: integer
+          format: int64
+        businessCaseId:
+          type: integer
+          format: int64
+        originalName:
+          type: string
+        contentType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        uploadedBy:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
     InquiryCommand:
       type: object
       properties:
@@ -5757,27 +5949,6 @@ components:
       required:
       - docTypes
       - title
-    UploadedFileResponse:
-      type: object
-      properties:
-        uploadedFileId:
-          type: integer
-          format: int64
-        businessCaseId:
-          type: integer
-          format: int64
-        originalName:
-          type: string
-        contentType:
-          type: string
-        sizeBytes:
-          type: integer
-          format: int64
-        uploadedBy:
-          type: string
-        uploadedAt:
-          type: string
-          format: date-time
     AddSecurityRequestCommand:
       type: object
       properties:
@@ -6469,6 +6640,7 @@ components:
           - FIREWALL_RULE_REVOKED
           - FIREWALL_RULE_RENEWAL_REQUESTED
           - FILE_UPLOADED
+          - PREPARATION_MATERIAL_UPDATED
           - ANALYSIS_REQUESTED
           - ANALYSIS_FINISHED
           - ANALYSIS_FAILED
