@@ -122,10 +122,16 @@ public class InterviewService {
                         answer.value());
             }
         }
-        List<String> summaries = documents.summariesOf(caseId).stream().limit(3).toList();
-        for (int i = 0; i < summaries.size(); i++) {
-            cite(citations, lines, "D" + (i + 1), "업로드 문서 분석 요약 " + (i + 1) + " · 미확정 참고자료", summaries.get(i));
-        }
+        documents.listForCase(member, caseId).stream()
+                .filter(job -> job.status() == kr.securityadvisor.llm.domain.AnalysisStatus.NEEDS_REVIEW
+                        && job.summary() != null)
+                .limit(3)
+                .forEach(job -> cite(
+                        citations,
+                        lines,
+                        "D" + job.analysisJobId(),
+                        "업로드 문서 분석 요약 · 파일 #" + job.uploadedFileId() + " · 미확정 참고자료",
+                        job.summary()));
         if (command.draft() != null && !command.draft().isBlank()) {
             cite(citations, lines, "U", "현재 입력 중인 답변 · 미저장", command.draft());
         }

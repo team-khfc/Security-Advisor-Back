@@ -30,7 +30,13 @@ public class DocumentRenderer {
 
     public List<DocumentSection> sections(FieldSchema schema, SecurityRequest request, Map<String, Source> sources) {
         return List.of(
-                new DocumentSection("공통 정보(사업 건)", values(schema.caseFields(), sources)),
+                new DocumentSection(
+                        "공통 정보(사업 건)",
+                        values(
+                                schema.caseFields().stream()
+                                        .filter(f -> f.appliesTo(request.getDocType()))
+                                        .toList(),
+                                sources)),
                 new DocumentSection("서류별 정보", values(schema.requestFields(request.getDocType()), sources)));
     }
 
@@ -95,6 +101,8 @@ public class DocumentRenderer {
     private static List<DocumentValue> values(List<FieldDefinition> fields, Map<String, Source> sources) {
         List<DocumentValue> values = new ArrayList<>();
         for (FieldDefinition field : fields) {
+            if (!field.isApplicable(
+                    key -> sources.containsKey(key) ? sources.get(key).value() : null)) continue;
             Source s = sources.get(field.key());
             boolean hasValue = s != null && s.value() != null && !s.value().isBlank();
             boolean confirmed = hasValue && s.valueSource() != null && s.confirmed();

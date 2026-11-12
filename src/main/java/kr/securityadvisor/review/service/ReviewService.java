@@ -230,6 +230,8 @@ public class ReviewService {
                         .filter(other -> other.getField() == ReviewField.INFRA)
                         .anyMatch(Review::isCompleted);
         infrastructurePlans.requireCurrent(request);
+        answerService.requireStaffAnswers(
+                request, MemberRole.valueOf(review.getField().name()));
         int openSupplements = supplementRepository.countByReviewIdAndStatus(reviewId, SupplementStatus.OPEN);
         Instant now = clock.instant();
         review.complete(

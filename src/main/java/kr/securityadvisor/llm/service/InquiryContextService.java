@@ -73,13 +73,13 @@ public class InquiryContextService {
                 .limit(3)
                 .forEach(job -> result.add(new Source(
                         "D" + job.analysisJobId(),
-                        "업로드 파일 " + job.uploadedFileId() + "의 AI 분석 요약 " + job.analysisJobId() + " · 미확정 참고자료",
+                        "업로드 파일 #" + job.uploadedFileId() + "의 AI 분석 요약 " + job.analysisJobId() + " · 미확정 참고자료",
                         job.summary().substring(0, Math.min(job.summary().length(), 4000)))));
         return List.copyOf(result);
     }
 
     private Source excerpt(Long caseId, UploadedFileResponse file, String question) {
-        String label = "업로드 원문 · " + file.originalName();
+        String label = "업로드 원문 · 파일 #" + file.uploadedFileId() + " · " + file.originalName();
         try {
             UploadedFile stored = files.requireFile(caseId, file.uploadedFileId());
             String text;

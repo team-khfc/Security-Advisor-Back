@@ -45,4 +45,22 @@ public class UploadedFileController {
     public List<UploadedFileResponse> list(@CurrentMember MemberPrincipal member, @PathVariable Long id) {
         return service.list(member, id);
     }
+
+    /** 업로드 MIME을 신뢰해 실행하지 않도록 항상 첨부 다운로드로 응답한다. */
+    @GetMapping("/{fileId}")
+    public ResponseEntity<byte[]> download(
+            @CurrentMember MemberPrincipal member, @PathVariable Long id, @PathVariable Long fileId) {
+        var file = service.download(member, id, fileId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(
+                        "Content-Disposition",
+                        org.springframework.http.ContentDisposition.attachment()
+                                .filename(file.originalName(), java.nio.charset.StandardCharsets.UTF_8)
+                                .build()
+                                .toString())
+                .header("Cache-Control", "no-store")
+                .header("X-Content-Type-Options", "nosniff")
+                .body(file.content());
+    }
 }

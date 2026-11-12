@@ -114,4 +114,18 @@ public class UploadedFileService {
             throw new NotFoundException("저장된 파일이 없습니다: " + file.getId());
         }
     }
+
+    /** 조회 권한과 사업 소속을 다시 검사한 뒤 원본을 반환한다. */
+    @Transactional(readOnly = true)
+    public kr.securityadvisor.request.dto.UploadedFileContentResponse download(
+            MemberPrincipal principal, Long caseId, Long fileId) {
+        accessPolicy.viewableCase(principal, caseId);
+        UploadedFile file = requireFile(caseId, fileId);
+        try (InputStream in = open(file)) {
+            return new kr.securityadvisor.request.dto.UploadedFileContentResponse(
+                    file.getOriginalName(), in.readAllBytes());
+        } catch (IOException e) {
+            throw new BadRequestException("원본 파일을 읽을 수 없습니다");
+        }
+    }
 }

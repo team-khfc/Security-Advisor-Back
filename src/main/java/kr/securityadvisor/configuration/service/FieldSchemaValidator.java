@@ -46,6 +46,27 @@ public class FieldSchemaValidator {
         }
         Set<String> keys = new HashSet<>();
         for (FieldDefinition f : schema.fields()) {
+            if (f.condition() != null) {
+                if (f.condition().fieldKey() == null || f.condition().fieldKey().isBlank()) {
+                    throw new DomainRuleViolationException("적용 조건의 사업 질문 키가 필요합니다");
+                }
+                FieldDefinition parent = schema.fields().stream()
+                        .filter(candidate ->
+                                Objects.equals(candidate.key(), f.condition().fieldKey()))
+                        .findFirst()
+                        .orElseThrow(() -> new DomainRuleViolationException("적용 조건의 사업 질문이 없습니다: " + f.key()));
+                if (parent.scope() != AnswerScope.CASE
+                        || !"BOOLEAN".equals(parent.type())
+                        || parent.condition() != null
+                        || !parent.required()
+                        || parent.askRole() != MemberRole.APPLICANT
+                        || parent.key().equals(f.key())
+                        || schema.docTypes().stream()
+                                .anyMatch(d -> f.appliesTo(d.code()) && !parent.appliesTo(d.code()))) {
+                    throw new DomainRuleViolationException(
+                            "적용 조건은 같은 서류에 적용되는 신청자 필수 사업 질문(예·아니요)을 참조해야 합니다: " + f.key());
+                }
+            }
             if (f.key() == null || f.key().length() > 100 || !f.key().matches("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+")) {
                 throw new DomainRuleViolationException("저장 키 형식이 잘못되었습니다(예: network.source): " + f.key());
             }
@@ -98,6 +119,7 @@ public class FieldSchemaValidator {
                     || !Objects.equals(field.docTypes(), original.docTypes())
                     || !Objects.equals(field.type(), original.type())
                     || field.askRole() != original.askRole()
+                    || !Objects.equals(field.condition(), original.condition())
                     || (original.required() && !field.required())) {
                 throw new DomainRuleViolationException("기본 질문의 범위·적용 서류·형식·역할·필수 계약을 유지해야 합니다: " + original.key());
             }
