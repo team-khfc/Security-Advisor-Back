@@ -66,6 +66,7 @@ public class NotificationAudience {
                     REVIEW_RECHECK,
                     COMMON_INFO_CHANGED,
                     PREPARATION_REVIEW -> " AND m.role IN ('INFRA','SECURITY')";
+            case FIREWALL_REVIEW -> " AND m.role = 'INFRA'";
             case DEADLINE_IMMINENT, DEADLINE_OVERDUE -> " AND m.role <> 'ADMIN'";
             default -> " AND m.role = 'APPLICANT'";
         };
@@ -124,7 +125,10 @@ public class NotificationAudience {
             JOIN members m ON m.username = a.assignee_username
             LEFT JOIN reviewer_pools p ON p.member_username = m.username AND p.field = a.field
             WHERE a.assignee_username = :username AND r.stage >= 2
-              AND r.status NOT IN ('CONFIRMED','CLOSED','WITHDRAWN')
+              AND (r.status NOT IN ('CONFIRMED','CLOSED','WITHDRAWN') OR
+                (r.status = 'CONFIRMED' AND a.field = 'INFRA' AND EXISTS (
+                  SELECT 1 FROM firewall_rules f WHERE f.security_request_id = r.security_request_id
+                    AND f.status IN ('PENDING_APPLY','APPLIED'))))
               AND (m.active = false OR m.role <> a.field OR p.reviewer_pool_id IS NULL OR p.active = false)
             """, Map.of("username", username), (rs, row) -> rs.getLong(1));
     }

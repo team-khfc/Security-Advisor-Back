@@ -52,6 +52,7 @@ public class FirewallRuleService {
     private final AuditRecorder auditRecorder;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final kr.securityadvisor.assignment.service.AssignmentService assignmentService;
 
     /** 확정 시 규칙 생성(불변식 26). 규칙을 만들지 않는 서류 유형이면 아무것도 하지 않는다. 같은 제출본에 두 번 만들지 않는다. */
     @EventListener
@@ -91,7 +92,7 @@ public class FirewallRuleService {
                 throw new DomainRuleViolationException("확정 제출본에 포트 값이 없어 규칙을 만들 수 없습니다");
             for (String port : values.get("firewall.port").split("[,\\n]")) {
                 if (port.isBlank()) continue;
-                var rule = repository.save(FirewallRule.fromConfirmedSubmission(
+                var rule = FirewallRule.fromConfirmedSubmission(
                         event.securityRequestId(),
                         submission.getId(),
                         no++,
@@ -101,7 +102,11 @@ public class FirewallRuleService {
                         port.strip(),
                         period.start(),
                         period.end(),
-                        period.reviewDate()));
+                        period.reviewDate());
+                rule.initializeReviewPolicy(publicationService
+                        .getFieldSchema(submission.getPublicationId())
+                        .firewallPolicy());
+                repository.save(rule);
                 created.add(rule.getId());
             }
         }
@@ -180,6 +185,36 @@ public class FirewallRuleService {
                 AuditAction.FIREWALL_RULE_REVOKED,
                 command.reason(),
                 "규칙 " + ruleId + " 회수");
+        return toResponse(rule);
+    }
+
+    /** 배정된 유효 ICT인프라 담당자의 재검토 결과를 보존한다. */
+    public FirewallRuleResponse review(
+            MemberPrincipal principal, Long ruleId, kr.securityadvisor.policy.dto.PeriodicReviewCommand command) {
+        principal.requireAnyRole(MemberRole.INFRA);
+        FirewallRule rule = requireRule(ruleId);
+        accessPolicy.viewableRequest(principal, rule.getSecurityRequestId());
+        if (!assignmentService
+                .eligibleAssignee(rule.getSecurityRequestId(), kr.securityadvisor.common.schema.ReviewField.INFRA)
+                .filter(principal.username()::equals)
+                .isPresent())
+            throw new kr.securityadvisor.common.error.ForbiddenException("현재 배정된 유효 ICT인프라 담당자만 재검토할 수 있습니다");
+        rule.requireRevision(command.expectedRevision());
+        rule.review(
+                command.decision(),
+                command.reason(),
+                principal.username(),
+                clock.instant(),
+                LocalDate.ofInstant(clock.instant(), KOREA));
+        repository.flush();
+        auditRecorder.record(
+                principal,
+                AuditTargetType.SECURITY_REQUEST,
+                String.valueOf(rule.getSecurityRequestId()),
+                null,
+                AuditAction.FIREWALL_RULE_REVIEWED,
+                command.reason(),
+                "규칙 " + ruleId + " 정기 재검토 " + command.decision() + " · 다음 검토일 " + rule.getReviewDate());
         return toResponse(rule);
     }
 

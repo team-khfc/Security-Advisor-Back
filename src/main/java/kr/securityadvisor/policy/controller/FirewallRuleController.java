@@ -51,6 +51,16 @@ public class FirewallRuleController {
         return renewalService.requestRenewal(member, id, command);
     }
 
+    /** 정기 재검토 이력 추가(동시 수정은 revision으로 차단). */
+    @PostMapping("/api/firewall-rules/{id}/periodic-reviews")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FirewallRuleResponse review(
+            @CurrentMember MemberPrincipal member,
+            @PathVariable Long id,
+            @Valid @RequestBody kr.securityadvisor.policy.dto.PeriodicReviewCommand command) {
+        return service.review(member, id, command);
+    }
+
     @PutMapping("/api/firewall-rules/{id}/application")
     public FirewallRuleResponse recordApplication(
             @CurrentMember MemberPrincipal member,

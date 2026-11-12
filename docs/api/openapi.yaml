@@ -1910,6 +1910,31 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/RuleRenewalResult"
+  /api/firewall-rules/{id}/periodic-reviews:
+    post:
+      tags:
+      - firewall-rule-controller
+      operationId: review
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodicReviewCommand"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FirewallRuleResponse"
   /api/doc-type-suggestions:
     post:
       tags:
@@ -4679,6 +4704,40 @@ components:
         revision:
           type: integer
           format: int64
+        reviewMonths:
+          type: integer
+          format: int32
+        reviewNoticeDays:
+          type: integer
+          format: int32
+        reviewStatus:
+          type: string
+        reviewHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeriodicReviewRecord"
+    PeriodicReviewRecord:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+          - KEEP
+          - CHANGE_REQUIRED
+          - REVOKE_REQUIRED
+        reason:
+          type: string
+        reviewedBy:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        previousReviewDate:
+          type: string
+          format: date
+        nextReviewDate:
+          type: string
+          format: date
     RuleApplicationCommand:
       type: object
       properties:
@@ -4900,6 +4959,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FieldDefinition"
+        firewallPolicy:
+          $ref: "#/components/schemas/FirewallPolicy"
+    FirewallPolicy:
+      type: object
+      properties:
+        reviewMonths:
+          type: integer
+          format: int32
+        reviewNoticeDays:
+          type: integer
+          format: int32
     ConfigurationResponse:
       type: object
       properties:
@@ -5045,11 +5115,11 @@ components:
           type: boolean
         float:
           type: boolean
-        valueNode:
+        container:
+          type: boolean
+        number:
           type: boolean
         integralNumber:
-          type: boolean
-        missingNode:
           type: boolean
         nodeType:
           type: string
@@ -5063,35 +5133,35 @@ components:
           - OBJECT
           - POJO
           - STRING
+        valueNode:
+          type: boolean
         floatingPointNumber:
           type: boolean
         bigDecimal:
           type: boolean
         bigInteger:
           type: boolean
+        missingNode:
+          type: boolean
+        pojo:
+          type: boolean
         string:
+          type: boolean
+        boolean:
+          type: boolean
+        binary:
+          type: boolean
+        int:
           type: boolean
         double:
           type: boolean
         long:
           type: boolean
-        int:
+        short:
           type: boolean
         textual:
           type: boolean
           deprecated: true
-        binary:
-          type: boolean
-        pojo:
-          type: boolean
-        short:
-          type: boolean
-        boolean:
-          type: boolean
-        container:
-          type: boolean
-        number:
-          type: boolean
         embeddedValue:
           type: boolean
     SubmissionResponse:
@@ -5997,6 +6067,26 @@ components:
           type: array
           items:
             type: string
+    PeriodicReviewCommand:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum:
+          - KEEP
+          - CHANGE_REQUIRED
+          - REVOKE_REQUIRED
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+        expectedRevision:
+          type: integer
+          format: int64
+          minimum: 0
+      required:
+      - decision
+      - reason
     DocTypeSuggestionCommand:
       type: object
       properties:
@@ -6314,6 +6404,7 @@ components:
         kind:
           type: string
           enum:
+          - FIREWALL_REVIEW
           - PREPARATION_SUPPLEMENT
           - PREPARATION_REVIEW
           - ASSIGNED
@@ -6423,6 +6514,9 @@ components:
           type: integer
           format: int64
         preparationSupplements:
+          type: integer
+          format: int64
+        firewallReviews:
           type: integer
           format: int64
         total:
@@ -6823,6 +6917,7 @@ components:
           - DOCUMENT_GENERATED
           - FINAL_DRAFT_CREATED
           - FINAL_DRAFT_CONFIRMED
+          - FIREWALL_RULE_REVIEWED
           - FIREWALL_RULES_CREATED
           - FIREWALL_RULE_APPLIED
           - FIREWALL_RULE_NOT_APPLICABLE

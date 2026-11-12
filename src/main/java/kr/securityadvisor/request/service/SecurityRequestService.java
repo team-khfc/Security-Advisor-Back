@@ -48,6 +48,7 @@ public class SecurityRequestService {
     private final SecurityRequestRepository securityRequestRepository;
     private final BusinessCaseRepository businessCaseRepository;
     private final Clock clock;
+    private final List<OperationalWork> operationalWork;
 
     private final RequestListingRepository listingRepository;
 
@@ -105,7 +106,10 @@ public class SecurityRequestService {
     @Transactional
     public AssignmentResponse reassign(MemberPrincipal admin, Long securityRequestId, ReassignRequest request) {
         SecurityRequest securityRequest = accessPolicy.viewableRequest(admin, securityRequestId);
-        if (securityRequest.isTerminal()) {
+        if (securityRequest.isTerminal()
+                && !(securityRequest.getStatus() == RequestStatus.CONFIRMED
+                        && request.field() == kr.securityadvisor.common.schema.ReviewField.INFRA
+                        && operationalWork.stream().anyMatch(work -> work.hasOngoingWork(securityRequestId)))) {
             throw new kr.securityadvisor.common.error.DomainRuleViolationException("종료된 신청의 담당자는 변경할 수 없습니다");
         }
         BusinessCase businessCase = accessPolicy.viewableCase(admin, securityRequest.getBusinessCaseId());

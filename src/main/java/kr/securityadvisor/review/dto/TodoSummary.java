@@ -23,6 +23,7 @@ public record TodoSummary(
         long unassignedRequests,
         long preparationReviews,
         long preparationSupplements,
+        long firewallReviews,
         long total) {
 
     public static TodoSummary of(
@@ -34,7 +35,8 @@ public record TodoSummary(
             long finalReviews,
             long unassignedRequests,
             long preparationReviews,
-            long preparationSupplements) {
+            long preparationSupplements,
+            long firewallReviews) {
         return new TodoSummary(
                 role,
                 pendingReviews,
@@ -45,6 +47,7 @@ public record TodoSummary(
                 unassignedRequests,
                 preparationReviews,
                 preparationSupplements,
+                firewallReviews,
                 pendingReviews
                         + answeredSupplements
                         + pendingFinalConfirmations
@@ -52,6 +55,7 @@ public record TodoSummary(
                         + finalReviews
                         + unassignedRequests
                         + preparationReviews
-                        + preparationSupplements);
+                        + preparationSupplements
+                        + firewallReviews);
     }
 }

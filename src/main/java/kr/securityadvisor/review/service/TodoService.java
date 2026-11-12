@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TodoService {
     private final AssignmentService assignmentService;
+    private final List<TodoContributor> contributors;
     private final ReviewRepository reviewRepository;
     private final SupplementRepository supplementRepository;
     private final SubmissionRepository submissionRepository;
@@ -51,7 +52,8 @@ public class TodoService {
                 count(items, "FINAL_REVIEW"),
                 count(items, "REASSIGNMENT"),
                 count(items, "PREPARATION_REVIEW"),
-                count(items, "PREPARATION_SUPPLEMENT"));
+                count(items, "PREPARATION_SUPPLEMENT"),
+                count(items, "FIREWALL_REVIEW"));
     }
 
     public PageResponse<TodoItem> list(MemberPrincipal principal, int page, int size) {
@@ -132,7 +134,9 @@ public class TodoService {
                     items.add(item("FINAL_CONFIRMATION", r.getId(), r.getId(), "제출본 최종 확인·서류 확정"));
             }
         }
+        contributors.forEach(contributor -> items.addAll(contributor.items(principal)));
         return items.stream()
+                .distinct()
                 .sorted(Comparator.comparing(TodoItem::securityRequestId)
                         .reversed()
                         .thenComparing(TodoItem::key))

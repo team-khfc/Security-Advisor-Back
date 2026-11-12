@@ -12,9 +12,17 @@ import java.util.Optional;
  * @param fields 항목 목록(키는 유일)
  */
 public record FieldSchema(
-        DeadlinePolicy deadlinePolicy, List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
+        DeadlinePolicy deadlinePolicy,
+        List<DocTypeDefinition> docTypes,
+        List<FieldDefinition> fields,
+        FirewallPolicy firewallPolicy) {
+
+    public FieldSchema(DeadlinePolicy deadlinePolicy, List<DocTypeDefinition> docTypes, List<FieldDefinition> fields) {
+        this(deadlinePolicy, docTypes, fields, null);
+    }
 
     public FieldSchema {
+        firewallPolicy = firewallPolicy == null ? FirewallPolicy.defaults() : firewallPolicy;
         deadlinePolicy = deadlinePolicy == null ? DeadlinePolicy.defaults() : deadlinePolicy;
         docTypes = docTypes == null ? List.of() : docTypes;
         fields = fields == null ? List.of() : fields;

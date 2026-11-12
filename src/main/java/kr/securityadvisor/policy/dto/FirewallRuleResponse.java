@@ -29,7 +29,11 @@ public record FirewallRuleResponse(
         String applicationNote,
         String reason,
         Long renewalRequestId,
-        long revision) {
+        long revision,
+        int reviewMonths,
+        int reviewNoticeDays,
+        String reviewStatus,
+        java.util.List<kr.securityadvisor.policy.domain.PeriodicReviewRecord> reviewHistory) {
 
     public static FirewallRuleResponse from(FirewallRule r, LocalDate today, int expiryNoticeDays) {
         String effective = r.getStatus().name();
@@ -64,6 +68,10 @@ public record FirewallRuleResponse(
                 r.getApplicationNote(),
                 r.getReason(),
                 r.getRenewalRequestId(),
-                r.getRevision());
+                r.getRevision(),
+                r.getReviewMonths(),
+                r.getReviewNoticeDays(),
+                r.reviewStatus(today),
+                r.getReviewHistory());
     }
 }
