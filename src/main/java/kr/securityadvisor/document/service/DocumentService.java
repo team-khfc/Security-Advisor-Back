@@ -83,6 +83,7 @@ public class DocumentService {
     private final Clock clock;
     private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
     private final kr.securityadvisor.request.service.PreparationMaterialsService preparationMaterials;
+    private final kr.securityadvisor.llm.service.ConsistencyReviewService consistencyReviews;
     private final EntityManager entityManager;
 
     public GeneratedDocumentResponse generate(
@@ -153,6 +154,17 @@ public class DocumentService {
                                 kr.securityadvisor.request.dto.PreparationReviewResponse.class)
                         : null;
         sections.addAll(PreparationDocumentSections.from(preparation));
+        java.util.List<kr.securityadvisor.request.dto.ConsistencyReviewResponse> consistency = null;
+        if (submissionId == null) consistency = consistencyReviews.snapshot(principal, request.getId());
+        else {
+            var snapshot = objectMapper.readTree(
+                    submissionService.requireSubmission(submissionId).getSnapshot());
+            if (snapshot.hasNonNull("consistencyReviews"))
+                consistency = java.util.List.of(objectMapper.treeToValue(
+                        snapshot.path("consistencyReviews"),
+                        kr.securityadvisor.request.dto.ConsistencyReviewResponse[].class));
+        }
+        sections.addAll(ConsistencyDocumentSections.from(consistency));
         Instant now = clock.instant();
         String aiSupplement = null;
         String modelReference = null;

@@ -34,6 +34,17 @@ public class FieldSchemaValidator {
             if (!codes.add(d.code())) {
                 throw new DomainRuleViolationException("서류 유형 코드가 중복됩니다: " + d.code());
             }
+            if (d.name().length() > 200
+                    || (d.description() != null && d.description().length() > 2000)
+                    || d.sortOrder() < 0
+                    || d.sortOrder() > 1000
+                    || d.exportFormats().isEmpty()
+                    || !Set.of(
+                                    kr.securityadvisor.common.schema.ExportFormat.PDF,
+                                    kr.securityadvisor.common.schema.ExportFormat.MARKDOWN,
+                                    kr.securityadvisor.common.schema.ExportFormat.DOCX)
+                            .containsAll(d.exportFormats()))
+                throw new DomainRuleViolationException("서류 이름·설명·표시 순서·지원 출력 형식을 확인해 주세요.");
             if (d.reviewFields() == null
                     || d.reviewFields().isEmpty()
                     || !Set.of(MemberRole.INFRA, MemberRole.SECURITY).containsAll(d.reviewFields())) {
@@ -134,8 +145,8 @@ public class FieldSchemaValidator {
                 throw new DomainRuleViolationException("처리 기한은 1~365 사이의 정수 영업일이어야 합니다");
             }
         }
-        if (policy.imminentBusinessDays() != 1) {
-            throw new DomainRuleViolationException("기한 임박 알림은 1영업일 전으로 고정됩니다");
+        if (policy.imminentBusinessDays() < 1 || policy.imminentBusinessDays() > 30) {
+            throw new DomainRuleViolationException("기한 임박 알림은 1~30영업일 전으로 설정해 주세요.");
         }
         if (policy.holidays().size() > 366
                 || policy.holidays().stream().anyMatch(day -> day.getYear() < 2000 || day.getYear() > 2100)) {

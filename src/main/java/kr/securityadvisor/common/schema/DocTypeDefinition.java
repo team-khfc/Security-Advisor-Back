@@ -33,8 +33,7 @@ public record DocTypeDefinition(
     public static final Set<ExportFormat> DEFAULT_EXPORT_FORMATS = Set.of(ExportFormat.MARKDOWN, ExportFormat.PDF);
 
     public DocTypeDefinition {
-        exportFormats =
-                exportFormats == null || exportFormats.isEmpty() ? DEFAULT_EXPORT_FORMATS : Set.copyOf(exportFormats);
+        exportFormats = exportFormats == null ? DEFAULT_EXPORT_FORMATS : Set.copyOf(exportFormats);
     }
 
     /** 출력 형식을 기본값으로 두는 생성자(테스트·기존 호출부). */

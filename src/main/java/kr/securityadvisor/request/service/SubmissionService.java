@@ -56,6 +56,7 @@ public class SubmissionService {
     private final FinalDraftService finalDraftService;
     private final InfrastructurePlanService infrastructurePlans;
     private final PreparationMaterialsService preparationMaterials;
+    private final ConsistencyFactsProvider consistencyReviews;
     private final EntityManager entityManager;
     private final ReviewFactsProvider reviewFacts;
     private final DeadlineService deadlineService;
@@ -110,7 +111,8 @@ public class SubmissionService {
                         answers,
                         now,
                         finalDraft,
-                        preparationMaterials.finalReview(principal, securityRequestId)),
+                        preparationMaterials.finalReview(principal, securityRequestId),
+                        consistencyReviews.snapshot(principal, securityRequestId)),
                 idempotencyKey,
                 principal.username(),
                 now));
@@ -235,7 +237,8 @@ public class SubmissionService {
             Map<String, Answer> answers,
             Instant now,
             Map<String, Object> finalDraft,
-            kr.securityadvisor.request.dto.PreparationReviewResponse preparationReview) {
+            kr.securityadvisor.request.dto.PreparationReviewResponse preparationReview,
+            java.util.List<kr.securityadvisor.request.dto.ConsistencyReviewResponse> consistencyReviews) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", SNAPSHOT_FORMAT);
         root.put("businessCaseId", businessCase.getId());
@@ -270,6 +273,7 @@ public class SubmissionService {
         root.put("answers", values);
         root.put("infrastructurePlan", infrastructurePlans.snapshot(request.getId()));
         root.put("preparationReview", preparationReview);
+        root.put("consistencyReviews", consistencyReviews);
         if (finalDraft != null) root.put("finalDraft", finalDraft);
         return objectMapper.writeValueAsString(root);
     }

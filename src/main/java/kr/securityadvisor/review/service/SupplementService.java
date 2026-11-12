@@ -63,7 +63,12 @@ public class SupplementService {
         Instant now = clock.instant();
         request.requestSupplement();
         review.requestSupplement();
-        answerService.markNeedsReview(request, fieldKeys);
+        answerService.markNeedsReview(
+                request,
+                fieldKeys.stream()
+                        .filter(key -> !java.util.Set.of("context.infrastructure", "context.finalDraft")
+                                .contains(key))
+                        .toList());
         Supplement supplement = supplementRepository.save(Supplement.request(
                 request.getId(),
                 reviewId,

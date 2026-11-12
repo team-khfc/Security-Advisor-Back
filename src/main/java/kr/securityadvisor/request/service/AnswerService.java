@@ -94,8 +94,9 @@ public class AnswerService {
         recordFieldChange(
                 principal, unsubmittedRequestIds(businessCaseId), field, before, AnswerResponse.from(answer), "ANSWER");
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
-        eventPublisher.publishEvent(new AnswerChangedEvent(
-                principal, unsubmittedRequestIds(businessCaseId), fieldKey, submittedRequestIds(businessCaseId)));
+        if (before == null || !java.util.Objects.equals(before.value(), value))
+            eventPublisher.publishEvent(new AnswerChangedEvent(
+                    principal, unsubmittedRequestIds(businessCaseId), fieldKey, submittedRequestIds(businessCaseId)));
         return AnswerResponse.from(answer);
     }
 
@@ -127,7 +128,8 @@ public class AnswerService {
                         value)));
         recordFieldChange(principal, List.of(securityRequestId), field, before, AnswerResponse.from(answer), "ANSWER");
         audit(principal, answer, AuditAction.ANSWER_UPDATED, "사용자 답변");
-        eventPublisher.publishEvent(new AnswerChangedEvent(principal, List.of(securityRequestId), fieldKey));
+        if (before == null || !java.util.Objects.equals(before.value(), value))
+            eventPublisher.publishEvent(new AnswerChangedEvent(principal, List.of(securityRequestId), fieldKey));
         return AnswerResponse.from(answer);
     }
 
@@ -299,6 +301,8 @@ public class AnswerService {
                 ? unsubmittedRequestIds(request.getBusinessCaseId())
                 : List.of(request.getId());
         recordFieldChange(actor, ids, field, before, after, kind);
+        if ("ANSWER".equals(kind) && (before == null || !java.util.Objects.equals(before.value(), after.value())))
+            eventPublisher.publishEvent(new AnswerChangedEvent(actor, ids, field.key()));
     }
 
     private void recordFieldChange(
@@ -357,6 +361,9 @@ public class AnswerService {
         if (field.isStaffField()) {
             throw new DomainRuleViolationException("담당자 항목에는 AI 제안을 넣을 수 없습니다: " + fieldKey);
         }
+        var before = findForField(businessCase, securityRequest, field)
+                .map(AnswerResponse::from)
+                .orElse(null);
         Answer answer = findForField(businessCase, securityRequest, field)
                 .map(existing -> {
                     existing.proposeByAi(value, evidenceReference);
@@ -383,6 +390,12 @@ public class AnswerService {
                 answer,
                 AuditAction.ANSWER_AI_PROPOSED,
                 "AI 제안 " + modelReference + " 근거 " + evidenceReference);
+        var ids = field.scope() == AnswerScope.CASE
+                ? unsubmittedRequestIds(businessCase.getId())
+                : List.of(securityRequest.getId());
+        recordFieldChange(principal, ids, field, before, AnswerResponse.from(answer), "ANSWER");
+        if (before == null || !java.util.Objects.equals(before.value(), answer.getValue()))
+            eventPublisher.publishEvent(new AnswerChangedEvent(principal, ids, fieldKey));
         return AnswerResponse.from(answer);
     }
 

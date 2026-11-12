@@ -1362,6 +1362,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ConsultationSummary"
   /api/security-requests/{id}/consistency-checks:
+    get:
+      tags:
+      - consistency-check-controller
+      operationId: list_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConsistencyReviewResponse"
     post:
       tags:
       - consistency-check-controller
@@ -1373,6 +1400,11 @@ paths:
         schema:
           type: integer
           format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Selection"
       responses:
         "200":
           description: OK
@@ -1380,6 +1412,37 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ConsistencyCheckResponse"
+  /api/security-requests/{id}/consistency-checks/{checkId}/decisions:
+    post:
+      tags:
+      - consistency-check-controller
+      operationId: decide
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: checkId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsistencyDecisionCommand"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConsistencyReviewResponse"
   /api/security-requests/{id}/assignments:
     get:
       tags:
@@ -1478,7 +1541,7 @@ paths:
     get:
       tags:
       - reviewer-pool-controller
-      operationId: list_4
+      operationId: list_5
       parameters:
       - name: field
         in: query
@@ -1549,7 +1612,7 @@ paths:
     get:
       tags:
       - member-controller
-      operationId: list_5
+      operationId: list_6
       parameters:
       - name: role
         in: query
@@ -1633,7 +1696,7 @@ paths:
     get:
       tags:
       - llm-configuration-controller
-      operationId: list_6
+      operationId: list_7
       responses:
         "200":
           description: OK
@@ -1911,7 +1974,7 @@ paths:
     get:
       tags:
       - business-case-controller
-      operationId: list_7
+      operationId: list_8
       parameters:
       - name: page
         in: query
@@ -1955,7 +2018,7 @@ paths:
     get:
       tags:
       - uploaded-file-controller
-      operationId: list_8
+      operationId: list_9
       parameters:
       - name: id
         in: path
@@ -2030,7 +2093,7 @@ paths:
     get:
       tags:
       - analysis-job-controller
-      operationId: list_9
+      operationId: list_10
       parameters:
       - name: id
         in: path
@@ -2075,7 +2138,7 @@ paths:
     get:
       tags:
       - interview-controller
-      operationId: list_10
+      operationId: list_11
       parameters:
       - name: caseId
         in: path
@@ -2308,7 +2371,7 @@ paths:
     get:
       tags:
       - todo-controller
-      operationId: list_11
+      operationId: list_12
       parameters:
       - name: page
         in: query
@@ -2397,7 +2460,7 @@ paths:
     get:
       tags:
       - security-request-controller
-      operationId: list_12
+      operationId: list_13
       parameters:
       - name: query
         in: query
@@ -2500,7 +2563,7 @@ paths:
     get:
       tags:
       - supplement-controller
-      operationId: list_13
+      operationId: list_14
       parameters:
       - name: id
         in: path
@@ -2833,7 +2896,7 @@ paths:
     get:
       tags:
       - notification-controller
-      operationId: list_14
+      operationId: list_15
       parameters:
       - name: unreadOnly
         in: query
@@ -3262,7 +3325,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_15
+      operationId: list_16
       parameters:
       - name: effectiveStatus
         in: query
@@ -4780,6 +4843,7 @@ components:
             enum:
             - MARKDOWN
             - PDF
+            - DOCX
             - HWPX
           uniqueItems: true
     FieldCondition:
@@ -4981,34 +5045,11 @@ components:
           type: boolean
         float:
           type: boolean
-        container:
-          type: boolean
-        number:
-          type: boolean
-        string:
-          type: boolean
-        long:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
-        pojo:
-          type: boolean
-        boolean:
-          type: boolean
-        short:
-          type: boolean
-        double:
-          type: boolean
-        binary:
-          type: boolean
-        int:
+        valueNode:
           type: boolean
         integralNumber:
           type: boolean
-        valueNode:
-          type: boolean
-        bigInteger:
+        missingNode:
           type: boolean
         nodeType:
           type: string
@@ -5022,11 +5063,34 @@ components:
           - OBJECT
           - POJO
           - STRING
-        missingNode:
-          type: boolean
         floatingPointNumber:
           type: boolean
         bigDecimal:
+          type: boolean
+        bigInteger:
+          type: boolean
+        string:
+          type: boolean
+        double:
+          type: boolean
+        long:
+          type: boolean
+        int:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        binary:
+          type: boolean
+        pojo:
+          type: boolean
+        short:
+          type: boolean
+        boolean:
+          type: boolean
+        container:
+          type: boolean
+        number:
           type: boolean
         embeddedValue:
           type: boolean
@@ -5440,6 +5504,14 @@ components:
           type: array
           items:
             type: string
+    Selection:
+      type: object
+      properties:
+        fileIds:
+          type: array
+          items:
+            type: integer
+            format: int64
     ConsistencyCheckResponse:
       type: object
       properties:
@@ -5494,6 +5566,73 @@ components:
           type: boolean
         empty:
           type: boolean
+    ConsistencyDecisionCommand:
+      type: object
+      properties:
+        expectedRevision:
+          type: integer
+          format: int64
+        expectedFingerprint:
+          type: string
+          minLength: 1
+        findingIndex:
+          type: integer
+          format: int32
+          minimum: 0
+        status:
+          type: string
+          minLength: 1
+        reason:
+          type: string
+          maxLength: 2000
+          minLength: 0
+      required:
+      - expectedFingerprint
+      - expectedRevision
+      - reason
+      - status
+    ConsistencyReviewResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        revision:
+          type: integer
+          format: int64
+        stale:
+          type: boolean
+        canDecide:
+          type: boolean
+        allowedFindings:
+          type: array
+          items:
+            type: integer
+            format: int32
+        result:
+          $ref: "#/components/schemas/ConsistencyCheckResponse"
+        decisions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Decision"
+    Decision:
+      type: object
+      properties:
+        findingIndex:
+          type: integer
+          format: int32
+        status:
+          type: string
+        reason:
+          type: string
+        actor:
+          type: string
+        at:
+          type: string
+          format: date-time
+        supplementId:
+          type: integer
+          format: int64
     ReassignRequest:
       type: object
       properties:
@@ -6626,6 +6765,7 @@ components:
         action:
           type: string
           enum:
+          - CONSISTENCY_DECIDED
           - LOGIN_SUCCEEDED
           - LOGIN_FAILED
           - LOGIN_LOCKED
@@ -7094,6 +7234,7 @@ components:
           enum:
           - MARKDOWN
           - PDF
+          - DOCX
           - HWPX
         extension:
           type: string

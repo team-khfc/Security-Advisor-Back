@@ -265,13 +265,20 @@ class ReviewWorkflowApiTest {
                 .extractingPath("$[0].status")
                 .isEqualTo("RESOLVED");
 
-        // 3단계 최종 검토의 보충 답변은 협의를 되돌리지 않는다(담당자는 4단계 최종 확인에서 검증, 부족하면 4→3 반환)
+        // 같은 값 재저장은 단계 유지, 중요 필수 항목 변경은 2단계 재협의와 기한을 다시 연다.
+        answerAsApplicant(requestId, "firewall.purpose", "목적 다시 수정");
+        assertThat(requestStage(requestId)).isEqualTo(3);
         answerAsApplicant(requestId, "firewall.purpose", "3단계 보충 수정");
         assertThat(mvc.get().uri("/api/reviews/{id}", securityReviewId).with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$.status")
-                .isEqualTo("COMPLETED");
+                .isEqualTo("RECHECK");
+        assertThat(requestStage(requestId)).isEqualTo(2);
+        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        assertThat(complete(INFRA, infraReviewId, INFRA_CHECKLIST)).hasStatusOk();
+        assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
+        assertThat(requestStage(requestId)).isEqualTo(3);
 
         // 차수 반환 3→1: 신청자는 403, 사유 없으면 400, 담당자+사유는 201, 지정 항목 강조, 1단계 작성 중
         // 항목별 사유(fieldReasons)의 키는 fieldKeys 에 없어도 지정 항목에 포함된다
@@ -321,7 +328,9 @@ class ReviewWorkflowApiTest {
                 .with(authentication(APPLICANT))
                 .exchange();
         assertThat(returns).hasStatusOk();
-        assertThat(returns).bodyJson().extractingPath("$.length()").isEqualTo(1);
+        assertThat(returns).bodyJson().extractingPath("$.length()").isEqualTo(2);
+        assertThat(returns).bodyJson().extractingPath("$[1].toStage").isEqualTo(2);
+        assertThat(returns).bodyJson().extractingPath("$[1].reason").asString().contains("중요 정보 변경");
         assertThat(returns)
                 .bodyJson()
                 .extractingPath("$[0].fieldReasons['firewall.period']")
