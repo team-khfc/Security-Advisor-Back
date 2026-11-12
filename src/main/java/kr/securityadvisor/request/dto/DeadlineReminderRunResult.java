@@ -7,7 +7,7 @@ import java.time.LocalDate;
  *
  * @param asOf 기준일(Asia/Seoul)
  * @param scanned 검사한 활성 기한 수
- * @param imminent 1영업일 전 알림 대상 기한 수
+ * @param imminent 게시본 임박 범위의 알림 대상 기한 수
  * @param overdue 경과 알림 대상 기한 수
  */
 public record DeadlineReminderRunResult(LocalDate asOf, int scanned, int imminent, int overdue) {}

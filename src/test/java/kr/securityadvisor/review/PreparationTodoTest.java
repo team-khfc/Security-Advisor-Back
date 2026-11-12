@@ -31,6 +31,7 @@ class PreparationTodoTest {
         when(request.isUnsubmitted()).thenReturn(true);
         var service = new TodoService(
                 mock(AssignmentService.class),
+                List.of(),
                 mock(ReviewRepository.class),
                 mock(SupplementRepository.class),
                 mock(SubmissionRepository.class),

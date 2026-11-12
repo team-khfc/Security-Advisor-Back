@@ -82,7 +82,72 @@ public class FirewallRule extends BaseTimeEntity {
     @Column(name = "renewal_request_id")
     private Long renewalRequestId;
 
+    @Column(name = "review_months", nullable = false)
+    private int reviewMonths = 12;
+
+    @Column(name = "review_notice_days", nullable = false)
+    private int reviewNoticeDays = 30;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "review_decision", length = 30)
+    private PeriodicReviewDecision reviewDecision;
+
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(name = "review_history", nullable = false, columnDefinition = "jsonb")
+    private java.util.List<PeriodicReviewRecord> reviewHistory = new java.util.ArrayList<>();
+
     protected FirewallRule() {}
+
+    /** 생성 시 게시본 정책을 복사한다. 이미 존재하는 규칙의 날짜와 주기는 바꾸지 않는다. */
+    public void initializeReviewPolicy(kr.securityadvisor.common.schema.FirewallPolicy policy) {
+        if (id != null) throw new DomainRuleViolationException("기존 규칙의 주기는 변경할 수 없습니다");
+        reviewMonths = policy.reviewMonths();
+        reviewNoticeDays = policy.reviewNoticeDays();
+        if (endDate == null) reviewDate = startDate.plusMonths(reviewMonths);
+    }
+
+    /** 현재 적용 중인 상시 규칙의 판단을 기록하며 실제 장비·제출본은 변경하지 않는다. */
+    public void review(PeriodicReviewDecision decision, String reason, String actor, Instant now, LocalDate today) {
+        requireActor(actor);
+        requireReason(reason, "정기 재검토");
+        if (reason.length() > 2000 || decision == null)
+            throw new DomainRuleViolationException("재검토 결과와 2000자 이내 사유가 필요합니다");
+        if (status != FirewallRuleStatus.APPLIED || endDate != null)
+            throw new DomainRuleViolationException("적용 중인 상시 규칙만 정기 재검토할 수 있습니다");
+        LocalDate previous = reviewDate;
+        if (decision == PeriodicReviewDecision.KEEP) reviewDate = today.plusMonths(reviewMonths);
+        reviewDecision = decision;
+        var updated = new java.util.ArrayList<>(reviewHistory);
+        updated.add(new PeriodicReviewRecord(decision, reason.strip(), actor, now, previous, reviewDate));
+        reviewHistory = updated;
+    }
+
+    /** 조회·알림·처리할 일의 공통 날짜 판정. */
+    public String reviewStatus(LocalDate today) {
+        if (status != FirewallRuleStatus.APPLIED || endDate != null) return "NOT_REQUIRED";
+        if (reviewDecision == PeriodicReviewDecision.CHANGE_REQUIRED
+                || reviewDecision == PeriodicReviewDecision.REVOKE_REQUIRED) return reviewDecision.name();
+        if (reviewDate.isBefore(today)) return "OVERDUE";
+        if (!reviewDate.isAfter(today.plusDays(reviewNoticeDays))) return "DUE";
+        return "SCHEDULED";
+    }
+
+    public boolean needsReview(LocalDate today) {
+        return java.util.Set.of("DUE", "OVERDUE", "CHANGE_REQUIRED", "REVOKE_REQUIRED")
+                .contains(reviewStatus(today));
+    }
+
+    public int getReviewMonths() {
+        return reviewMonths;
+    }
+
+    public int getReviewNoticeDays() {
+        return reviewNoticeDays;
+    }
+
+    public java.util.List<PeriodicReviewRecord> getReviewHistory() {
+        return java.util.List.copyOf(reviewHistory);
+    }
 
     private FirewallRule(
             Long securityRequestId,

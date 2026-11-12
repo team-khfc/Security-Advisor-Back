@@ -56,7 +56,10 @@ WITH visible AS (
        'assigneeUsername', a.assignee_username, 'reviewStatus', rv.status,
        'allocated', rv.allocated_at IS NOT NULL, 'confirmed', fc.final_confirmation_id IS NOT NULL,
        'reassignmentReason', CASE
-         WHEN v.stage<2 OR v.status IN ('CONFIRMED','CLOSED','WITHDRAWN') THEN NULL
+         WHEN v.stage<2 OR v.status IN ('CLOSED','WITHDRAWN') OR
+           (v.status='CONFIRMED' AND (f.field<>'INFRA' OR NOT EXISTS (
+              SELECT 1 FROM firewall_rules fw WHERE fw.security_request_id=v.security_request_id
+                 AND fw.status IN ('PENDING_APPLY','APPLIED')))) THEN NULL
          WHEN a.assignee_username IS NULL THEN 'UNASSIGNED'
          WHEN m.username IS NULL OR NOT m.active THEN 'ACCOUNT_INACTIVE'
          WHEN m.role<>f.field THEN 'ROLE_CHANGED'
@@ -76,7 +79,7 @@ WITH visible AS (
    OR (:kind='submitted' AND v.status<>'CONFIRMED' AND v.submission_id IS NOT NULL)
    OR (:kind='draft' AND v.status<>'CONFIRMED' AND v.submission_id IS NULL))
 ), listed AS (
- SELECT e.*, (e.status NOT IN ('CONFIRMED','CLOSED','WITHDRAWN') AND CASE
+ SELECT e.*, ((e.status NOT IN ('CONFIRMED','CLOSED','WITHDRAWN') OR (:role='ADMIN' AND e.status='CONFIRMED')) AND CASE
    WHEN :role='APPLICANT' THEN e.status IN ('DRAFTING','SUPPLEMENT_REQUESTED','FINAL_REVIEW')
    WHEN :role='ADMIN' THEN e.stage>=2 AND EXISTS (SELECT 1 FROM jsonb_array_elements(e.fields) f
           WHERE f->>'reassignmentReason' IS NOT NULL)

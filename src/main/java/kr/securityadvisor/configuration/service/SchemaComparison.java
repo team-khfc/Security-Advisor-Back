@@ -16,6 +16,20 @@ public final class SchemaComparison {
 
     public static List<Change> compare(FieldSchema before, FieldSchema after) {
         List<Change> changes = new ArrayList<>();
+        add(
+                changes,
+                "firewallPolicy.reviewMonths",
+                "상시 방화벽 재검토 주기(개월)",
+                before.firewallPolicy().reviewMonths(),
+                after.firewallPolicy().reviewMonths(),
+                false);
+        add(
+                changes,
+                "firewallPolicy.reviewNoticeDays",
+                "방화벽 재검토 알림(달력일 전)",
+                before.firewallPolicy().reviewNoticeDays(),
+                after.firewallPolicy().reviewNoticeDays(),
+                false);
         var a = before.deadlinePolicy();
         var b = after.deadlinePolicy();
         add(

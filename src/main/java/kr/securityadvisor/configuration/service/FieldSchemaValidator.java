@@ -19,6 +19,12 @@ public class FieldSchemaValidator {
 
     public void validate(FieldSchema schema) {
         validateDeadline(schema.deadlinePolicy());
+        var firewall = schema.firewallPolicy();
+        if (firewall.reviewMonths() < 1
+                || firewall.reviewMonths() > 60
+                || firewall.reviewNoticeDays() < 1
+                || firewall.reviewNoticeDays() > 90)
+            throw new DomainRuleViolationException("방화벽 재검토 주기는 1~60개월, 알림은 1~90일 전이어야 합니다");
         if (schema.fields().size() > 200) {
             throw new DomainRuleViolationException("질문은 최대 200개까지 설정할 수 있습니다");
         }

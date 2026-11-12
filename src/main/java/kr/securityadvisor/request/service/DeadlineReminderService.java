@@ -30,7 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 기한 알림(F-13·F-17): 활성 기한을 훑어 <b>기한일 1영업일 전</b>과 <b>기한 경과</b> 알림을 만든다. 기한 상태는 저장하지 않고 계산하므로(불변식 22)
+ * 기한 알림(F-13·F-17): 활성 기한을 훑어 <b>게시본의 임박 영업일 범위</b>과 <b>기한 경과</b> 알림을 만든다. 기한 상태는 저장하지 않고 계산하므로(불변식 22)
  * 이 서비스도 상태를 바꾸지 않고 알림만 남긴다. 같은 기한·같은 종류 알림은 event_key 로 한 번만 간다(수신자별 유일).
  *
  * <p>수신자: 협의 기한 → 그 분야의 활성 담당자, 보완 응답 기한 → 신청자, 최종 확정 기한 → 두 분야의 활성 담당자.
@@ -51,6 +51,7 @@ public class DeadlineReminderService {
     private final AssignmentService assignmentService;
     private final Notifier notifier;
     private final Clock clock;
+    private final List<OperationalWork> operationalWork;
 
     /** 스케줄러가 부르는 기본 실행(오늘 기준). */
     public DeadlineReminderRunResult runToday() {
@@ -67,7 +68,7 @@ public class DeadlineReminderService {
     }
 
     private DeadlineReminderRunResult run(LocalDate asOf, Long onlyRequestId) {
-        Map<Long, BusinessCalendar> calendars = new HashMap<>();
+        Map<Long, DeadlinePolicy> policies = new HashMap<>();
         int scanned = 0;
         int imminent = 0;
         int overdue = 0;
@@ -85,7 +86,10 @@ public class DeadlineReminderService {
                 continue;
             }
             scanned++;
-            BusinessCalendar calendar = calendars.computeIfAbsent(businessCase.getPublicationId(), this::calendarOf);
+            DeadlinePolicy policy = policies.computeIfAbsent(
+                    businessCase.getPublicationId(),
+                    id -> publicationService.get(id).fieldSchema().deadlinePolicy());
+            BusinessCalendar calendar = new BusinessCalendar(policy.holidays());
             LocalDate due = deadline.getDueDate();
             if (asOf.isAfter(due)) {
                 overdue++;
@@ -96,7 +100,7 @@ public class DeadlineReminderService {
                         NotificationKind.DEADLINE_OVERDUE,
                         "overdue",
                         "기한 지남 (" + due + ")");
-            } else if (calendar.addBusinessDays(asOf, 1).equals(due)) {
+            } else if (calendar.businessDaysBetween(asOf, due) <= policy.imminentBusinessDays()) {
                 imminent++;
                 send(
                         deadline,
@@ -104,9 +108,10 @@ public class DeadlineReminderService {
                         businessCase,
                         NotificationKind.DEADLINE_IMMINENT,
                         "imminent",
-                        "기한 1영업일 전 (" + due + ")");
+                        "기한 임박 (" + policy.imminentBusinessDays() + "영업일 이내, " + due + ")");
             }
         }
+        operationalWork.forEach(work -> work.remind(asOf, onlyRequestId));
         log.info("기한 알림 실행 기준일 {}: 검사 {}건, 임박 {}건, 경과 {}건", asOf, scanned, imminent, overdue);
         return new DeadlineReminderRunResult(asOf, scanned, imminent, overdue);
     }
@@ -149,11 +154,5 @@ public class DeadlineReminderService {
             case SUPPLEMENT_RESPONSE -> "보완 응답 기한";
             case FINAL_CONFIRMATION -> "최종 확정 기한";
         };
-    }
-
-    private BusinessCalendar calendarOf(Long publicationId) {
-        DeadlinePolicy policy =
-                publicationService.get(publicationId).fieldSchema().deadlinePolicy();
-        return new BusinessCalendar(policy.holidays());
     }
 }
