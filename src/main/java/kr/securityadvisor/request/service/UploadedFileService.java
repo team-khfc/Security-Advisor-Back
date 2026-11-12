@@ -49,6 +49,41 @@ public class UploadedFileService {
         if (!anyUnsubmitted) {
             throw new DomainRuleViolationException("진행 중(미제출)인 신청이 없어 문서를 올릴 수 없습니다");
         }
+        return store(principal, businessCase, originalName, contentType, size, content);
+    }
+
+    /** 신청자와 현재 배정된 담당자는 진행 중 신청의 준비자료를 명시적으로 업로드한다. */
+    public UploadedFileResponse uploadPreparation(
+            MemberPrincipal principal,
+            Long requestId,
+            String originalName,
+            String contentType,
+            long size,
+            InputStream content) {
+        principal.requireAnyRole(
+                kr.securityadvisor.common.security.MemberRole.APPLICANT,
+                kr.securityadvisor.common.security.MemberRole.INFRA,
+                kr.securityadvisor.common.security.MemberRole.SECURITY);
+        var request = accessPolicy.viewableRequest(principal, requestId);
+        if (!request.isUnsubmitted() || request.isTerminal()) {
+            throw new DomainRuleViolationException("제출·종료된 신청에는 자료를 올릴 수 없습니다.");
+        }
+        return store(
+                principal,
+                accessPolicy.viewableCase(principal, request.getBusinessCaseId()),
+                originalName,
+                contentType,
+                size,
+                content);
+    }
+
+    private UploadedFileResponse store(
+            MemberPrincipal principal,
+            BusinessCase businessCase,
+            String originalName,
+            String contentType,
+            long size,
+            InputStream content) {
         if (content == null) {
             throw new BadRequestException("파일 내용이 없습니다");
         }
@@ -62,7 +97,7 @@ public class UploadedFileService {
         auditRecorder.record(
                 principal,
                 AuditTargetType.BUSINESS_CASE,
-                String.valueOf(businessCaseId),
+                String.valueOf(businessCase.getId()),
                 businessCase.getRevision(),
                 AuditAction.FILE_UPLOADED,
                 null,

@@ -154,3 +154,5 @@ docs/                           구조·API 목록·DB 명세·OpenAPI 계약·�
 - [통합 배포](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor) · [프론트 원본](https://gitlab.aigov.go.kr/pocketmun1216/securityadvisor-front)
 
 설계 결정 기록(ADR)과 작업별 검증 기록은 `docs/ARCHITECTURE.md` 4~6장으로 요약해 옮겼고 원문은 git 이력에 있습니다. 제출 버전의 출처와 통합 검증은 배포 저장소의 `RELEASE.md`와 `docs/JUDGE_VALIDATION.md`를 확인하세요.
+
+- [사업 조건별 준비자료 관리 및 검증](docs/PREPARATION_MATERIALS_20261112.md)
