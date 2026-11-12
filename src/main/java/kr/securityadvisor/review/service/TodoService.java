@@ -38,6 +38,7 @@ public class TodoService {
     private final SecurityRequestRepository securityRequestRepository;
     private final BusinessCaseRepository businessCaseRepository;
     private final RequiredReviewFields requiredReviewFields;
+    private final kr.securityadvisor.request.service.PreparationMaterialsService preparationMaterials;
 
     public TodoSummary summarize(MemberPrincipal principal) {
         List<TodoItem> items = items(principal);
@@ -48,7 +49,9 @@ public class TodoService {
                 count(items, "FINAL_CONFIRMATION"),
                 count(items, "SUPPLEMENT_OPEN"),
                 count(items, "FINAL_REVIEW"),
-                count(items, "REASSIGNMENT"));
+                count(items, "REASSIGNMENT"),
+                count(items, "PREPARATION_REVIEW"),
+                count(items, "PREPARATION_SUPPLEMENT"));
     }
 
     public PageResponse<TodoItem> list(MemberPrincipal principal, int page, int size) {
@@ -100,6 +103,7 @@ public class TodoService {
             for (var c : businessCaseRepository.findByApplicantUsernameOrderByIdAsc(principal.username())) {
                 for (SecurityRequest r : securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(c.getId())) {
                     if (r.isTerminal()) continue;
+                    addPreparation(items, principal, r);
                     if (r.getStatus() == RequestStatus.FINAL_REVIEW)
                         items.add(item("FINAL_REVIEW", r.getId(), r.getId(), "최종 초안 확인·제출"));
                     supplementRepository.findBySecurityRequestIdOrderByRequestedAtAscIdAsc(r.getId()).stream()
@@ -113,6 +117,7 @@ public class TodoService {
                         .findById(a.securityRequestId())
                         .orElse(null);
                 if (r == null || r.isTerminal()) continue;
+                addPreparation(items, principal, r);
                 if (r.getStage() == 2
                         && reviewRepository
                                 .findBySecurityRequestIdAndField(r.getId(), a.field())
@@ -150,6 +155,33 @@ public class TodoService {
         return field == ReviewField.INFRA
                 || !requiredReviewFields.infraPrecedes(requiredReviewFields.of(request))
                 || finalConfirmationRepository.existsBySubmissionIdAndField(latest.getId(), ReviewField.INFRA);
+    }
+
+    /** 현재 배정·조건·자료 상태에서 계산하므로 읽음이나 재배정으로 업무가 유실되지 않는다. */
+    private void addPreparation(List<TodoItem> items, MemberPrincipal actor, SecurityRequest request) {
+        if (!request.isUnsubmitted() || request.getStage() < 2) return;
+        for (var material : preparationMaterials.get(actor, request.getId()).items()) {
+            if ("NOT_APPLICABLE".equals(material.applicability())) continue;
+            String kind;
+            String action;
+            if (actor.role() == MemberRole.APPLICANT && "NEEDS_SUPPLEMENT".equals(material.status())) {
+                kind = "PREPARATION_SUPPLEMENT";
+                action = "준비자료 보완";
+            } else if (material.canReview()
+                    && "IN_REVIEW".equals(material.status())
+                    && !material.fileIds().isEmpty()) {
+                kind = "PREPARATION_REVIEW";
+                action = "준비자료 검토";
+            } else continue;
+            String key = kind + ":" + request.getId() + ":" + material.key();
+            if (items.stream().noneMatch(i -> i.key().equals(key)))
+                items.add(new TodoItem(
+                        key,
+                        kind,
+                        request.getId(),
+                        material.label() + " · " + action,
+                        "/requests/" + request.getId() + "#preparation-materials"));
+        }
     }
 
     private static TodoItem item(String kind, Long id, Long requestId, String action) {

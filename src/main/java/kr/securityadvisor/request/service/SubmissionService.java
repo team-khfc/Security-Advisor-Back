@@ -55,6 +55,7 @@ public class SubmissionService {
     private final SubmissionChecker submissionChecker;
     private final FinalDraftService finalDraftService;
     private final InfrastructurePlanService infrastructurePlans;
+    private final PreparationMaterialsService preparationMaterials;
     private final EntityManager entityManager;
     private final ReviewFactsProvider reviewFacts;
     private final DeadlineService deadlineService;
@@ -86,6 +87,7 @@ public class SubmissionService {
         }
         request.requireRevision(command.expectedRevision());
         BusinessCase businessCase = accessPolicy.viewableCase(principal, request.getBusinessCaseId());
+        entityManager.refresh(businessCase, LockModeType.PESSIMISTIC_WRITE);
 
         SubmissionPreconditions preconditions = submissionChecker.check(
                 businessCase,
@@ -102,7 +104,13 @@ public class SubmissionService {
                 securityRequestId,
                 businessCase.getPublicationId(),
                 submissionRepository.countBySecurityRequestId(securityRequestId) + 1,
-                snapshotJson(businessCase, request, answers, now, finalDraft),
+                snapshotJson(
+                        businessCase,
+                        request,
+                        answers,
+                        now,
+                        finalDraft,
+                        preparationMaterials.finalReview(principal, securityRequestId)),
                 idempotencyKey,
                 principal.username(),
                 now));
@@ -226,7 +234,8 @@ public class SubmissionService {
             SecurityRequest request,
             Map<String, Answer> answers,
             Instant now,
-            Map<String, Object> finalDraft) {
+            Map<String, Object> finalDraft,
+            kr.securityadvisor.request.dto.PreparationReviewResponse preparationReview) {
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("format", SNAPSHOT_FORMAT);
         root.put("businessCaseId", businessCase.getId());
@@ -260,6 +269,7 @@ public class SubmissionService {
                 .toList();
         root.put("answers", values);
         root.put("infrastructurePlan", infrastructurePlans.snapshot(request.getId()));
+        root.put("preparationReview", preparationReview);
         if (finalDraft != null) root.put("finalDraft", finalDraft);
         return objectMapper.writeValueAsString(root);
     }

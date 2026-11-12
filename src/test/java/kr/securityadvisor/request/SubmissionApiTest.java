@@ -78,6 +78,14 @@ class SubmissionApiTest {
         assertThat(submitted).bodyJson().extractingPath("$.snapshot.docType").isEqualTo("FIREWALL");
         assertThat(submitted)
                 .bodyJson()
+                .extractingPath("$.snapshot.preparationReview.format")
+                .isEqualTo(1);
+        assertThat(submitted)
+                .bodyJson()
+                .extractingPath("$.snapshot.preparationReview.items.length()")
+                .isEqualTo(10);
+        assertThat(submitted)
+                .bodyJson()
                 .extractingPath("$.snapshot.answers[?(@.fieldKey=='network.source')].valueSource")
                 .isEqualTo(List.of("STAFF_INPUT"));
         assertThat(requestStage(requestId)).isEqualTo(4);

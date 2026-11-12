@@ -59,8 +59,13 @@ public class NotificationAudience {
         if (requestId == null) return Optional.empty();
         String roleCondition = switch (kind) {
             case UNASSIGNED, REASSIGNMENT_REQUIRED -> " AND m.role = 'ADMIN'";
-            case ASSIGNED, REASSIGNED, SUPPLEMENT_ANSWERED, SUBMITTED, REVIEW_RECHECK, COMMON_INFO_CHANGED ->
-                " AND m.role IN ('INFRA','SECURITY')";
+            case ASSIGNED,
+                    REASSIGNED,
+                    SUPPLEMENT_ANSWERED,
+                    SUBMITTED,
+                    REVIEW_RECHECK,
+                    COMMON_INFO_CHANGED,
+                    PREPARATION_REVIEW -> " AND m.role IN ('INFRA','SECURITY')";
             case DEADLINE_IMMINENT, DEADLINE_OVERDUE -> " AND m.role <> 'ADMIN'";
             default -> " AND m.role = 'APPLICANT'";
         };

@@ -70,7 +70,9 @@ public class PdfExporter implements DocumentExporter {
             for (DocumentSection section : sections) {
                 w.heading(section.title());
                 for (DocumentValue value : section.values()) {
-                    if ("report.finalSummary".equals(value.fieldKey())) {
+                    if ("report.finalSummary".equals(value.fieldKey())
+                            || value.fieldKey().startsWith("preparation.")) {
+                        if (value.fieldKey().startsWith("preparation.")) w.text(value.label(), HEADING_SIZE);
                         w.text(sourceLabel(value) + " · " + value.status(), SMALL_SIZE);
                         for (String line : value.display().split("\\R")) w.text(line, BODY_SIZE);
                     } else {
@@ -99,6 +101,7 @@ public class PdfExporter implements DocumentExporter {
     }
 
     private static String sourceLabel(DocumentValue value) {
+        if (value.fieldKey().startsWith("preparation.")) return "자료 현황 기록";
         if (value.valueSource() == null) {
             return "출처 없음";
         }

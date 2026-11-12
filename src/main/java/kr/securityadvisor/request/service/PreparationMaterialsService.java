@@ -33,6 +33,43 @@ public class PreparationMaterialsService {
     private final EntityManager entities;
     private final ObjectMapper json;
     private final Clock clock;
+    private final kr.securityadvisor.assignment.service.AssignmentService assignments;
+    private final kr.securityadvisor.notification.service.Notifier notifier;
+
+    /** 현재 권한을 확인한 뒤 제출·최종 검토에서 공유하는 자료 묶음을 만든다. 미첨부는 제출 차단 사유가 아니다. */
+    public PreparationReviewResponse finalReview(MemberPrincipal actor, Long id) {
+        var request = access.viewableRequest(actor, id);
+        var current = get(actor, id);
+        var linked = files.list(actor, request.getBusinessCaseId()).stream()
+                .collect(java.util.stream.Collectors.toMap(UploadedFileResponse::uploadedFileId, f -> f));
+        return new PreparationReviewResponse(
+                1,
+                current.revision(),
+                current.fingerprint(),
+                clock.instant(),
+                current.extraConditions(),
+                current.items().stream()
+                        .map(i -> new PreparationReviewResponse.Item(
+                                i.key(),
+                                i.label(),
+                                i.reviewer(),
+                                i.applicability(),
+                                i.status(),
+                                i.stale(),
+                                i.note(),
+                                i.actor(),
+                                i.at(),
+                                i.fileIds().stream()
+                                        .map(fileId -> {
+                                            var f = linked.get(fileId);
+                                            if (f == null)
+                                                throw new ConflictException("연결된 자료를 찾을 수 없습니다. 최신 목록을 확인해 주세요.");
+                                            return new PreparationReviewResponse.File(
+                                                    fileId, f.originalName(), f.uploadedAt());
+                                        })
+                                        .toList()))
+                        .toList());
+    }
 
     public record Entry(List<Long> files, String status, String note, String actor, Instant at, String fingerprint) {}
 
@@ -193,6 +230,34 @@ public class PreparationMaterialsService {
                 AuditAction.PREPARATION_MATERIAL_UPDATED,
                 command.note(),
                 summary);
-        return response(actor, request, value);
+        var updated = response(actor, request, value);
+        String eventKey = "preparation:" + id + ":" + value.getRevision();
+        String link = "/requests/" + id;
+        if ("REVIEW".equals(command.action()) && "NEEDS_SUPPLEMENT".equals(command.status())) {
+            notifier.notify(
+                    business.getApplicantUsername(),
+                    eventKey,
+                    kr.securityadvisor.notification.domain.NotificationKind.PREPARATION_SUPPLEMENT,
+                    "신청 #" + id + " 준비자료 보완이 필요합니다",
+                    link);
+        } else if ("ATTACH".equals(command.action()) || "CONDITIONS".equals(command.action())) {
+            var fields = updated.items().stream()
+                    .filter(i -> !"NOT_APPLICABLE".equals(i.applicability())
+                            && !i.fileIds().isEmpty())
+                    .filter(i ->
+                            "CONDITIONS".equals(command.action()) || i.key().equals(command.key()))
+                    .map(PreparationItem::reviewer)
+                    .collect(java.util.stream.Collectors.toSet());
+            notifier.notify(
+                    assignments.listForRequest(id).stream()
+                            .filter(a -> a.active() && fields.contains(a.field().name()))
+                            .map(a -> a.assigneeUsername())
+                            .toList(),
+                    eventKey,
+                    kr.securityadvisor.notification.domain.NotificationKind.PREPARATION_REVIEW,
+                    "신청 #" + id + " 준비자료 첨부·조건 변경 검토가 필요합니다",
+                    link);
+        }
+        return updated;
     }
 }

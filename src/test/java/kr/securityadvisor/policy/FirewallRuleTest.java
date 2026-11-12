@@ -26,6 +26,9 @@ class FirewallRuleTest {
         RulePeriod open = RulePeriod.parse("2026-12-01~");
         assertThat(open.end()).isNull();
         assertThat(open.reviewDate()).isEqualTo(LocalDate.of(2027, 12, 1));
+        RulePeriod permanent = RulePeriod.parse("2024-02-29 ~ 9999-12-31");
+        assertThat(permanent.end()).isNull();
+        assertThat(permanent.reviewDate()).isEqualTo(LocalDate.of(2025, 2, 28));
         RulePeriod closed = RulePeriod.parse("2026-12-01~2027-11-30");
         assertThat(closed.reviewDate()).isNull();
         assertThatThrownBy(() -> RulePeriod.parse("언제까지나")).isInstanceOf(DomainRuleViolationException.class);
