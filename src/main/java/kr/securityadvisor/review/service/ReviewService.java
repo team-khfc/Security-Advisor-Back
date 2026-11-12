@@ -78,6 +78,7 @@ public class ReviewService {
     private final jakarta.persistence.EntityManager entityManager;
     private final kr.securityadvisor.request.service.InfrastructurePlanService infrastructurePlans;
     private final kr.securityadvisor.request.service.ConsultationComparisonService consultationComparison;
+    private final kr.securityadvisor.review.repository.StageReturnRepository stageReturns;
 
     /**
      * 신청자의 협의 요청: 1단계 작성 중 → 2단계 협의 중.
@@ -271,14 +272,67 @@ public class ReviewService {
 
     /**
      * 사용자가 답변을 바꾸면(공통 항목이면 사업 건의 미제출 신청 전부) 완료된 협의를 재검토로 돌린다(불변식 7).
-     * 대상은 2단계(협의 중·보완 요청) 신청만이다 — 3단계 최종 검토의 보충 답변은 담당자가 4단계 최종 확인에서 검증하며,
-     * 거기서 되돌릴 때는 4→3 차수 반환으로 재검토 표시를 만든다(docs/ARCHITECTURE.md 5장 #13).
+     * 3단계에서도 필수·기간·보안 조건·담당자 정보 변경은 2단계 재협의를 연다. 최종 초안 문장 편집과 같은 값 재저장은 제외한다.
      */
     @EventListener
     public void onAnswerChanged(AnswerChangedEvent event) {
         notifySubmittedReviewers(event);
         if (event.affectedRequestIds().isEmpty()) {
             return;
+        }
+        for (var request : securityRequestRepository.findAllById(event.affectedRequestIds())) {
+            if (request.getStage() != 3 || request.isTerminal()) continue;
+            var business =
+                    businessCaseRepository.findById(request.getBusinessCaseId()).orElseThrow();
+            var field = publicationService
+                    .getFieldSchema(business.getPublicationId())
+                    .find(event.fieldKey());
+            boolean important = "infrastructure.plan".equals(event.fieldKey())
+                    || field.filter(f -> f.appliesTo(request.getDocType()))
+                            .map(f -> f.required()
+                                    || f.isStaffField()
+                                    || Set.of("BOOLEAN", "DATE_RANGE", "IP_ADDRESS", "PORT", "PROTOCOL")
+                                            .contains(f.type()))
+                            .orElse(false);
+            if (!important) continue;
+            String reason = "최종 검토 중 중요 정보 변경으로 담당자 재협의 필요: " + event.fieldKey();
+            boolean supplementOpen =
+                    request.getStatus() == kr.securityadvisor.request.domain.RequestStatus.SUPPLEMENT_REQUESTED;
+            request.returnToStage(2, reason);
+            if (supplementOpen) request.requestSupplement();
+            stageReturns.save(kr.securityadvisor.review.domain.StageReturn.record(
+                    request.getId(),
+                    3,
+                    2,
+                    reason,
+                    json.writeKeys(List.of(event.fieldKey())),
+                    json.writeReasons(java.util.Map.of(event.fieldKey(), reason)),
+                    event.actor().username(),
+                    clock.instant()));
+            deadlineService.startReviewDeadlines(
+                    event.actor(), request, business.getPublicationId(), reviewFieldsOf(business, request));
+            if (supplementOpen) {
+                supplementRepository.findBySecurityRequestIdOrderByRequestedAtAscIdAsc(request.getId()).stream()
+                        .filter(s -> s.getStatus() == SupplementStatus.OPEN)
+                        .map(s -> s.getField())
+                        .distinct()
+                        .forEach(fieldWithSupplement -> deadlineService.pauseReviewDeadline(
+                                event.actor(), request, fieldWithSupplement, business.getPublicationId()));
+            }
+            auditRecorder.record(
+                    event.actor(),
+                    AuditTargetType.SECURITY_REQUEST,
+                    request.getId().toString(),
+                    request.getRevision(),
+                    AuditAction.STAGE_RETURNED,
+                    reason,
+                    "3단계 → 2단계 자동 재협의 · 기존 답변과 제출본 보존");
+            notifier.notify(
+                    business.getApplicantUsername(),
+                    "material-change:" + request.getId() + ":" + java.util.UUID.randomUUID(),
+                    NotificationKind.STAGE_RETURNED,
+                    "신청 #" + request.getId() + " 중요 정보가 변경되어 담당자 재협의가 필요합니다",
+                    "/requests/" + request.getId());
         }
         List<Long> inReview = securityRequestRepository.findAllById(event.affectedRequestIds()).stream()
                 .filter(request -> request.getStage() == 2)

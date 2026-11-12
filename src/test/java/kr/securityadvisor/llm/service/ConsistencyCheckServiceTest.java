@@ -16,7 +16,7 @@ class ConsistencyCheckServiceTest {
     private final RequestAccessPolicy access = mock(RequestAccessPolicy.class);
     private final LlmGateway gateway = mock(LlmGateway.class);
     private final ConsistencyCheckService service = new ConsistencyCheckService(
-            access, null, null, null, null, gateway, new InternalInfoGuard(), new ObjectMapper());
+            access, null, null, null, null, gateway, new InternalInfoGuard(), new ObjectMapper(), null, null);
     private final List<AnswerResponse> answers = List.of(new AnswerResponse(
             1L, "data.personal_info", AnswerScope.CASE, "false", null, null, false, null, null, false, 1, false));
 

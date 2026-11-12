@@ -13,6 +13,8 @@ COPY src ./src
 RUN --mount=type=cache,target=/root/.gradle ./gradlew bootJar --no-daemon -x test
 
 FROM eclipse-temurin:25-jre
+RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-kor tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 RUN groupadd --system app && useradd --system --gid app app \
     && mkdir -p /data/storage && chown app:app /data/storage

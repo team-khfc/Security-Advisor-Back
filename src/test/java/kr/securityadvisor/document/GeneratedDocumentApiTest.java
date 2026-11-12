@@ -174,7 +174,16 @@ class GeneratedDocumentApiTest {
         assertThat(mvc.get()
                         .uri("/api/generated-documents/{id}/download?format=docx", documentId)
                         .with(authentication(APPLICANT)))
+                .hasStatus(HttpStatus.UNPROCESSABLE_ENTITY); // 형식은 구현됐지만 기존 게시본의 허용 형식은 유지
+        assertThat(mvc.get()
+                        .uri("/api/generated-documents/{id}/download?format=unknown", documentId)
+                        .with(authentication(APPLICANT)))
                 .hasStatus(HttpStatus.BAD_REQUEST);
+        assertThat(mvc.get().uri("/api/document-export-formats").with(authentication(APPLICANT)))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$[?(@.format=='DOCX')].implemented")
+                .isEqualTo(List.of(true));
         assertThat(mvc.get().uri("/api/document-export-formats").with(authentication(APPLICANT)))
                 .hasStatusOk()
                 .bodyJson()

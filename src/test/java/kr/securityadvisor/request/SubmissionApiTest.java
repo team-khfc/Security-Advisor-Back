@@ -69,6 +69,8 @@ class SubmissionApiTest {
 
         // 3단계에서 부족한 내용을 보충한 뒤 제출 → 201, 같은 키 재요청 → 200 같은 제출본, 다른 키 → 4단계라 422
         answerAsApplicantNew(requestId, "firewall.purpose", "외부 API 연동(합성 시나리오)");
+        assertThat(submit(requestId, "material-change-blocked")).hasStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        repeatReviews(requestId);
         MvcTestResult submitted = submit(requestId, "key-synthetic-1");
         assertThat(submitted).hasStatus(HttpStatus.CREATED);
         assertThat(submitted).headers().containsHeader("Location");
@@ -306,6 +308,7 @@ class SubmissionApiTest {
     void finalDraftAndPdf() throws Exception {
         Long requestId = createFirewallRequestAtStage3();
         answerAsApplicantNew(requestId, "firewall.purpose", "합성 최종 보고서 검증");
+        repeatReviews(requestId);
         MvcTestResult generated = mvc.post()
                 .uri("/api/security-requests/{id}/final-draft-generations", requestId)
                 .with(authentication(APPLICANT))
@@ -370,6 +373,7 @@ class SubmissionApiTest {
                 .bodyJson()
                 .extractingPath("$.stale")
                 .isEqualTo(true);
+        repeatReviews(requestId);
         MvcTestResult replacement = mvc.post()
                 .uri("/api/security-requests/{id}/final-drafts", requestId)
                 .with(authentication(APPLICANT))
@@ -501,6 +505,20 @@ class SubmissionApiTest {
         assertThat(complete(SECURITY, securityReviewId, SECURITY_CHECKLIST)).hasStatusOk();
         assertThat(requestStage(requestId)).isEqualTo(3);
         return requestId;
+    }
+
+    private void repeatReviews(Long requestId) throws Exception {
+        assertThat(requestStage(requestId)).isEqualTo(2);
+        var result = mvc.get()
+                .uri("/api/security-requests/{id}/reviews", requestId)
+                .with(authentication(APPLICANT))
+                .exchange();
+        assertThat(result).hasStatusOk();
+        String body = "{\"reviews\":" + result.getResponse().getContentAsString() + "}";
+        assertThat(complete(INFRA, reviewId(body, "INFRA"), INFRA_CHECKLIST)).hasStatusOk();
+        assertThat(complete(SECURITY, reviewId(body, "SECURITY"), SECURITY_CHECKLIST))
+                .hasStatusOk();
+        assertThat(requestStage(requestId)).isEqualTo(3);
     }
 
     private void staffInput(Long reviewId, String fieldKey, String value) {

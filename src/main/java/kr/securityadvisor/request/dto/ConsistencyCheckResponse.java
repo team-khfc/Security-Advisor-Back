@@ -1,4 +1,4 @@
-package kr.securityadvisor.llm.dto;
+package kr.securityadvisor.request.dto;
 
 import java.time.Instant;
 import java.util.List;

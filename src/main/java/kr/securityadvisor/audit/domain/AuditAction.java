@@ -2,6 +2,7 @@ package kr.securityadvisor.audit.domain;
 
 /** 감사 이력의 행위 종류(FUNCTIONAL_SPEC 3-3장 기록 대상). 구현된 행위만 두고 기능이 늘 때 추가한다. */
 public enum AuditAction {
+    CONSISTENCY_DECIDED,
     LOGIN_SUCCEEDED,
     LOGIN_FAILED,
     LOGIN_LOCKED,
