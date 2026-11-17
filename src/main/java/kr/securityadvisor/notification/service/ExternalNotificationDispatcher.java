@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class ExternalNotificationDispatcher {
 
     private final List<NotificationChannel> channels;
+    private final kr.securityadvisor.common.observability.OperationMetrics metrics;
 
     @Async
     public void dispatch(Notification notification) {
@@ -22,7 +23,13 @@ public class ExternalNotificationDispatcher {
                 continue;
             }
             try {
-                channel.deliver(notification);
+                metrics.measure(
+                        kr.securityadvisor.common.observability.OperationMetrics.Operation.NOTIFICATION,
+                        channel.name(),
+                        () -> {
+                            channel.deliver(notification);
+                            return null;
+                        });
             } catch (RuntimeException e) {
                 log.warn(
                         "외부 알림 전달 실패 channel={} notificationId={} ({})",

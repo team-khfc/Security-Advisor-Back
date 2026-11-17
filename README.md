@@ -147,6 +147,7 @@ docs/                           구조·API 목록·DB 명세·OpenAPI 계약·�
 
 ## 참고 문서
 
+- [운영 상태·API·LLM·알림 지표와 Actuator 접근 통제](docs/OPERATIONS_METRICS.md)
 - [구조·설계 결정·명세와 다른 점](docs/ARCHITECTURE.md) — 처음 받았다면 이 문서부터 읽습니다
 - [API 목록](docs/API.md) · [DB 명세·ERD](docs/DATABASE.md) · [OpenAPI 계약](docs/api/openapi.yaml)
 - [지식 조각 데이터와 등록 방법](docs/knowledge/README.md)

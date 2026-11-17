@@ -32,6 +32,7 @@ public class NotificationService implements Notifier {
     private final TransactionTemplate transactionTemplate;
     private final ExternalNotificationDispatcher dispatcher;
     private final Clock clock;
+    private final kr.securityadvisor.common.observability.OperationMetrics metrics;
     private final ApplicationEventPublisher events;
     private final NotificationAudience audience;
 
@@ -69,22 +70,25 @@ public class NotificationService implements Notifier {
                 TransactionTemplate separate = new TransactionTemplate(transactionTemplate.getTransactionManager());
                 separate.setPropagationBehavior(
                         org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-                Notification created = separate.execute(status -> {
-                    Long requestId = audience.requestId(pending.link());
-                    var role = audience.eligibleRole(recipient, requestId, pending.kind());
-                    if (role.isEmpty()) return null;
-                    if (repository.existsByRecipientUsernameAndEventKey(recipient, eventKey)) {
-                        return null;
-                    }
-                    Notification notification = Notification.of(
-                            recipient,
-                            eventKey,
-                            pending.kind(),
-                            pending.title().replace("INFRA", "ICT인프라").replace("SECURITY", "정보보안"),
-                            pending.link());
-                    notification.bindAudience(requestId, role.get());
-                    return repository.save(notification);
-                });
+                Notification created = metrics.measure(
+                        kr.securityadvisor.common.observability.OperationMetrics.Operation.NOTIFICATION,
+                        "in_app",
+                        () -> separate.execute(status -> {
+                            Long requestId = audience.requestId(pending.link());
+                            var role = audience.eligibleRole(recipient, requestId, pending.kind());
+                            if (role.isEmpty()) return null;
+                            if (repository.existsByRecipientUsernameAndEventKey(recipient, eventKey)) {
+                                return null;
+                            }
+                            Notification notification = Notification.of(
+                                    recipient,
+                                    eventKey,
+                                    pending.kind(),
+                                    pending.title().replace("INFRA", "ICT인프라").replace("SECURITY", "정보보안"),
+                                    pending.link());
+                            notification.bindAudience(requestId, role.get());
+                            return repository.save(notification);
+                        }));
                 if (created != null) {
                     dispatcher.dispatch(created); // 메일·메신저는 비동기, 실패해도 화면 알림은 남는다
                 }

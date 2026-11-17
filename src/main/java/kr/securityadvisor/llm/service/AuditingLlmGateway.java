@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuditingLlmGateway implements LlmGateway {
 
+    private final kr.securityadvisor.common.observability.OperationMetrics metrics;
     private final LlmBackend backend;
     private final LlmCallAuditWriter auditWriter;
 
@@ -24,7 +25,10 @@ public class AuditingLlmGateway implements LlmGateway {
     public LlmResult complete(LlmPurpose purpose, LlmPrompt prompt, LlmCallContext context) {
         long started = System.nanoTime();
         try {
-            LlmResult result = backend.complete(purpose, prompt);
+            LlmResult result = metrics.measure(
+                    kr.securityadvisor.common.observability.OperationMetrics.Operation.LLM,
+                    purpose.name(),
+                    () -> backend.complete(purpose, prompt));
             auditWriter.write(
                     context,
                     AuditAction.LLM_CALLED,

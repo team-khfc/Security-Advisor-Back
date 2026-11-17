@@ -62,6 +62,21 @@ public class SecurityConfig {
                                 "/v3/api-docs.yaml",
                                 "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers(
+                                org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest.to(
+                                        "health"))
+                        .access((authentication, context) ->
+                                new org.springframework.security.authorization.AuthorizationDecision(
+                                        "GET".equals(context.getRequest().getMethod())))
+                        .requestMatchers(
+                                org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest.to(
+                                        "info", "metrics"))
+                        .hasRole("ADMIN")
+                        .requestMatchers(org.springframework.boot.security.autoconfigure.actuate.web.servlet
+                                .EndpointRequest.toAnyEndpoint())
+                        .denyAll()
+                        .requestMatchers("/actuator", "/actuator/**")
+                        .denyAll()
                         .anyRequest()
                         .authenticated())
                 .exceptionHandling(handling -> handling
