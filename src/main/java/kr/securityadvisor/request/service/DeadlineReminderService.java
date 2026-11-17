@@ -51,11 +51,15 @@ public class DeadlineReminderService {
     private final AssignmentService assignmentService;
     private final Notifier notifier;
     private final Clock clock;
+    private final kr.securityadvisor.common.observability.OperationMetrics metrics;
     private final List<OperationalWork> operationalWork;
 
     /** 스케줄러가 부르는 기본 실행(오늘 기준). */
     public DeadlineReminderRunResult runToday() {
-        return run(LocalDate.ofInstant(clock.instant(), KOREA), null);
+        return metrics.measure(
+                kr.securityadvisor.common.observability.OperationMetrics.Operation.REMINDER,
+                "scheduled",
+                () -> run(LocalDate.ofInstant(clock.instant(), KOREA), null));
     }
 
     /** 기관 관리자의 수동 실행. 기준일을 주면 그 날짜 기준으로 계산한다(시연·검증용). */
@@ -64,7 +68,10 @@ public class DeadlineReminderService {
         LocalDate asOf = command == null || command.asOf() == null
                 ? LocalDate.ofInstant(clock.instant(), KOREA)
                 : command.asOf();
-        return run(asOf, command == null ? null : command.securityRequestId());
+        return metrics.measure(
+                kr.securityadvisor.common.observability.OperationMetrics.Operation.REMINDER,
+                "manual",
+                () -> run(asOf, command == null ? null : command.securityRequestId()));
     }
 
     private DeadlineReminderRunResult run(LocalDate asOf, Long onlyRequestId) {

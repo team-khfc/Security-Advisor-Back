@@ -80,7 +80,33 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
+    jmx:
+      exposure:
+        exclude: '*'
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+    env:
+      access: none
+    configprops:
+      access: none
+    heapdump:
+      access: none
+    logfile:
+      access: none
+    loggers:
+      access: none
+    shutdown:
+      access: none
+  info:
+    env:
+      enabled: false
+    java:
+      enabled: false
+    os:
+      enabled: false
 
 springdoc:
   swagger-ui:

@@ -50,6 +50,8 @@ class DeadlinePolicyReminderTest {
                 assignments,
                 notifications,
                 Clock.systemUTC(),
+                new kr.securityadvisor.common.observability.OperationMetrics(
+                        new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
                 List.of(extra));
         var admin = new MemberPrincipal("synthetic-admin", "합성 관리자", MemberRole.ADMIN);
         assertThat(service.runAs(admin, new DeadlineReminderRunCommand(LocalDate.of(2026, 11, 13), 1L))
