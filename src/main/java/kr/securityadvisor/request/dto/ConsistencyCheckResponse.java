@@ -12,7 +12,18 @@ public record ConsistencyCheckResponse(
         int totalFiles,
         List<Source> sources,
         List<Finding> findings) {
-    public record Source(Long fileId, String name, boolean truncated, boolean empty) {}
+    public record Source(
+            Long fileId,
+            String name,
+            boolean truncated,
+            boolean empty,
+            int fromCharacter,
+            int toCharacter,
+            int extractedCharacters) {
+        public Source(Long fileId, String name, boolean truncated, boolean empty) {
+            this(fileId, name, truncated, empty, 0, 0, 0);
+        }
+    }
 
     public record Finding(
             String fieldKey,

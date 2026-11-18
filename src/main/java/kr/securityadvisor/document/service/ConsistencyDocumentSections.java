@@ -24,6 +24,16 @@ public final class ConsistencyDocumentSections {
                         record.result().checkedAt() + " · " + record.result().model() + " · 문서 "
                                 + record.result().sources().size() + "개 · "
                                 + (record.stale() ? "입력 변경 후 재검사 필요" : "검사 당시 입력 일치")));
+                for (var source : record.result().sources()) {
+                    values.add(value(
+                            "coverage" + record.id() + "." + source.fileId(),
+                            "검사 범위 · " + source.name(),
+                            source.extractedCharacters() == 0
+                                    ? "과거 검사: 상세 범위 기록 없음"
+                                    : "추출문 " + source.fromCharacter() + "~" + source.toCharacter() + " / "
+                                            + source.extractedCharacters() + "자"
+                                            + (source.truncated() ? " · 추출 한도 초과, 원본 추가 대조 필요" : "")));
+                }
                 for (int i = 0; i < record.result().findings().size(); i++) {
                     var finding = record.result().findings().get(i);
                     final int index = i;

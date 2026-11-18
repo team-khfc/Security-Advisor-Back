@@ -48,7 +48,8 @@ public class FieldSchemaValidator {
                     || !Set.of(
                                     kr.securityadvisor.common.schema.ExportFormat.PDF,
                                     kr.securityadvisor.common.schema.ExportFormat.MARKDOWN,
-                                    kr.securityadvisor.common.schema.ExportFormat.DOCX)
+                                    kr.securityadvisor.common.schema.ExportFormat.DOCX,
+                                    kr.securityadvisor.common.schema.ExportFormat.HWPX)
                             .containsAll(d.exportFormats()))
                 throw new DomainRuleViolationException("서류 이름·설명·표시 순서·지원 출력 형식을 확인해 주세요.");
             if (d.reviewFields() == null

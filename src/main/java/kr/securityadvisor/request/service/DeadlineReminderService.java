@@ -55,6 +55,7 @@ public class DeadlineReminderService {
     private final List<OperationalWork> operationalWork;
 
     /** 스케줄러가 부르는 기본 실행(오늘 기준). */
+    @Transactional
     public DeadlineReminderRunResult runToday() {
         return metrics.measure(
                 kr.securityadvisor.common.observability.OperationMetrics.Operation.REMINDER,
@@ -63,6 +64,7 @@ public class DeadlineReminderService {
     }
 
     /** 기관 관리자의 수동 실행. 기준일을 주면 그 날짜 기준으로 계산한다(시연·검증용). */
+    @Transactional
     public DeadlineReminderRunResult runAs(MemberPrincipal admin, DeadlineReminderRunCommand command) {
         admin.requireAnyRole(MemberRole.ADMIN);
         LocalDate asOf = command == null || command.asOf() == null
