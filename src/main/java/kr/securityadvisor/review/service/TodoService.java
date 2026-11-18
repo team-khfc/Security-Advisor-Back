@@ -31,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TodoService {
     private final AssignmentService assignmentService;
+    private final kr.securityadvisor.review.repository.TodoCandidates candidates;
+    private final jakarta.persistence.EntityManager entities;
     private final List<TodoContributor> contributors;
     private final ReviewRepository reviewRepository;
     private final SupplementRepository supplementRepository;
@@ -42,32 +44,45 @@ public class TodoService {
     private final kr.securityadvisor.request.service.PreparationMaterialsService preparationMaterials;
 
     public TodoSummary summarize(MemberPrincipal principal) {
-        List<TodoItem> items = items(principal);
+        java.util.Map<String, Long> counts = new java.util.HashMap<>();
+        var seen = new java.util.HashSet<String>();
+        collect(principal, item -> {
+            if (seen.add(item.key())) counts.merge(item.kind(), 1L, Long::sum);
+        });
         return TodoSummary.of(
                 principal.role(),
-                count(items, "REVIEW"),
-                count(items, "SUPPLEMENT_ANSWERED"),
-                count(items, "FINAL_CONFIRMATION"),
-                count(items, "SUPPLEMENT_OPEN"),
-                count(items, "FINAL_REVIEW"),
-                count(items, "REASSIGNMENT"),
-                count(items, "PREPARATION_REVIEW"),
-                count(items, "PREPARATION_SUPPLEMENT"),
-                count(items, "FIREWALL_REVIEW"));
+                counts.getOrDefault("REVIEW", 0L),
+                counts.getOrDefault("SUPPLEMENT_ANSWERED", 0L),
+                counts.getOrDefault("FINAL_CONFIRMATION", 0L),
+                counts.getOrDefault("SUPPLEMENT_OPEN", 0L),
+                counts.getOrDefault("FINAL_REVIEW", 0L),
+                counts.getOrDefault("REASSIGNMENT", 0L),
+                counts.getOrDefault("PREPARATION_REVIEW", 0L),
+                counts.getOrDefault("PREPARATION_SUPPLEMENT", 0L),
+                counts.getOrDefault("FIREWALL_REVIEW", 0L));
     }
 
     public PageResponse<TodoItem> list(MemberPrincipal principal, int page, int size) {
         if (page < 0 || size < 1 || size > 100) throw new BadRequestException("페이지는 0 이상, 크기는 1~100이어야 합니다");
-        List<TodoItem> items = items(principal);
+        var order = Comparator.comparing(TodoItem::securityRequestId).reversed().thenComparing(TodoItem::key);
+        var selected = new java.util.TreeSet<TodoItem>(order);
+        var seen = new java.util.HashSet<String>();
+        long needed = ((long) page + 1) * size;
+        collect(principal, item -> {
+            if (seen.add(item.key())) {
+                selected.add(item);
+                if (selected.size() > needed) selected.pollLast();
+            }
+        });
         return new PageResponse<>(
-                items.stream()
+                selected.stream()
                         .skip((long) page * size)
                         .limit(size)
                         .map(this::withContext)
                         .toList(),
                 page,
                 size,
-                items.size());
+                seen.size());
     }
 
     /** 권한 판정·페이지 선택 후 표시할 신청만 보강한다. 전체 목록을 상세 조회하지 않는다. */
@@ -91,56 +106,50 @@ public class TodoService {
                         request.getUpdatedAt()));
     }
 
-    private List<TodoItem> items(MemberPrincipal principal) {
+    private void collect(MemberPrincipal principal, java.util.function.Consumer<TodoItem> consumer) {
         List<TodoItem> items = new ArrayList<>();
-        if (principal.role() == MemberRole.ADMIN) {
-            for (SecurityRequest r : securityRequestRepository.findAll()) {
-                if (r.getStage() >= 2
-                        && !r.isTerminal()
-                        && requiredReviewFields.of(r).stream()
-                                .anyMatch(field -> assignmentService.reassignmentReason(r.getId(), field) != null))
-                    items.add(item("REASSIGNMENT", r.getId(), r.getId(), "담당자 재배정"));
-            }
-        } else if (principal.role() == MemberRole.APPLICANT) {
-            for (var c : businessCaseRepository.findByApplicantUsernameOrderByIdAsc(principal.username())) {
-                for (SecurityRequest r : securityRequestRepository.findByBusinessCaseIdOrderByIdAsc(c.getId())) {
-                    if (r.isTerminal()) continue;
+        long after = 0;
+        while (true) {
+            var ids = candidates.after(principal, after);
+            if (ids.isEmpty()) break;
+            for (Long id : ids) {
+                SecurityRequest r = securityRequestRepository.findById(id).orElseThrow();
+                if (principal.role() == MemberRole.ADMIN) {
+                    if (requiredReviewFields.of(r).stream()
+                            .anyMatch(field -> assignmentService.reassignmentReason(r.getId(), field) != null))
+                        items.add(item("REASSIGNMENT", r.getId(), r.getId(), "담당자 재배정"));
+                } else if (principal.role() == MemberRole.APPLICANT) {
                     addPreparation(items, principal, r);
                     if (r.getStatus() == RequestStatus.FINAL_REVIEW)
                         items.add(item("FINAL_REVIEW", r.getId(), r.getId(), "최종 초안 확인·제출"));
                     supplementRepository.findBySecurityRequestIdOrderByRequestedAtAscIdAsc(r.getId()).stream()
                             .filter(s -> s.getStatus() == SupplementStatus.OPEN)
                             .forEach(s -> items.add(item("SUPPLEMENT_OPEN", s.getId(), r.getId(), "보완 답변 작성")));
+                } else {
+                    var field = ReviewField.valueOf(principal.role().name());
+                    addPreparation(items, principal, r);
+                    if (r.getStage() == 2
+                            && reviewRepository
+                                    .findBySecurityRequestIdAndField(r.getId(), field)
+                                    .map(review -> review.getStatus() != ReviewStatus.COMPLETED)
+                                    .orElse(false)) items.add(item("REVIEW", r.getId(), r.getId(), "담당자 협의"));
+                    if (r.getStage() == 2 || r.getStage() == 3)
+                        supplementRepository.findBySecurityRequestIdOrderByRequestedAtAscIdAsc(r.getId()).stream()
+                                .filter(s -> s.getField() == field && s.getStatus() == SupplementStatus.ANSWERED)
+                                .forEach(s ->
+                                        items.add(item("SUPPLEMENT_ANSWERED", s.getId(), r.getId(), "보완 답변 검토·해소")));
+                    if (r.getStatus() == RequestStatus.SUBMITTED && awaitsFinal(r, field))
+                        items.add(item("FINAL_CONFIRMATION", r.getId(), r.getId(), "제출본 최종 확인·서류 확정"));
                 }
             }
-        } else {
-            for (var a : assignmentService.listMine(principal)) {
-                SecurityRequest r = securityRequestRepository
-                        .findById(a.securityRequestId())
-                        .orElse(null);
-                if (r == null || r.isTerminal()) continue;
-                addPreparation(items, principal, r);
-                if (r.getStage() == 2
-                        && reviewRepository
-                                .findBySecurityRequestIdAndField(r.getId(), a.field())
-                                .map(review -> review.getStatus() != ReviewStatus.COMPLETED)
-                                .orElse(false)) items.add(item("REVIEW", r.getId(), r.getId(), "담당자 협의"));
-                if (r.getStage() == 2 || r.getStage() == 3) {
-                    supplementRepository.findBySecurityRequestIdOrderByRequestedAtAscIdAsc(r.getId()).stream()
-                            .filter(s -> s.getField() == a.field() && s.getStatus() == SupplementStatus.ANSWERED)
-                            .forEach(s -> items.add(item("SUPPLEMENT_ANSWERED", s.getId(), r.getId(), "보완 답변 검토·해소")));
-                }
-                if (r.getStatus() == RequestStatus.SUBMITTED && awaitsFinal(r, a.field()))
-                    items.add(item("FINAL_CONFIRMATION", r.getId(), r.getId(), "제출본 최종 확인·서류 확정"));
-            }
+            items.forEach(consumer);
+            items.clear();
+            // 상위 쓰기 트랜잭션에 참여한 경우 미저장 변경을 분리하지 않는다.
+            if (org.springframework.transaction.support.TransactionSynchronizationManager
+                    .isCurrentTransactionReadOnly()) entities.clear();
+            after = ids.getLast();
         }
-        contributors.forEach(contributor -> items.addAll(contributor.items(principal)));
-        return items.stream()
-                .distinct()
-                .sorted(Comparator.comparing(TodoItem::securityRequestId)
-                        .reversed()
-                        .thenComparing(TodoItem::key))
-                .toList();
+        contributors.forEach(contributor -> contributor.items(principal).forEach(consumer));
     }
 
     private boolean awaitsFinal(SecurityRequest request, ReviewField field) {

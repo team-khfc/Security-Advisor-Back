@@ -14,7 +14,7 @@ public class ConsistencyCheckController {
     private final ConsistencyCheckService service;
     private final kr.securityadvisor.llm.service.ConsistencyReviewService records;
 
-    public record Selection(java.util.List<Long> fileIds) {}
+    public record Selection(java.util.List<Long> fileIds, Integer fromCharacter) {}
 
     /** 실제 업무 값은 수정하지 않고 확인할 후보만 반환한다. */
     @PostMapping("/api/security-requests/{id}/consistency-checks")
@@ -22,7 +22,11 @@ public class ConsistencyCheckController {
             @CurrentMember MemberPrincipal actor,
             @PathVariable Long id,
             @RequestBody(required = false) Selection selection) {
-        var result = service.check(actor, id, selection == null ? null : selection.fileIds());
+        var result = service.check(
+                actor,
+                id,
+                selection == null ? null : selection.fileIds(),
+                selection == null || selection.fromCharacter() == null ? 0 : selection.fromCharacter());
         records.save(actor, id, result);
         return result;
     }

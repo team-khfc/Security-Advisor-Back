@@ -40,9 +40,11 @@ public class FirewallOperationalWork implements OperationalWork, TodoContributor
 
     @Override
     public List<TodoItem> items(MemberPrincipal member) {
+        if (member.role() != MemberRole.ADMIN && member.role() != MemberRole.INFRA) return List.of();
         List<TodoItem> result = new ArrayList<>();
         LocalDate today = LocalDate.ofInstant(clock.instant(), FirewallRuleService.KOREA);
-        for (var rule : rules.findAllByOrderByIdDesc()) {
+        for (var rule : rules.findByStatusInOrderByIdDesc(
+                List.of(FirewallRuleStatus.APPLIED, FirewallRuleStatus.PENDING_APPLY))) {
             boolean active = rule.getStatus() == FirewallRuleStatus.APPLIED
                     || rule.getStatus() == FirewallRuleStatus.PENDING_APPLY;
             if (!active) continue;
@@ -72,6 +74,7 @@ public class FirewallOperationalWork implements OperationalWork, TodoContributor
     }
 
     @Override
+    @Transactional
     public void remind(LocalDate asOf, Long onlyRequestId) {
         for (var rule : rules.findAllByOrderByIdDesc()) {
             if (onlyRequestId != null && !onlyRequestId.equals(rule.getSecurityRequestId())) continue;

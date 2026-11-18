@@ -103,6 +103,22 @@ class InsightPolicyTest {
                                 event("102", start, AuditAction.SECURITY_REQUEST_CREATED),
                         event("101", end, AuditAction.REVIEW_REQUESTED),
                                 event("102", end, AuditAction.REVIEW_REQUESTED)));
+        var aggregates = mock(kr.securityadvisor.insight.repository.InsightAggregates.class);
+        when(aggregates.policies())
+                .thenReturn(List.of(
+                        new kr.securityadvisor.insight.repository.InsightAggregates.RequestPolicy(101, 11),
+                        new kr.securityadvisor.insight.repository.InsightAggregates.RequestPolicy(102, 22)));
+        when(aggregates.ai()).thenReturn(new long[] {0, 0, 0});
+        when(aggregates.stages())
+                .thenReturn(List.of(
+                        new kr.securityadvisor.insight.repository.InsightAggregates.Stage(
+                                "101", "SECURITY_REQUEST_CREATED", start),
+                        new kr.securityadvisor.insight.repository.InsightAggregates.Stage(
+                                "102", "SECURITY_REQUEST_CREATED", start),
+                        new kr.securityadvisor.insight.repository.InsightAggregates.Stage(
+                                "101", "REVIEW_REQUESTED", end),
+                        new kr.securityadvisor.insight.repository.InsightAggregates.Stage(
+                                "102", "REVIEW_REQUESTED", end)));
         var service = new InsightService(
                 requests,
                 cases,
@@ -111,7 +127,8 @@ class InsightPolicyTest {
                 audit,
                 firewall,
                 publications,
-                Clock.fixed(start, ZoneOffset.UTC));
+                Clock.fixed(start, ZoneOffset.UTC),
+                aggregates);
         var result = service.summary(new MemberPrincipal("admin", "합성 관리자", MemberRole.ADMIN));
         assertThat(result.averageBusinessDaysByStage().get("1")).isEqualTo(1.5);
         assertThat(result.completedByStage().get("1")).isEqualTo(2L);

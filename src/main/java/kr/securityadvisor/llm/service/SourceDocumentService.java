@@ -25,14 +25,14 @@ public class SourceDocumentService {
         accessPolicy.viewableCase(principal, caseId);
         UploadedFile file = files.requireFile(caseId, fileId);
         try (InputStream in = files.open(file)) {
-            String text = extractor.extract(file.extension(), in);
+            String text = extractor.extractFull(file.extension(), in);
             return new SourceDocumentResponse(
                     fileId,
                     file.getOriginalName(),
                     file.getUploadedAt(),
                     text,
-                    TextExtractor.MAX_CHARS,
-                    text.length() >= TextExtractor.MAX_CHARS);
+                    TextExtractor.FULL_MAX_CHARS,
+                    text.length() >= TextExtractor.FULL_MAX_CHARS);
         } catch (IOException e) {
             throw new BadRequestException("원문의 텍스트를 읽을 수 없습니다. 원본 파일을 내려받아 확인해 주세요");
         }

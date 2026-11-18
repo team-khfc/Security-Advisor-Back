@@ -56,9 +56,13 @@ class OperationMetricsTest {
                 "합성 알림",
                 "/requests/1");
         doThrow(new IllegalStateException("합성 실패")).when(enabled).deliver(notification);
-        var dispatcher = new ExternalNotificationDispatcher(List.of(enabled, disabled), new OperationMetrics(registry));
+        var dispatcher = new ExternalNotificationDispatcher(
+                List.of(enabled, disabled),
+                new OperationMetrics(registry),
+                mock(kr.securityadvisor.notification.repository.NotificationOutbox.class));
         assertThatCode(() -> dispatcher.dispatch(notification)).doesNotThrowAnyException();
         verify(disabled, never()).deliver(any());
+        assertThatThrownBy(() -> dispatcher.deliver("WEBHOOK", notification)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.get("securityadvisor.notification.executions")
                         .tag("outcome", "failure")
                         .timer()

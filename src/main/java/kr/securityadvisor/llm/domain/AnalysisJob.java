@@ -55,6 +55,9 @@ public class AnalysisJob extends BaseTimeEntity {
     @Column(nullable = false)
     private long revision;
 
+    @Column(nullable = false)
+    private int attempts;
+
     protected AnalysisJob() {}
 
     private AnalysisJob(Long businessCaseId, Long uploadedFileId, String requestedBy) {
@@ -77,6 +80,8 @@ public class AnalysisJob extends BaseTimeEntity {
         }
         this.status = AnalysisStatus.RUNNING;
         this.startedAt = now;
+        this.attempts++;
+        this.errorMessage = null;
     }
 
     /** 요약 완료 → 확인 필요(미확정). */
@@ -141,5 +146,18 @@ public class AnalysisJob extends BaseTimeEntity {
 
     public long getRevision() {
         return revision;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    /** 만료된 실행만 다시 대기시킨다. 이전 실행 결과는 시도 번호로 배제한다. */
+    public void recover(Instant now) {
+        if (status != AnalysisStatus.RUNNING
+                || startedAt == null
+                || startedAt.plusSeconds(900).isAfter(now)) return;
+        if (attempts >= 3) fail("분석 중단이 반복되었습니다. 자료를 확인한 뒤 다시 요청해 주세요.", now);
+        else status = AnalysisStatus.QUEUED;
     }
 }

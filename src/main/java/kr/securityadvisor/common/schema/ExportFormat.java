@@ -12,7 +12,7 @@ public enum ExportFormat {
     MARKDOWN("md", "text/markdown;charset=UTF-8"),
     PDF("pdf", "application/pdf"),
     DOCX("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-    /** 한글 문서(HWPX, KS X 6101). 1차 범위 미구현 — 형식 목록에만 둔다 */
+    /** 한글 문서(HWPX). 허용된 게시본의 기존 검토 구성으로 출력한다. */
     HWPX("hwpx", "application/hwp+zip");
 
     private final String extension;

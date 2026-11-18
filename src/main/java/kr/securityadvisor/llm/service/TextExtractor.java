@@ -30,7 +30,14 @@ public class TextExtractor {
 
     public static final int MAX_CHARS = 20_000;
 
+    public static final int FULL_MAX_CHARS = 200_000;
+
     public String extract(String extension, InputStream in) throws IOException {
+        String text = extractFull(extension, in);
+        return text.length() > MAX_CHARS ? text.substring(0, MAX_CHARS) : text;
+    }
+
+    public String extractFull(String extension, InputStream in) throws IOException {
         String text = switch (extension) {
             case "pdf" -> {
                 try (PDDocument doc = Loader.loadPDF(in.readAllBytes())) {
@@ -49,7 +56,7 @@ public class TextExtractor {
             default -> throw new IOException("텍스트를 추출할 수 없는 형식입니다: " + extension);
         };
         String normalized = text == null ? "" : text.replace("\r\n", "\n").strip();
-        return normalized.length() > MAX_CHARS ? normalized.substring(0, MAX_CHARS) : normalized;
+        return normalized.length() > FULL_MAX_CHARS ? normalized.substring(0, FULL_MAX_CHARS) : normalized;
     }
 
     private static final Pattern SECTION = Pattern.compile("Contents/section(\\d+)\\.xml");

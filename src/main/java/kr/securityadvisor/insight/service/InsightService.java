@@ -13,8 +13,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import kr.securityadvisor.audit.domain.AuditAction;
-import kr.securityadvisor.audit.domain.AuditEvent;
-import kr.securityadvisor.audit.domain.AuditTargetType;
 import kr.securityadvisor.audit.repository.AuditEventRepository;
 import kr.securityadvisor.common.calendar.BusinessCalendar;
 import kr.securityadvisor.common.schema.DeadlinePolicy;
@@ -26,7 +24,6 @@ import kr.securityadvisor.policy.dto.FirewallRuleResponse;
 import kr.securityadvisor.policy.service.FirewallRuleService;
 import kr.securityadvisor.request.domain.Deadline;
 import kr.securityadvisor.request.domain.DeadlineStatus;
-import kr.securityadvisor.request.domain.SecurityRequest;
 import kr.securityadvisor.request.repository.DeadlineRepository;
 import kr.securityadvisor.request.repository.SecurityRequestRepository;
 import kr.securityadvisor.review.domain.SupplementStatus;
@@ -71,38 +68,32 @@ public class InsightService {
     private final FirewallRuleService firewallRuleService;
     private final PublicationService publicationService;
     private final Clock clock;
+    private final kr.securityadvisor.insight.repository.InsightAggregates aggregates;
 
     public InsightSummary summary(MemberPrincipal principal) {
         principal.requireAnyRole(MemberRole.ADMIN);
-        List<SecurityRequest> requests = securityRequestRepository.findAll();
-
         Map<String, Long> byDocType = new TreeMap<>();
         Map<String, Long> byStage = new TreeMap<>();
         Map<String, Long> byStatus = new LinkedHashMap<>();
-        for (SecurityRequest r : requests) {
-            byDocType.merge(r.getDocType().code(), 1L, Long::sum);
-            byStatus.merge(r.getStatus().name(), 1L, Long::sum);
-            if (!r.isTerminal()) {
-                byStage.merge(String.valueOf(r.getStage()), 1L, Long::sum);
-            }
+        for (var row : aggregates.requests()) {
+            byDocType.merge(row.docType(), row.count(), Long::sum);
+            byStatus.merge(row.status(), row.count(), Long::sum);
+            if (!Set.of("CONFIRMED", "CLOSED", "WITHDRAWN").contains(row.status()))
+                byStage.merge(String.valueOf(row.stage()), row.count(), Long::sum);
         }
-
         Map<Long, DeadlinePolicy> byPublication = new HashMap<>();
-        Map<Long, DeadlinePolicy> byCase = new HashMap<>();
-        businessCaseRepository
-                .findAll()
-                .forEach(c -> byCase.put(
-                        c.getId(),
-                        byPublication.computeIfAbsent(
-                                c.getPublicationId(),
-                                id -> publicationService.getFieldSchema(id).deadlinePolicy())));
         Map<Long, DeadlinePolicy> requestPolicies = new HashMap<>();
         Map<String, BusinessCalendar> calendars = new HashMap<>();
-        for (SecurityRequest request : requests) {
-            DeadlinePolicy policy =
-                    java.util.Objects.requireNonNull(byCase.get(request.getBusinessCaseId()), "신청의 기준 사업 건이 없습니다");
-            requestPolicies.put(request.getId(), policy);
-            calendars.put(request.getId().toString(), new BusinessCalendar(policy.holidays()));
+        Map<Long, BusinessCalendar> calendarByPublication = new HashMap<>();
+        for (var request : aggregates.policies()) {
+            var policy = byPublication.computeIfAbsent(
+                    request.publicationId(),
+                    id -> publicationService.getFieldSchema(id).deadlinePolicy());
+            requestPolicies.put(request.requestId(), policy);
+            calendars.put(
+                    String.valueOf(request.requestId()),
+                    calendarByPublication.computeIfAbsent(
+                            request.publicationId(), id -> new BusinessCalendar(policy.holidays())));
         }
         LocalDate today = LocalDate.ofInstant(clock.instant(), KOREA);
         Map<String, Long> deadlines = new LinkedHashMap<>(Map.of("ON_TRACK", 0L, "IMMINENT", 0L, "OVERDUE", 0L));
@@ -166,12 +157,11 @@ public class InsightService {
     /** 신청별 단계 전이 시각(첫 발생)과 단계별 평균 소요 영업일. */
     private StageTimeline stageTimeline(Map<String, BusinessCalendar> calendars) {
         StageTimeline t = new StageTimeline();
-        for (AuditEvent e : auditEventRepository.findByTargetTypeAndActionInOrderByOccurredAtAscIdAsc(
-                AuditTargetType.SECURITY_REQUEST, STAGE_ACTIONS)) {
-            switch (e.getAction()) {
-                case SUPPLEMENT_REQUESTED -> t.supplemented.add(e.getTargetId());
-                case STAGE_RETURNED -> t.returned.add(e.getTargetId());
-                default -> t.firstAt(e.getAction()).putIfAbsent(e.getTargetId(), e.getOccurredAt());
+        for (var e : aggregates.stages()) {
+            switch (AuditAction.valueOf(e.action())) {
+                case SUPPLEMENT_REQUESTED -> t.supplemented.add(e.target());
+                case STAGE_RETURNED -> t.returned.add(e.target());
+                default -> t.firstAt(AuditAction.valueOf(e.action())).putIfAbsent(e.target(), e.at());
             }
         }
         record Leg(String stage, AuditAction from, AuditAction to) {}
@@ -210,27 +200,10 @@ public class InsightService {
      */
     private AiProposalStats aiProposalStats() {
         AiProposalStats stats = new AiProposalStats();
-        Set<String> open = new HashSet<>();
-        for (AuditEvent e : auditEventRepository.findByActionInOrderByOccurredAtAscIdAsc(AI_ACTIONS)) {
-            String key = e.getTargetType() + ":" + e.getTargetId() + ":" + fieldKeyOf(e.getSummary());
-            switch (e.getAction()) {
-                case ANSWER_AI_PROPOSED -> {
-                    stats.proposed++;
-                    open.add(key);
-                }
-                case ANSWER_CONFIRMED, ANSWER_STAFF_CONFIRMED -> {
-                    if (open.remove(key)) {
-                        stats.confirmedUnchanged++;
-                    }
-                }
-                case ANSWER_UPDATED, ANSWER_STAFF_INPUT -> {
-                    if (open.remove(key)) {
-                        stats.modified++;
-                    }
-                }
-                default -> {}
-            }
-        }
+        long[] counts = aggregates.ai();
+        stats.proposed = counts[0];
+        stats.confirmedUnchanged = counts[1];
+        stats.modified = counts[2];
         return stats;
     }
 

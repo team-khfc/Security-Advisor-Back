@@ -13,6 +13,9 @@ public interface FirewallRuleRepository extends JpaRepository<FirewallRule, Long
 
     List<FirewallRule> findAllByOrderByIdDesc();
 
+    List<FirewallRule> findByStatusInOrderByIdDesc(
+            java.util.Collection<kr.securityadvisor.policy.domain.FirewallRuleStatus> statuses);
+
     boolean existsBySubmissionId(Long submissionId);
 
     @Query("select r from FirewallRule r where r.securityRequestId in "

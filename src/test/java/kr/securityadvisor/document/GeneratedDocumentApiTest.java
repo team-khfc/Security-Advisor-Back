@@ -188,7 +188,7 @@ class GeneratedDocumentApiTest {
                 .hasStatusOk()
                 .bodyJson()
                 .extractingPath("$[?(@.format=='HWPX')].implemented")
-                .isEqualTo(List.of(false));
+                .isEqualTo(List.of(true));
         // F-14: 다운로드 보안 메타는 신청자에게 노출하지 않고 관리자가 확인한다.
         assertThat(mvc.get()
                         .uri("/api/security-requests/{id}/audit-events", requestId)

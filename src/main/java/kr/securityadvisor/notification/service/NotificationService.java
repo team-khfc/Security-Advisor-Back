@@ -35,16 +35,22 @@ public class NotificationService implements Notifier {
     private final kr.securityadvisor.common.observability.OperationMetrics metrics;
     private final ApplicationEventPublisher events;
     private final NotificationAudience audience;
+    private final kr.securityadvisor.notification.repository.NotificationOutbox outbox;
 
     /** 업무 커밋 전에는 알림을 저장하거나 외부로 전달하지 않는다. */
     public record PendingNotification(
             List<String> recipients, String eventKey, NotificationKind kind, String title, String link) {}
 
     @Override
+    @Transactional
     public void notify(
             Collection<String> recipients, String eventKey, NotificationKind kind, String title, String link) {
         if (recipients == null) {
             return;
+        }
+        for (String recipient : recipients) {
+            if (recipient != null && !recipient.isBlank())
+                outbox.enqueue(recipient, eventKey, "SCREEN", kind.name(), title, link, null);
         }
         events.publishEvent(new PendingNotification(
                 recipients.stream()
@@ -60,6 +66,12 @@ public class NotificationService implements Notifier {
     /** 롤백된 업무는 전달되지 않는다. 알림 실패는 이미 성공한 업무에 영향을 주지 않는다. */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void deliver(PendingNotification pending) {
+        attempt(pending);
+    }
+
+    /** 재처리에서도 같은 중복·수신권한 검사를 거친다. */
+    public boolean attempt(PendingNotification pending) {
+        boolean success = true;
         String eventKey = pending.eventKey();
         for (String recipient : pending.recipients()) {
             if (recipient == null || recipient.isBlank()) {
@@ -87,12 +99,13 @@ public class NotificationService implements Notifier {
                                     pending.title().replace("INFRA", "ICT인프라").replace("SECURITY", "정보보안"),
                                     pending.link());
                             notification.bindAudience(requestId, role.get());
-                            return repository.save(notification);
+                            Notification saved = repository.save(notification);
+                            dispatcher.dispatch(saved);
+                            return saved;
                         }));
-                if (created != null) {
-                    dispatcher.dispatch(created); // 메일·메신저는 비동기, 실패해도 화면 알림은 남는다
-                }
+
             } catch (RuntimeException e) {
+                success = false;
                 log.warn(
                         "알림 생성 실패 recipient={} eventKey={} ({})",
                         recipient,
@@ -100,6 +113,7 @@ public class NotificationService implements Notifier {
                         e.getClass().getSimpleName());
             }
         }
+        return success;
     }
 
     /** 역할 변경·계정 또는 분야 등록 비활성화가 커밋된 뒤 인계 필요 알림을 만든다. */

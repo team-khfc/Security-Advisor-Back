@@ -1608,6 +1608,36 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/PrivateContextResponse"
+  /api/operation-alerts/{id}/acknowledgements:
+    post:
+      tags:
+      - operation-history-controller
+      operationId: acknowledge
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+  /api/notification-deliveries/{id}/retries:
+    post:
+      tags:
+      - notification-recovery-controller
+      operationId: retry
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
   /api/members:
     get:
       tags:
@@ -2917,6 +2947,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/FactRecord"
+  /api/operation-history:
+    get:
+      tags:
+      - operation-history-controller
+      operationId: history_1
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/History"
   /api/notifications:
     get:
       tags:
@@ -2965,6 +3015,29 @@ paths:
                 additionalProperties:
                   type: integer
                   format: int64
+  /api/notification-deliveries:
+    get:
+      tags:
+      - notification-recovery-controller
+      operationId: list_16
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: {}
   /api/notification-channels:
     get:
       tags:
@@ -3020,7 +3093,7 @@ paths:
     get:
       tags:
       - llm-configuration-controller
-      operationId: history_1
+      operationId: history_2
       parameters:
       - name: id
         in: path
@@ -3098,7 +3171,7 @@ paths:
     get:
       tags:
       - knowledge-publication-controller
-      operationId: history_2
+      operationId: history_3
       parameters:
       - name: page
         in: query
@@ -3350,7 +3423,7 @@ paths:
     get:
       tags:
       - firewall-rule-controller
-      operationId: list_16
+      operationId: list_17
       parameters:
       - name: effectiveStatus
         in: query
@@ -5119,7 +5192,36 @@ components:
           type: boolean
         number:
           type: boolean
+        short:
+          type: boolean
+        pojo:
+          type: boolean
+        int:
+          type: boolean
+        long:
+          type: boolean
+        binary:
+          type: boolean
+        boolean:
+          type: boolean
+        double:
+          type: boolean
+        textual:
+          type: boolean
+          deprecated: true
+        string:
+          type: boolean
+        floatingPointNumber:
+          type: boolean
+        bigDecimal:
+          type: boolean
+        valueNode:
+          type: boolean
+        bigInteger:
+          type: boolean
         integralNumber:
+          type: boolean
+        missingNode:
           type: boolean
         nodeType:
           type: string
@@ -5133,35 +5235,6 @@ components:
           - OBJECT
           - POJO
           - STRING
-        valueNode:
-          type: boolean
-        floatingPointNumber:
-          type: boolean
-        bigDecimal:
-          type: boolean
-        bigInteger:
-          type: boolean
-        missingNode:
-          type: boolean
-        pojo:
-          type: boolean
-        string:
-          type: boolean
-        boolean:
-          type: boolean
-        binary:
-          type: boolean
-        int:
-          type: boolean
-        double:
-          type: boolean
-        long:
-          type: boolean
-        short:
-          type: boolean
-        textual:
-          type: boolean
-          deprecated: true
         embeddedValue:
           type: boolean
     SubmissionResponse:
@@ -5582,6 +5655,9 @@ components:
           items:
             type: integer
             format: int64
+        fromCharacter:
+          type: integer
+          format: int32
     ConsistencyCheckResponse:
       type: object
       properties:
@@ -5636,6 +5712,15 @@ components:
           type: boolean
         empty:
           type: boolean
+        fromCharacter:
+          type: integer
+          format: int32
+        toCharacter:
+          type: integer
+          format: int32
+        extractedCharacters:
+          type: integer
+          format: int32
     ConsistencyDecisionCommand:
       type: object
       properties:
@@ -7033,6 +7118,22 @@ components:
           type: object
           additionalProperties:
             type: string
+    History:
+      type: object
+      properties:
+        samples:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        alerts:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        retentionDays:
+          type: integer
+          format: int32
     PageResponseNotificationResponse:
       type: object
       properties:

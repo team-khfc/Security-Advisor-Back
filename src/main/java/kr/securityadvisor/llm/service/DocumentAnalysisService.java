@@ -52,6 +52,9 @@ public class DocumentAnalysisService {
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final Clock clock;
+    private final kr.securityadvisor.auth.service.MemberDirectory members;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
+    private final java.util.concurrent.Semaphore capacity = new java.util.concurrent.Semaphore(2);
 
     /** 접수 이벤트 — 커밋 후 비동기 처리의 트리거. */
     public record AnalysisQueued(Long analysisJobId) {}
@@ -60,6 +63,10 @@ public class DocumentAnalysisService {
     public AnalysisJobResponse request(MemberPrincipal principal, Long businessCaseId, AnalysisJobCommand command) {
         BusinessCase businessCase = accessPolicy.ownedCase(principal, businessCaseId);
         UploadedFile file = uploadedFileService.requireFile(businessCaseId, command.uploadedFileId());
+        jdbc.queryForObject("select pg_advisory_xact_lock(?)", Object.class, -file.getId());
+        var existing = repository.findFirstByBusinessCaseIdAndUploadedFileIdAndStatusInOrderByIdDesc(
+                businessCaseId, file.getId(), List.of(AnalysisStatus.QUEUED, AnalysisStatus.RUNNING));
+        if (existing.isPresent()) return AnalysisJobResponse.from(existing.get());
         AnalysisJob job = repository.save(AnalysisJob.queue(businessCase.getId(), file.getId(), principal.username()));
         auditRecorder.record(
                 principal,
@@ -77,41 +84,84 @@ public class DocumentAnalysisService {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void process(AnalysisQueued event) {
-        // 같은 빈의 @Transactional 메서드를 this 로 부르면 프록시를 타지 않아 변경이 저장되지 않는다 → TransactionTemplate 로 명시
-        transactionTemplate.executeWithoutResult(status -> run(event.analysisJobId()));
+        if (!capacity.tryAcquire()) return; // DB 대기 작업은 복구 스케줄러가 다시 가져온다.
+        try {
+            run(event.analysisJobId());
+        } finally {
+            capacity.release();
+        }
     }
 
-    /** 작업 1건 처리(호출자가 트랜잭션을 연다). */
+    /** 짧은 트랜잭션으로 실행권을 얻고 외부 AI 호출은 트랜잭션 밖에서 수행한다. */
     void run(Long jobId) {
-        AnalysisJob job = repository.findById(jobId).orElse(null);
-        if (job == null || job.getStatus() != AnalysisStatus.QUEUED) {
-            return;
-        }
-        job.start(clock.instant());
+        AnalysisJob claimed = transactionTemplate.execute(status -> {
+            var job = repository.lockById(jobId).orElse(null);
+            if (job == null || job.getStatus() != AnalysisStatus.QUEUED) return null;
+            if (!members.isActiveWithRole(
+                    job.getRequestedBy(), kr.securityadvisor.common.security.MemberRole.APPLICANT)) {
+                job.fail("요청자 권한이 변경되어 분석을 중단했습니다.", clock.instant());
+                return null;
+            }
+            job.start(clock.instant());
+            return job;
+        });
+        if (claimed == null) return;
+        LlmResult result = null;
+        boolean truncated = false;
         try {
-            UploadedFile file = uploadedFileService.requireFile(job.getBusinessCaseId(), job.getUploadedFileId());
+            UploadedFile file =
+                    uploadedFileService.requireFile(claimed.getBusinessCaseId(), claimed.getUploadedFileId());
             String text;
             try (InputStream in = uploadedFileService.open(file)) {
-                text = textExtractor.extract(file.extension(), in);
+                text = textExtractor.extractFull(file.extension(), in);
+                truncated = text.length() > TextExtractor.MAX_CHARS;
+                if (truncated) text = text.substring(0, TextExtractor.MAX_CHARS);
             }
-            if (text.isBlank()) {
-                job.fail("문서에서 텍스트를 추출하지 못했습니다(스캔 이미지 PDF 등)", clock.instant());
-                record(job, AuditAction.ANALYSIS_FAILED, "텍스트 없음");
-                return;
-            }
-            LlmResult result = llmGateway.complete(
+            if (text.isBlank()) throw new IllegalArgumentException("empty document");
+            result = llmGateway.complete(
                     LlmPurpose.SUMMARY,
                     LlmPrompt.of(SYSTEM, List.of(), List.of(), "문서 파일명: " + file.getOriginalName() + "\n\n" + text),
-                    new LlmCallContext(null, AuditTargetType.BUSINESS_CASE, String.valueOf(job.getBusinessCaseId())));
-            job.finish(result.text(), result.modelReference(), clock.instant());
-            record(job, AuditAction.ANALYSIS_FINISHED, result.modelReference());
+                    new LlmCallContext(
+                            null, AuditTargetType.BUSINESS_CASE, String.valueOf(claimed.getBusinessCaseId())));
         } catch (Exception e) {
             log.warn("문서 분석 실패 작업 {} ({})", jobId, e.getClass().getSimpleName());
-            job.fail(
-                    e.getClass().getSimpleName() + ": " + (e.getMessage() == null ? "" : e.getMessage()),
-                    clock.instant());
-            record(job, AuditAction.ANALYSIS_FAILED, e.getClass().getSimpleName());
         }
+        final LlmResult completed = result;
+        final boolean partial = truncated;
+        transactionTemplate.executeWithoutResult(status -> {
+            var job = repository.lockById(jobId).orElseThrow();
+            if (job.getStatus() != AnalysisStatus.RUNNING || job.getAttempts() != claimed.getAttempts()) return;
+            if (!members.isActiveWithRole(
+                    job.getRequestedBy(), kr.securityadvisor.common.security.MemberRole.APPLICANT)) {
+                job.fail("요청자 권한이 변경되어 결과를 저장하지 않았습니다.", clock.instant());
+            } else if (completed == null) {
+                job.fail("문서 분석에 실패했습니다. 원문을 확인하거나 다시 요청해 주세요.", clock.instant());
+            } else {
+                job.finish(
+                        (partial ? "[앞 20,000자 요약 · 전체 문서는 원문 확인과 구간별 검사 필요]\n" : "") + completed.text(),
+                        completed.modelReference(),
+                        clock.instant());
+            }
+            record(
+                    job,
+                    job.getStatus() == AnalysisStatus.NEEDS_REVIEW
+                            ? AuditAction.ANALYSIS_FINISHED
+                            : AuditAction.ANALYSIS_FAILED,
+                    job.getStatus().name());
+        });
+    }
+
+    /** 재시작으로 놓친 대기 작업과 15분 이상 중단된 실행을 복구한다. */
+    public List<Long> recoverable() {
+        return transactionTemplate.execute(status -> {
+            var now = clock.instant();
+            repository
+                    .findTop20ByStatusAndStartedAtBeforeOrderByIdAsc(AnalysisStatus.RUNNING, now.minusSeconds(900))
+                    .forEach(candidate -> repository.lockById(candidate.getId()).ifPresent(job -> job.recover(now)));
+            return repository.findTop20ByStatusOrderByIdAsc(AnalysisStatus.QUEUED).stream()
+                    .map(AnalysisJob::getId)
+                    .toList();
+        });
     }
 
     @Transactional(readOnly = true)

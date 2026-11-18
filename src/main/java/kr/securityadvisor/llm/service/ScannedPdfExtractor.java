@@ -80,7 +80,7 @@ final class ScannedPdfExtractor {
             }
             hasContent |= !text.isBlank();
             out.append("[원본 ").append(page + 1).append("쪽]\n").append(text).append('\n');
-            if (out.length() > TextExtractor.MAX_CHARS) break;
+            if (out.length() > TextExtractor.FULL_MAX_CHARS) break;
         }
         return hasContent ? out.toString() : "";
     }

@@ -29,8 +29,13 @@ class PreparationTodoTest {
         when(request.getId()).thenReturn(1L);
         when(request.getStage()).thenReturn(3);
         when(request.isUnsubmitted()).thenReturn(true);
+        var candidates = mock(TodoCandidates.class);
+        when(candidates.after(owner, 0)).thenReturn(List.of(1L));
+        when(requests.findById(1L)).thenReturn(Optional.of(request));
         var service = new TodoService(
                 mock(AssignmentService.class),
+                candidates,
+                mock(jakarta.persistence.EntityManager.class),
                 List.of(),
                 mock(ReviewRepository.class),
                 mock(SupplementRepository.class),

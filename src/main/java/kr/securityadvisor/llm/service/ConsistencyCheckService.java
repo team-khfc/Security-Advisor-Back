@@ -52,7 +52,37 @@ public class ConsistencyCheckService {
     }
 
     public ConsistencyCheckResponse check(MemberPrincipal actor, Long id, List<Long> fileIds) {
-        Input input = input(actor, id, fileIds, true);
+        return check(actor, id, fileIds, 0);
+    }
+
+    public ConsistencyCheckResponse check(MemberPrincipal actor, Long id, List<Long> fileIds, int fromCharacter) {
+        if (fromCharacter < 0 || fromCharacter >= TextExtractor.FULL_MAX_CHARS)
+            throw new BadRequestException("검사 시작 위치가 올바르지 않습니다");
+        Input full = input(actor, id, fileIds, true);
+        Map<Long, String> segments = new TreeMap<>();
+        List<Source> coverage = new ArrayList<>();
+        for (var source : full.sources()) {
+            String text = full.texts().get(source.fileId());
+            if (fromCharacter > text.length()) throw new BadRequestException("문서 범위를 벗어난 검사 요청입니다");
+            int end = Math.min(text.length(), fromCharacter + TextExtractor.MAX_CHARS);
+            segments.put(source.fileId(), text.substring(fromCharacter, end));
+            coverage.add(new Source(
+                    source.fileId(),
+                    source.name(),
+                    source.truncated(),
+                    source.empty(),
+                    fromCharacter,
+                    end,
+                    text.length()));
+        }
+        Input input = new Input(
+                full.fingerprint(),
+                full.prompt(),
+                full.answers(),
+                full.labels(),
+                segments,
+                coverage,
+                full.totalFiles());
         if (input.answers().isEmpty()) throw new DomainRuleViolationException("저장된 답변이 없습니다. 답변을 저장한 뒤 검사해 주세요.");
         if (input.texts().values().stream().allMatch(String::isBlank))
             throw new DomainRuleViolationException("비교할 첨부 원문 텍스트가 없습니다. 문서를 첨부하거나 원본을 직접 확인해 주세요.");
@@ -87,6 +117,29 @@ public class ConsistencyCheckService {
         }
         if (!input.fingerprint().equals(input(actor, id, fileIds, false).fingerprint()))
             throw new ConflictException("검사 중 답변이나 첨부 자료가 변경됐습니다. 최신 내용으로 다시 검사해 주세요.");
+        findings = findings.stream()
+                .map(f -> {
+                    String fullText = full.texts().get(f.fileId());
+                    int offset = fullText.indexOf(f.quote(), fromCharacter);
+                    int line = 1
+                            + (int) fullText.substring(0, offset)
+                                    .chars()
+                                    .filter(c -> c == '\n')
+                                    .count();
+                    var pages =
+                            java.util.regex.Pattern.compile("\\[원본 (\\d+)쪽\\]").matcher(fullText.substring(0, offset));
+                    String page = "";
+                    while (pages.find()) page = " · 원본 " + pages.group(1) + "쪽";
+                    return new Finding(
+                            f.fieldKey(),
+                            f.label(),
+                            f.answer(),
+                            f.confirmed(),
+                            f.fileId(),
+                            f.quote(),
+                            f.explanation() + " [추출문 " + line + "행" + page + "]");
+                })
+                .toList();
         return new ConsistencyCheckResponse(
                 input.fingerprint(),
                 Instant.now(),
